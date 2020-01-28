@@ -25,5 +25,12 @@ This is how you can use it:
   python generate_change guake
 
 
+Note: You can also generate a good basic changelog using::
+
+  git log --after=2018-01-28 --pretty=oneline \
+    --format='%w(1000)**%h**%n* %cd %an <%ae>%n%w(60,0,2)- %s%n' \
+    --date="format:%a %b %d %Y"
+
+
 
 License: CC0

@@ -63,6 +63,10 @@ def main(args):
             if build.startswith(nv):
                 n_builds += 1
 
+    if not last_build:
+        print("No build found")
+        return
+
     print(f"Last build: {last_build}")
     last_build = last_build.rsplit(f".{args.dist}", 1)[0]
     rel = last_build.rsplit("-", 1)[-1]

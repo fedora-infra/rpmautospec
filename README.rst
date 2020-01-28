@@ -17,3 +17,7 @@ This is how you can use it:
 ::
 
   python generate_change guake
+
+
+
+License: CC0

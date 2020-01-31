@@ -19,14 +19,10 @@ def run_command(command, cwd=None):
     """
     output = None
     try:
-        output = subprocess.check_output(
-            command, cwd=cwd, stderr=subprocess.PIPE
-        )
+        output = subprocess.check_output(command, cwd=cwd, stderr=subprocess.PIPE)
     except subprocess.CalledProcessError as e:
         _log.error(
-            "Command `{}` return code: `{}`".format(
-                " ".join(command), e.returncode
-            )
+            "Command `{}` return code: `{}`".format(" ".join(command), e.returncode)
         )
         _log.error("stdout:\n-------\n{}".format(e.stdout))
         _log.error("stderr:\n-------\n{}".format(e.stderr))
@@ -58,19 +54,30 @@ def main(args):
 
         repo_obj.checkout_tree(
             commit,
-            strategy=pygit2.GIT_CHECKOUT_FORCE | pygit2.GIT_CHECKOUT_RECREATE_MISSING)
+            strategy=pygit2.GIT_CHECKOUT_FORCE | pygit2.GIT_CHECKOUT_RECREATE_MISSING,
+        )
         if os.path.exists(os.path.join(args[0], f"{name}.spec")):
             try:
-                output = run_command([
-                    "rpm", "--qf", '%{name}  %{version}  %{release}\n',
-                    "--specfile", f"{name}.spec",
-                ], cwd=args[0])
+                output = run_command(
+                    [
+                        "rpm",
+                        "--qf",
+                        "%{name}  %{version}  %{release}\n",
+                        "--specfile",
+                        f"{name}.spec",
+                    ],
+                    cwd=args[0],
+                )
             except Exception:
                 continue
             output = tuple(
-                output.decode('utf-8').strip().split('\n')[0].rsplit('.', 1)[0].split('  ')
+                output.decode("utf-8")
+                .strip()
+                .split("\n")[0]
+                .rsplit(".", 1)[0]
+                .split("  ")
             )
-            nvr = '-'.join(output)
+            nvr = "-".join(output)
 
             if commit.parents:
                 diff = repo_obj.diff(commit.parents[0], commit)
@@ -82,7 +89,7 @@ def main(args):
                 files_changed = [d.new_file.path for d in diff.deltas]
                 ignore = True
                 for filename in files_changed:
-                    if filename.endswith(('.spec', '.patch')):
+                    if filename.endswith((".spec", ".patch")):
                         ignore = False
                 if not ignore:
                     data[output].append(commit)
@@ -96,16 +103,19 @@ def main(args):
             last_commit = idx + 1 == len(data[nvr])
             commit_dt = datetime.datetime.utcfromtimestamp(commit.commit_time)
             wrapper = textwrap.TextWrapper(width=75, subsequent_indent="  ")
-            message = wrapper.fill(commit.message.split('\n')[0].strip('- '))
+            message = wrapper.fill(commit.message.split("\n")[0].strip("- "))
 
             if last_commit:
-                print(f"* {commit_dt.strftime('%a %b %d %Y')} {commit.author.name} <{commit.author.email}> - {nvr[1]}-{nvr[2]}")
+                print(
+                    f"* {commit_dt.strftime('%a %b %d %Y')} {commit.author.name} <{commit.author.email}> - {nvr[1]}-{nvr[2]}"
+                )
             else:
-                print(f"* {commit_dt.strftime('%a %b %d %Y')} {commit.author.name} <{commit.author.email}>")
+                print(
+                    f"* {commit_dt.strftime('%a %b %d %Y')} {commit.author.name} <{commit.author.email}>"
+                )
             print("- %s" % message)
             print()
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(sys.argv[1:])

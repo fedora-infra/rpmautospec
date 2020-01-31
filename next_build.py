@@ -15,14 +15,10 @@ def run_command(command, cwd=None):
     """
     output = None
     try:
-        output = subprocess.check_output(
-            command, cwd=cwd, stderr=subprocess.PIPE
-        )
+        output = subprocess.check_output(command, cwd=cwd, stderr=subprocess.PIPE)
     except subprocess.CalledProcessError as e:
         _log.error(
-            "Command `{}` return code: `{}`".format(
-                " ".join(command), e.returncode
-            )
+            "Command `{}` return code: `{}`".format(" ".join(command), e.returncode)
         )
         _log.error("stdout:\n-------\n{}".format(e.stdout))
         _log.error("stderr:\n-------\n{}".format(e.stderr))
@@ -49,9 +45,7 @@ def main(args):
 
     cmd = f"koji list-builds --package={args.package} --state=COMPLETE -r --quiet"
     rows = run_command(cmd.split()).decode("utf-8")
-    builds = [
-        row.strip().split()[0] for row in rows.split("\n") if row.strip()
-    ]
+    builds = [row.strip().split()[0] for row in rows.split("\n") if row.strip()]
     n_builds = 1
     last_build = None
     nv = None

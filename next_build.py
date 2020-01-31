@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import re
 import subprocess
 import sys
 
@@ -39,6 +40,22 @@ def get_cli_arguments(self):
     return parser.parse_args()
 
 
+_release_re = re.compile(r"(?P<pkgrel>\d+)(?:(?P<middle>.*\.)(?P<minorbump>\d+))?")
+
+
+def parse_release_tag(tag):
+    pkgrel = middle = minorbump = None
+    match = _release_re.match(tag)
+    if match:
+        pkgrel = int(match.group("pkgrel"))
+        middle = match.group("middle")
+        try:
+            minorbump = int(match.group("minorbump"))
+        except TypeError:
+            pass
+    return pkgrel, middle, minorbump
+
+
 def main(args):
     """ Main method. """
     args = get_cli_arguments(args)
@@ -64,10 +81,10 @@ def main(args):
     print(f"Last build: {last_build}")
     last_build = last_build.rsplit(f".{args.dist}", 1)[0]
     rel = last_build.rsplit("-", 1)[-1]
+    pkgrel, middle, minorbump = parse_release_tag(rel)
     try:
-        rel = int(rel)
-        n_builds = max([rel + 1, n_builds])
-    except Exception:
+        n_builds = max([pkgrel + 1, n_builds])
+    except TypeError:
         pass
     print(f"Next build: {nv}-{n_builds}.{args.dist}")
 

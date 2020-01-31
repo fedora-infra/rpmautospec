@@ -28,7 +28,7 @@ def run_command(command, cwd=None):
     return output
 
 
-def get_cli_arguments(self):
+def get_cli_arguments(args):
     """ Set the CLI argument parser and return the argument parsed.
     """
     parser = argparse.ArgumentParser(
@@ -37,7 +37,7 @@ def get_cli_arguments(self):
     parser.add_argument("package", help="The name of the package of interest")
     parser.add_argument("dist", help="The dist-tag of interest")
 
-    return parser.parse_args()
+    return parser.parse_args(args)
 
 
 _release_re = re.compile(r"(?P<pkgrel>\d+)(?:(?P<middle>.*\.)(?P<minorbump>\d+))?")

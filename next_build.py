@@ -3,29 +3,12 @@
 import argparse
 import logging
 import re
-import subprocess
 import sys
+
+import koji
 
 
 _log = logging.getLogger(__name__)
-
-
-def run_command(command, cwd=None):
-    """ Run the specified command in a specific working directory if one
-    is specified.
-    """
-    output = None
-    try:
-        output = subprocess.check_output(command, cwd=cwd, stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError as e:
-        _log.error(
-            "Command `{}` return code: `{}`".format(" ".join(command), e.returncode)
-        )
-        _log.error("stdout:\n-------\n{}".format(e.stdout))
-        _log.error("stderr:\n-------\n{}".format(e.stderr))
-        raise Exception("Command failed to run")
-
-    return output
 
 
 def get_cli_arguments(args):
@@ -33,6 +16,11 @@ def get_cli_arguments(args):
     """
     parser = argparse.ArgumentParser(
         description="Script to determine the next NVR of a build"
+    )
+    parser.add_argument(
+        "--koji-url",
+        help="The base URL of the Koji hub",
+        default="https://koji.fedoraproject.org/kojihub",
     )
     parser.add_argument("package", help="The name of the package of interest")
     parser.add_argument("dist", help="The dist-tag of interest")
@@ -59,35 +47,37 @@ def parse_release_tag(tag):
 def main(args):
     """ Main method. """
     args = get_cli_arguments(args)
+    client = koji.ClientSession(args.koji_url)
 
-    cmd = f"koji list-builds --package={args.package} --state=COMPLETE -r --quiet"
-    rows = run_command(cmd.split()).decode("utf-8")
-    builds = [row.strip().split()[0] for row in rows.split("\n") if row.strip()]
+    pkgid = client.getPackageID(args.package)
+    if not pkgid:
+        print(f"Package {args.package!r} not found!", file=sys.stderr)
+        return 1
+
     n_builds = 1
-    last_build = None
-    nv = None
-    for build in builds:
-        if args.dist in build:
+    last_build = last_version = None
+    for build in client.listBuilds(pkgid, type="rpm", queryOpts={"order": "-nvr"}):
+        if args.dist in build["release"]:
             if n_builds == 1:
                 last_build = build
-                nv = last_build.rsplit("-", 1)[0]
-            if build.startswith(nv):
+                last_version = build["version"]
+            if build["version"] == last_version:
                 n_builds += 1
 
     if not last_build:
         print("No build found")
         return
 
-    print(f"Last build: {last_build}")
-    last_build = last_build.rsplit(f".{args.dist}", 1)[0]
-    rel = last_build.rsplit("-", 1)[-1]
-    pkgrel, middle, minorbump = parse_release_tag(rel)
+    print(f"Last build: {last_build['nvr']}")
+    pkgrel, middle, minorbump = parse_release_tag(last_build["release"])
     try:
         n_builds = max([pkgrel + 1, n_builds])
     except TypeError:
         pass
-    print(f"Next build: {nv}-{n_builds}.{args.dist}")
+    print(
+        f"Next build: {last_build['name']}-{last_build['version']}-{n_builds}.{args.dist}"
+    )
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    sys.exit(main(sys.argv[1:]))

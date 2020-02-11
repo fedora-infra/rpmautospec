@@ -22,6 +22,13 @@ def get_cli_arguments(args):
         help="The base URL of the Koji hub",
         default="https://koji.fedoraproject.org/kojihub",
     )
+    parser.add_argument(
+        "--algorithm",
+        "--algo",
+        help="The algorithm with which to determine the next release",
+        choices=["sequential_builds", "holistic_heuristic"],
+        default="sequential_builds",
+    )
     parser.add_argument("package", help="The name of the package of interest")
     parser.add_argument("dist", help="The dist-tag of interest")
 
@@ -44,16 +51,7 @@ def parse_release_tag(tag):
     return pkgrel, middle, minorbump
 
 
-def main(args):
-    """ Main method. """
-    args = get_cli_arguments(args)
-    client = koji.ClientSession(args.koji_url)
-
-    pkgid = client.getPackageID(args.package)
-    if not pkgid:
-        print(f"Package {args.package!r} not found!", file=sys.stderr)
-        return 1
-
+def main_sequential_builds_algo(args, client, pkgid):
     n_builds = 1
     last_build = last_version = None
     for build in client.listBuilds(pkgid, type="rpm", queryOpts={"order": "-nvr"}):
@@ -77,6 +75,26 @@ def main(args):
     print(
         f"Next build: {last_build['name']}-{last_build['version']}-{n_builds}.{args.dist}"
     )
+
+
+def main_holistic_heuristic_algo(args, client, pkgid):
+    raise NotImplementedError()
+
+
+def main(args):
+    """ Main method. """
+    args = get_cli_arguments(args)
+    client = koji.ClientSession(args.koji_url)
+    pkgid = client.getPackageID(args.package)
+
+    if not pkgid:
+        print(f"Package {args.package!r} not found!", file=sys.stderr)
+        return 1
+
+    if args.algorithm == "sequential_builds":
+        main_sequential_builds_algo(args, client, pkgid)
+    elif args.algorithm == "holistic_heuristic":
+        main_holistic_heuristic_algo(args, client, pkgid)
 
 
 if __name__ == "__main__":

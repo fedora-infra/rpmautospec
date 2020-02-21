@@ -2,8 +2,8 @@
 
 import argparse
 from collections import defaultdict
-from itertools import chain
 from functools import cmp_to_key
+from itertools import chain
 import logging
 import re
 import sys

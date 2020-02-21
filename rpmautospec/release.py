@@ -20,29 +20,27 @@ _disttag_re = re.compile(r"^\.?(?P<distcode>[^\d\.]+)(?P<distver>\d+)")
 _evr_re = re.compile(r"^(?:(?P<epoch>\d+):)?(?P<version>[^-:]+)(?:-(?P<release>[^-:]+))?$")
 
 
-def get_cli_arguments(args):
-    """ Set the CLI argument parser and return the argument parsed.
-    """
-    parser = argparse.ArgumentParser(description="Script to determine the next NVR of a build")
-    parser.add_argument(
-        "--koji-url",
-        help="The base URL of the Koji hub",
-        default="https://koji.fedoraproject.org/kojihub",
+def register_subcommand(subparsers):
+    subcmd_name = "calculate-release"
+
+    calc_release_parser = subparsers.add_parser(
+        subcmd_name, help="Calculate the next release tag for a package build",
     )
-    parser.add_argument(
+
+    calc_release_parser.add_argument(
         "--algorithm",
         "--algo",
-        help="The algorithm with which to determine the next release",
+        help="The algorithm with which to calculate the next release",
         choices=["sequential_builds", "holistic_heuristic"],
         default="sequential_builds",
     )
-    parser.add_argument("package", help="The name of the package of interest")
-    parser.add_argument("dist", help="The dist-tag of interest")
-    parser.add_argument(
+    calc_release_parser.add_argument("package", help="The name of the package of interest")
+    calc_release_parser.add_argument("dist", help="The dist-tag of interest")
+    calc_release_parser.add_argument(
         "evr", help="The [epoch:]version[-release] of the package", nargs="?", type=parse_evr,
     )
 
-    return parser.parse_args(args)
+    return subcmd_name
 
 
 def parse_evr(evr_str):
@@ -255,7 +253,6 @@ def main_holistic_heuristic_algo(args, client, pkgid):
 
 def main(args):
     """ Main method. """
-    args = get_cli_arguments(args)
     client = koji.ClientSession(args.koji_url)
     pkgid = client.getPackageID(args.package)
 
@@ -267,7 +264,3 @@ def main(args):
         main_sequential_builds_algo(args, client, pkgid)
     elif args.algorithm == "holistic_heuristic":
         main_holistic_heuristic_algo(args, client, pkgid)
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))

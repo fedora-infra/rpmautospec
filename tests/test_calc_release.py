@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-import next_build
+from rpmautospec import release
 
 
 __here__ = os.path.dirname(__file__)
@@ -42,13 +42,19 @@ class TestNextBuild:
         ) as f:
             koji_list_builds_output = json.load(f)
 
-        with mock.patch("next_build.koji") as mock_koji:
+        with mock.patch("rpmautospec.release.koji") as mock_koji:
             mock_client = mock.MagicMock()
             mock_koji.ClientSession.return_value = mock_client
             mock_client.getPackageID.return_value = 1234
             mock_client.listBuilds.return_value = koji_list_builds_output
 
-            next_build.main((test_data["package"], test_data["dist"]))
+            main_args = mock.Mock()
+            main_args.algorithm = "sequential_builds"
+            main_args.package = test_data["package"]
+            main_args.dist = test_data["dist"]
+            main_args.evr = None
+
+            release.main(main_args)
 
         mock_client.getPackageID.assert_called_once()
         mock_client.listBuilds.assert_called_once()

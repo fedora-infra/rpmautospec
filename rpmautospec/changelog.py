@@ -13,6 +13,18 @@ import pygit2
 _log = logging.getLogger(__name__)
 
 
+def register_subcommand(subparsers):
+    subcmd_name = "generate-changelog"
+
+    gen_changelog_parser = subparsers.add_parser(
+        subcmd_name, help="Generate changelog entries from git commit logs",
+    )
+
+    gen_changelog_parser.add_argument("worktree_path", help="Path to the dist-git worktree")
+
+    return subcmd_name
+
+
 def run_command(command, cwd=None):
     """ Run the specified command in a specific working directory if one
     is specified.
@@ -31,8 +43,10 @@ def run_command(command, cwd=None):
 
 def main(args):
     """ Main method. """
-    repo_obj = pygit2.Repository(args[0])
-    name = os.path.basename(args[0])
+    repopath = args.worktree_path
+
+    repo_obj = pygit2.Repository(repopath)
+    name = os.path.basename(repopath)
 
     branch = repo_obj.lookup_branch(repo_obj.head.shorthand)
     commit = branch.peel(pygit2.Commit)
@@ -53,7 +67,7 @@ def main(args):
         repo_obj.checkout_tree(
             commit, strategy=pygit2.GIT_CHECKOUT_FORCE | pygit2.GIT_CHECKOUT_RECREATE_MISSING,
         )
-        if os.path.exists(os.path.join(args[0], f"{name}.spec")):
+        if os.path.exists(os.path.join(repopath, f"{name}.spec")):
             try:
                 output = run_command(
                     [
@@ -63,7 +77,7 @@ def main(args):
                         "--specfile",
                         f"{name}.spec",
                     ],
-                    cwd=args[0],
+                    cwd=repopath,
                 )
             except Exception:
                 continue
@@ -108,7 +122,3 @@ def main(args):
                 )
             print("- %s" % message)
             print()
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])

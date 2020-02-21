@@ -14,16 +14,8 @@ test_data = [
         "package": "gimp",
         "expected_results": [
             # 5 existing builds -> 6
-            {
-                "dist": "fc32",
-                "last": "gimp-2.10.14-4.fc32.1",
-                "next": "gimp-2.10.14-6.fc32",
-            },
-            {
-                "dist": "fc31",
-                "last": "gimp-2.10.14-3.fc31",
-                "next": "gimp-2.10.14-4.fc31",
-            },
+            {"dist": "fc32", "last": "gimp-2.10.14-4.fc32.1", "next": "gimp-2.10.14-6.fc32",},
+            {"dist": "fc31", "last": "gimp-2.10.14-3.fc31", "next": "gimp-2.10.14-4.fc31",},
         ],
     },
 ]
@@ -45,9 +37,7 @@ class TestNextBuild:
     @pytest.mark.parametrize("test_data", data_as_test_parameters(test_data))
     def test_main(self, test_data, capsys):
         with open(
-            os.path.join(
-                __here__, "koji-output", "list-builds", test_data["package"] + ".json"
-            ),
+            os.path.join(__here__, "koji-output", "list-builds", test_data["package"] + ".json"),
             "rb",
         ) as f:
             koji_list_builds_output = json.load(f)
@@ -63,9 +53,7 @@ class TestNextBuild:
         mock_client.getPackageID.assert_called_once()
         mock_client.listBuilds.assert_called_once()
 
-        expected_output = (
-            f"Last build: {test_data['last']}\n" f"Next build: {test_data['next']}\n"
-        )
+        expected_output = f"Last build: {test_data['last']}\n" f"Next build: {test_data['next']}\n"
         captured_output = capsys.readouterr()
 
         assert captured_output.out == expected_output

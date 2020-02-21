@@ -21,9 +21,7 @@ def run_command(command, cwd=None):
     try:
         output = subprocess.check_output(command, cwd=cwd, stderr=subprocess.PIPE)
     except subprocess.CalledProcessError as e:
-        _log.error(
-            "Command `{}` return code: `{}`".format(" ".join(command), e.returncode)
-        )
+        _log.error("Command `{}` return code: `{}`".format(" ".join(command), e.returncode))
         _log.error("stdout:\n-------\n{}".format(e.stdout))
         _log.error("stderr:\n-------\n{}".format(e.stderr))
         raise Exception("Command failed to run")
@@ -53,8 +51,7 @@ def main(args):
             break
 
         repo_obj.checkout_tree(
-            commit,
-            strategy=pygit2.GIT_CHECKOUT_FORCE | pygit2.GIT_CHECKOUT_RECREATE_MISSING,
+            commit, strategy=pygit2.GIT_CHECKOUT_FORCE | pygit2.GIT_CHECKOUT_RECREATE_MISSING,
         )
         if os.path.exists(os.path.join(args[0], f"{name}.spec")):
             try:
@@ -71,11 +68,7 @@ def main(args):
             except Exception:
                 continue
             output = tuple(
-                output.decode("utf-8")
-                .strip()
-                .split("\n")[0]
-                .rsplit(".", 1)[0]
-                .split("  ")
+                output.decode("utf-8").strip().split("\n")[0].rsplit(".", 1)[0].split("  ")
             )
             nvr = "-".join(output)
 

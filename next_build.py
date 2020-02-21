@@ -23,9 +23,7 @@ _evr_re = re.compile(r"^(?:(?P<epoch>\d+):)?(?P<version>[^-:]+)(?:-(?P<release>[
 def get_cli_arguments(args):
     """ Set the CLI argument parser and return the argument parsed.
     """
-    parser = argparse.ArgumentParser(
-        description="Script to determine the next NVR of a build"
-    )
+    parser = argparse.ArgumentParser(description="Script to determine the next NVR of a build")
     parser.add_argument(
         "--koji-url",
         help="The base URL of the Koji hub",
@@ -41,10 +39,7 @@ def get_cli_arguments(args):
     parser.add_argument("package", help="The name of the package of interest")
     parser.add_argument("dist", help="The dist-tag of interest")
     parser.add_argument(
-        "evr",
-        help="The [epoch:]version[-release] of the package",
-        nargs="?",
-        type=parse_evr,
+        "evr", help="The [epoch:]version[-release] of the package", nargs="?", type=parse_evr,
     )
 
     return parser.parse_args(args)
@@ -56,10 +51,10 @@ def parse_evr(evr_str):
     if not match:
         raise ValueError(str)
 
-    epoch = match.group('epoch') or 0
+    epoch = match.group("epoch") or 0
     epoch = int(epoch)
 
-    return epoch, match.group('version'), match.group('release')
+    return epoch, match.group("version"), match.group("release")
 
 
 def parse_release_tag(tag):
@@ -96,21 +91,19 @@ def main_sequential_builds_algo(args, client, pkgid):
         n_builds = max([pkgrel + 1, n_builds])
     except TypeError:
         pass
-    print(
-        f"Next build: {last_build['name']}-{last_build['version']}-{n_builds}.{args.dist}"
+    print(f"Next build: {last_build['name']}-{last_build['version']}-{n_builds}.{args.dist}")
+
+
+_rpmvercmp_key = cmp_to_key(
+    lambda b1, b2: rpm.labelCompare(
+        (str(b1["epoch"]), b1["version"], b1["release"]),
+        (str(b2["epoch"]), b2["version"], b2["release"]),
     )
-
-
-_rpmvercmp_key = cmp_to_key(lambda b1, b2: rpm.labelCompare(
-    (str(b1["epoch"]), b1["version"], b1["release"]),
-    (str(b2["epoch"]), b2["version"], b2["release"]),
-))
+)
 
 
 def holistic_heuristic_calculate_release(
-    args: argparse.Namespace,
-    lower_bound: dict,
-    higher_bound: typing.Optional[dict],
+    args: argparse.Namespace, lower_bound: dict, higher_bound: typing.Optional[dict],
 ):
     dist = args.dist
 
@@ -119,29 +112,29 @@ def holistic_heuristic_calculate_release(
         epoch, version, release = args.evr
     except TypeError:
         epoch, version, release = (
-            lower_bound['epoch'],
-            lower_bound['version'],
-            lower_bound['release'],
+            lower_bound["epoch"],
+            lower_bound["version"],
+            lower_bound["release"],
         )
 
-    new_evr = {'epoch': epoch, 'version': version, 'release': release}
+    new_evr = {"epoch": epoch, "version": version, "release": release}
     if _rpmvercmp_key(new_evr) > _rpmvercmp_key(lower_bound):
         lower_bound = new_evr
         if not release:
-            lower_bound['release'] = f"1.{dist}"
+            lower_bound["release"] = f"1.{dist}"
 
-    lpkgrel, _, lminorbump = parse_release_tag(lower_bound['release'])
+    lpkgrel, _, lminorbump = parse_release_tag(lower_bound["release"])
 
     # If the higher bound has the same version, bump its release to give it enough wiggle-room for
     # parallel builds of the (almost) same EVRs against several Fedora versions.
-    if higher_bound and higher_bound['version'] == version:
+    if higher_bound and higher_bound["version"] == version:
         higher_bound = higher_bound.copy()
-        hbpkgrel, hbmiddle, _ = parse_release_tag(higher_bound['release'])
-        higher_bound['release'] = f"{hbpkgrel + 1}{hbmiddle}"
+        hbpkgrel, hbmiddle, _ = parse_release_tag(higher_bound["release"])
+        higher_bound["release"] = f"{hbpkgrel + 1}{hbmiddle}"
 
     # Bump the left-most release number and check that it doesn't violate the higher bound, if it
     # exists.
-    new_evr['release'] = f"{lpkgrel + 1}.{dist}"
+    new_evr["release"] = f"{lpkgrel + 1}.{dist}"
 
     if not higher_bound or _rpmvercmp_key(new_evr) < _rpmvercmp_key(higher_bound):
         # No (satisfiable) higher bound exists or it has a higher epoch-version-release.
@@ -152,19 +145,19 @@ def holistic_heuristic_calculate_release(
     else:
         nminorbump = 1
 
-    new_evr['release'] = rel_bak = f"{lpkgrel}.{dist}.{nminorbump}"
+    new_evr["release"] = rel_bak = f"{lpkgrel}.{dist}.{nminorbump}"
 
     if _rpmvercmp_key(new_evr) < _rpmvercmp_key(higher_bound):
         return new_evr
 
     # Oops. Attempt appending '.1' to the minor bump, ...
-    new_evr['release'] += ".1"
+    new_evr["release"] += ".1"
 
     if _rpmvercmp_key(new_evr) < _rpmvercmp_key(higher_bound):
         return new_evr
 
     # ... otherwise don't bother.
-    new_evr['release'] = rel_bak
+    new_evr["release"] = rel_bak
     return new_evr
 
 
@@ -183,22 +176,20 @@ def main_holistic_heuristic_algo(args, client, pkgid):
     dtag_re = re.compile(fr"\.{distcode}(?P<distver>\d+)")
 
     builds = [
-        build
-        for build in client.listBuilds(pkgid, type="rpm")
-        if dtag_re.search(build['release'])
+        build for build in client.listBuilds(pkgid, type="rpm") if dtag_re.search(build["release"])
     ]
 
     # builds by distro release
     builds_per_distver = defaultdict(list)
 
     for build in client.listBuilds(pkgid, type="rpm"):
-        match = dtag_re.search(build['release'])
+        match = dtag_re.search(build["release"])
 
         if not match:
             # ignore builds for other distro types (e.g. Fedora vs. EPEL), or modular builds
             continue
 
-        distver = int(match.group('distver'))
+        distver = int(match.group("distver"))
         builds_per_distver[distver].append(build)
 
     if not builds_per_distver:
@@ -221,7 +212,7 @@ def main_holistic_heuristic_algo(args, client, pkgid):
 
     # Lower bound: the RPM-wise "highest" build which this release has to exceed.
     lower_bound = lower_bound_builds[0]
-    lower_bound_nvr = lower_bound['nvr']
+    lower_bound_nvr = lower_bound["nvr"]
 
     # All builds that should be 'higher' than what we are targetting, i.e. the highest build of each
     # newer release. We aim at a new release which is lower than every one of them, but if this
@@ -230,7 +221,7 @@ def main_holistic_heuristic_algo(args, client, pkgid):
         (builds[0] for dver, builds in builds_per_distver.items() if dver > pkgdistver),
         key=_rpmvercmp_key,
     )
-    higher_bound_builds_nvr = [b['nvr'] for b in higher_bound_builds]
+    higher_bound_builds_nvr = [b["nvr"] for b in higher_bound_builds]
 
     print(f"Highest build of lower or current distro versions: {lower_bound_nvr}")
     print(f"Highest builds of higher distro versions: {', '.join(higher_bound_builds_nvr)}")
@@ -247,14 +238,14 @@ def main_holistic_heuristic_algo(args, client, pkgid):
     if satisfiable_higher_bound_builds:
         # Find the higher bound which we can stay below.
         higher_bound = satisfiable_higher_bound_builds[0]
-        higher_bound_nvr = higher_bound['nvr']
+        higher_bound_nvr = higher_bound["nvr"]
     else:
         higher_bound = higher_bound_nvr = None
 
     print(f"Lowest satisfiable higher build in higher distro version: {higher_bound_nvr}")
 
     new_evr = holistic_heuristic_calculate_release(args, lower_bound, higher_bound)
-    if new_evr['epoch']:
+    if new_evr["epoch"]:
         new_evr_str = f"{new_evr['epoch']}:{new_evr['version']}-{new_evr['release']}"
     else:
         new_evr_str = f"{new_evr['version']}-{new_evr['release']}"

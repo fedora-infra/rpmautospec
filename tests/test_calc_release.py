@@ -42,7 +42,7 @@ class TestNextBuild:
         ) as f:
             koji_list_builds_output = json.load(f)
 
-        with mock.patch("rpmautospec.release.koji") as mock_koji:
+        with mock.patch("rpmautospec.misc.koji") as mock_koji:
             mock_client = mock.MagicMock()
             mock_koji.ClientSession.return_value = mock_client
             mock_client.getPackageID.return_value = 1234

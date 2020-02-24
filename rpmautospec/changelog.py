@@ -5,7 +5,6 @@ import datetime
 import logging
 import os
 import subprocess
-import sys
 import textwrap
 
 import pygit2
@@ -50,9 +49,6 @@ def main(args):
 
     branch = repo_obj.lookup_branch(repo_obj.head.shorthand)
     commit = branch.peel(pygit2.Commit)
-    nvr = None
-    new_nvr = None
-    changed = False
     data = collections.defaultdict(list)
     for commit in repo_obj.walk(commit.hex, pygit2.GIT_SORT_TIME):
         if len(commit.parents) > 1:

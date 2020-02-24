@@ -100,10 +100,9 @@ def main(args):
             print("No more spec file, bailing")
             break
 
-    for nvr in data:
-        commits = data[nvr].reverse()
-        for idx, commit in enumerate(data[nvr]):
-            last_commit = idx + 1 == len(data[nvr])
+    for nvr, commits in data.items():
+        for idx, commit in enumerate(reversed(commits)):
+            last_commit = idx + 1 == len(commits)
             commit_dt = datetime.datetime.utcfromtimestamp(commit.commit_time)
             wrapper = textwrap.TextWrapper(width=75, subsequent_indent="  ")
             message = wrapper.fill(commit.message.split("\n")[0].strip("- "))

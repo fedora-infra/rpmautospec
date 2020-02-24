@@ -109,11 +109,13 @@ def main(args):
 
             if last_commit:
                 print(
-                    f"* {commit_dt.strftime('%a %b %d %Y')} {commit.author.name} <{commit.author.email}> - {nvr[1]}-{nvr[2]}"
+                    f"* {commit_dt.strftime('%a %b %d %Y')} {commit.author.name}"
+                    f" <{commit.author.email}> - {nvr[1]}-{nvr[2]}"
                 )
             else:
                 print(
-                    f"* {commit_dt.strftime('%a %b %d %Y')} {commit.author.name} <{commit.author.email}>"
+                    f"* {commit_dt.strftime('%a %b %d %Y')} {commit.author.name}"
+                    f" <{commit.author.email}>"
                 )
             print("- %s" % message)
             print()

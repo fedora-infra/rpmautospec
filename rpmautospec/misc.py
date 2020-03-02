@@ -48,9 +48,10 @@ def parse_release_tag(tag: str) -> Tuple[Optional[int], Optional[str], Optional[
 def koji_init(koji_url: str):
     global _kojiclient
     _kojiclient = koji.ClientSession(koji_url)
+    return _kojiclient
 
 
-def get_package_builds(pkgname: str) -> List[dict]:
+def get_package_builds(pkgname: str, extras: bool = False) -> List[dict]:
     assert _kojiclient
 
     pkgid = _kojiclient.getPackageID(pkgname)

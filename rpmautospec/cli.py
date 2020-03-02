@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from . import changelog, release
+from . import changelog, release, tag_package
 
 
 subcmd_modules_by_name = {}
@@ -24,7 +24,7 @@ def get_cli_args(args):
 
     subparsers = parser.add_subparsers(dest="subcommand", required=True)
 
-    for subcmd_module in (changelog, release):
+    for subcmd_module in (changelog, release, tag_package):
         subcmd_name = subcmd_module.register_subcommand(subparsers)
 
         if subcmd_name in subcmd_modules_by_name:

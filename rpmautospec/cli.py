@@ -10,7 +10,9 @@ subcmd_modules_by_name = {}
 def get_cli_args(args):
     global subcmd_modules_by_name
 
-    parser = argparse.ArgumentParser(prog="rpmautospec")
+    parser = argparse.ArgumentParser(
+        prog="rpmautospec", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
 
     # global arguments
 

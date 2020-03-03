@@ -2,17 +2,98 @@
 
 import logging
 import os
+import re
 import subprocess
+from urllib import parse
 
 from .misc import get_package_builds, koji_init
 
 
 _log = logging.getLogger(__name__)
-escape_chars = {
-    "^": "%5E",
-    "%": "%25",
-    "~": "%7E",
-}
+
+# See https://git-scm.com/docs/git-check-ref-format
+git_tag_seqs_to_escape = [
+    "~",
+    "/",
+    re.compile(r"^\."),
+    re.compile(r"(\.)lock$"),
+    re.compile(r"\.\.+"),
+    re.compile(r"\.$"),
+    # This is a no-op, original "{" get quoted anyway.
+    # re.compile(r"(@)\{"),
+    re.compile(r"^@$"),
+]
+
+tag_prefix = "build/"
+
+
+def escape_sequence(str_seq: str) -> str:
+    """Compute a byte-escaped sequence for a string"""
+    return "".join(f"%{byte:02X}" for byte in str_seq.encode("utf-8"))
+
+
+def escape_regex_match(match: re.Match) -> str:
+    """Escape whole or partial re.Match objects
+
+    match: The match object covering the sequence that should be
+        escaped (as a whole or partially). The regular expression may
+        not contain nested groups.
+    """
+    # The whole match
+    escaped = match.group()
+
+    # Spans count from the start of the string, not the match.
+    offset = match.start()
+
+    if match.lastindex:
+        # Work from the end in case string length changes.
+        idx_range = range(match.lastindex, 0, -1)
+    else:
+        # If match.lastindex is None, then operate on the whole match.
+        idx_range = (0,)
+
+    for idx in idx_range:
+        start, end = (x - offset for x in match.span(idx))
+        escaped = escaped[:start] + escape_sequence(match.group(idx)) + escaped[end:]
+
+    return escaped
+
+
+def escape_tag(tagname: str) -> str:
+    """Escape prohibited character sequences in git tag names
+
+    tagname: An unescaped tag name.
+
+    Returns: An escaped tag name which can be converted back using
+        unescape_tag().
+    """
+    # Leave '+' as is, some version schemes may contain it.
+    escaped = parse.quote(tagname, safe="+")
+
+    # This will quote the string in a way that urllib.parse.unquote() can undo it, i.e. only replace
+    # characters by the URL escape sequence of their UTF-8 encoded value.
+    for seq in git_tag_seqs_to_escape:
+        if isinstance(seq, str):
+            escaped = escaped.replace(seq, escape_sequence(seq))
+        elif isinstance(seq, re.Pattern):
+            escaped = seq.sub(escape_regex_match, escaped)
+        else:
+            raise TypeError("Don't know how to deal with escape sequence: {seq!r}")
+
+    return escaped
+
+
+def unescape_tag(escaped_tagname: str) -> str:
+    """Unescape prohibited characters sequences in git tag names
+
+    This essentially just exists for symmetry with escape_tag() and just
+    wraps urllib.parse.unquote().
+
+    escaped_tagname: A tag name that was escaped with escape_tag().
+
+    Returns: An unescaped tag name.
+    """
+    return parse.unquote(escaped_tagname)
 
 
 def register_subcommand(subparsers):
@@ -54,10 +135,7 @@ def main(args):
 
     name = os.path.basename(repopath)
     for build in get_package_builds(name):
-        if build.get("epoch"):
-            nevr = f"{build['name']}-{build['epoch']}:{build['version']}-{build['release']}"
-        else:
-            nevr = f"{build['name']}-{build['version']}-{build['release']}"
+        nevr = f"{build['name']}-{build.get('epoch') or 0}-{build['version']}-{build['release']}"
         commit = None
         if "source" in build and build["source"]:
             com = build["source"].partition("#")[-1]
@@ -87,13 +165,11 @@ def main(args):
                         pass
 
         if commit:
-            # Escape un-allowed characters
-            for char in escape_chars:
-                nevr = nevr.replace(char, escape_chars[char])
-            command = ["git", "tag", nevr, commit]
+            tag = tag_prefix + escape_tag(nevr)
+            command = ["git", "tag", tag, commit]
             try:
                 run_command(command, cwd=repopath)
             except RuntimeError as err:
                 print(err)
             else:
-                print(f"tagged commit {commit} as {nevr}")
+                print(f"tagged commit {commit} as {tag}")

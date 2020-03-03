@@ -16,7 +16,7 @@ escape_chars = {
 
 
 def register_subcommand(subparsers):
-    subcmd_name = "tag-project"
+    subcmd_name = "tag-package"
 
     tag_project_parser = subparsers.add_parser(
         subcmd_name, help="Tag the git commits corresponding to a build in koji",

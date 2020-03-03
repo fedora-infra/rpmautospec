@@ -63,6 +63,23 @@ E.g.:
   python rpmautospec.py --algorithm holistic_heuristic gimp fc30
 
 
+Tagging Dist-Git Repositories with Build NEVRs
+----------------------------------------------
+
+To tag a dist-git repository with <name>-[<epoch>:]<version>-<release> for existing builds, run the
+script like this:
+
+::
+
+  python rpmautospec.py tag-project <path-to-project-repository>
+
+E.g.:
+
+::
+
+  python rpmautospec.py tag-project /home/fedora-packages/python-arrow
+
+
 ---
 
 License: CC0

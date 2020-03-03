@@ -14,8 +14,8 @@ test_data = [
         "package": "gimp",
         "expected_results": [
             # 5 existing builds -> 6
-            {"dist": "fc32", "last": "gimp-2.10.14-4.fc32.1", "next": "gimp-2.10.14-6.fc32",},
-            {"dist": "fc31", "last": "gimp-2.10.14-3.fc31", "next": "gimp-2.10.14-4.fc31",},
+            {"dist": "fc32", "last": "gimp-2.10.14-4.fc32.1", "next": "gimp-2.10.14-6.fc32"},
+            {"dist": "fc31", "last": "gimp-2.10.14-3.fc31", "next": "gimp-2.10.14-4.fc31"},
         ],
     },
 ]

@@ -148,7 +148,15 @@ def main(args):
 
         if commit is None:
             tasks = kojiclient.getTaskChildren(build["task_id"])
-            task = [t for t in tasks if t["method"] == "buildSRPMFromSCM"][0]
+            try:
+                task = [t for t in tasks if t["method"] == "buildSRPMFromSCM"][0]
+            except IndexError:
+                _log.info(
+                    "Ignoring build without buildSRPMFromSCM task, or any task at all, "
+                    f"probably an old dist-cvs build: {nevr} (build id: {build['build_id']})"
+                )
+                continue
+
             task_req = kojiclient.getTaskRequest(task["id"])
             if "fedoraproject.org" in task_req[0]:
                 com = task_req[0].partition("#")[-1]

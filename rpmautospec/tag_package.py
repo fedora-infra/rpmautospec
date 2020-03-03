@@ -131,7 +131,7 @@ def main(args):
     """ Main method. """
     kojiclient = koji_init(args.koji_url)
 
-    repopath = args.worktree_path
+    repopath = args.worktree_path.rstrip(os.path.sep)
 
     name = os.path.basename(repopath)
     for build in get_package_builds(name):

@@ -33,7 +33,9 @@ def data_as_test_parameters(test_data):
     return parameters
 
 
-class TestNextBuild:
+class TestRelease:
+    """Test the rpmautospec.release module"""
+
     @pytest.mark.parametrize("test_data", data_as_test_parameters(test_data))
     def test_main(self, test_data, capsys):
         with open(

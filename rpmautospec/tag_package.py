@@ -136,6 +136,13 @@ def main(args):
     name = os.path.basename(repopath)
     for build in get_package_builds(name):
         nevr = f"{build['name']}-{build.get('epoch') or 0}-{build['version']}-{build['release']}"
+
+        owner_name = build["owner_name"]
+        # Ignore modular builds, account for staging
+        if owner_name.startswith("mbs/") and owner_name.endswith(".fedoraproject.org"):
+            _log.info(f"Ignoring modular build: {nevr}")
+            continue
+
         commit = None
         if "source" in build and build["source"]:
             com = build["source"].partition("#")[-1]

@@ -150,7 +150,7 @@ def main(args):
                 int(com, 16)
                 commit = com
             except ValueError:
-                # The hash isn't an hexadecimal number so, skipping it
+                # The hash isn't a hexadecimal number, skip it
                 pass
 
         if commit is None:
@@ -168,7 +168,7 @@ def main(args):
             if "fedoraproject.org" in task_req[0]:
                 com = task_req[0].partition("#")[-1]
                 # git commit hashes are 40 characters long, so we will
-                # assume if the part after the '#' in 40 characters long it
+                # assume if the part after the '#' is 40 characters long it
                 # is a commit hash and not a 40 characters long branch or
                 # tag name
                 if len(com) == 40:
@@ -176,7 +176,7 @@ def main(args):
                         int(com, 16)
                         commit = com
                     except ValueError:
-                        # The hash isn't an hexadecimal number so, skipping it
+                        # The hash isn't a hexadecimal number, skip it
                         pass
 
         if commit:

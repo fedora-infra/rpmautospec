@@ -144,14 +144,21 @@ def main(args):
             continue
 
         commit = None
-        if "source" in build and build["source"]:
+        # FIXME: We probably shouldn't hardcode "fedoraproject.org" here and below, rather use a
+        # configurable full host name.
+        if "source" in build and build["source"] and "fedoraproject.org" in build["source"]:
             com = build["source"].partition("#")[-1]
-            try:
-                int(com, 16)
-                commit = com
-            except ValueError:
-                # The hash isn't a hexadecimal number, skip it
-                pass
+            # git commit hashes are 40 characters long, so we will
+            # assume if the part after the '#' is 40 characters long it
+            # is a commit hash and not a 40 characters long branch or
+            # tag name
+            if len(com) == 40:
+                try:
+                    int(com, 16)
+                    commit = com
+                except ValueError:
+                    # The hash isn't a hexadecimal number, skip it
+                    pass
 
         if commit is None:
             tasks = kojiclient.getTaskChildren(build["task_id"])

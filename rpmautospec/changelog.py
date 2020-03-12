@@ -1,10 +1,11 @@
 #!/usr/bin/python3
-
 import collections
 import datetime
 import logging
 import os
+import shutil
 import subprocess
+import tempfile
 import textwrap
 
 import pygit2
@@ -40,65 +41,66 @@ def run_command(command, cwd=None):
     return output
 
 
-def main(args):
-    """ Main method. """
-    repopath = args.worktree_path
-
-    repo_obj = pygit2.Repository(repopath)
+def produce_changelog(repopath):
     name = os.path.basename(repopath)
+    with tempfile.TemporaryDirectory() as workdir:
+        repocopy = f"{workdir}/{name}"
+        shutil.copytree(repopath, repocopy)
+        lines = []
+        repo_obj = pygit2.Repository(repocopy)
 
-    branch = repo_obj.lookup_branch(repo_obj.head.shorthand)
-    commit = branch.peel(pygit2.Commit)
-    data = collections.defaultdict(list)
-    for commit in repo_obj.walk(commit.hex, pygit2.GIT_SORT_TIME):
-        if len(commit.parents) > 1:
-            # Ignore merge commits
-            continue
-
-        commit_dt = datetime.datetime.utcfromtimestamp(commit.commit_time)
-        if commit_dt < (datetime.datetime.utcnow() - datetime.timedelta(days=730)):
-            # Ignore all commits older than 2 years
-            break
-
-        repo_obj.checkout_tree(
-            commit, strategy=pygit2.GIT_CHECKOUT_FORCE | pygit2.GIT_CHECKOUT_RECREATE_MISSING,
-        )
-        if os.path.exists(os.path.join(repopath, f"{name}.spec")):
-            try:
-                output = run_command(
-                    [
-                        "rpm",
-                        "--qf",
-                        "%{name}  %{version}  %{release}\n",
-                        "--specfile",
-                        f"{name}.spec",
-                    ],
-                    cwd=repopath,
-                )
-            except Exception:
+        branch = repo_obj.lookup_branch(repo_obj.head.shorthand)
+        commit = branch.peel(pygit2.Commit)
+        data = collections.defaultdict(list)
+        for commit in repo_obj.walk(commit.hex, pygit2.GIT_SORT_TIME):
+            if len(commit.parents) > 1:
+                # Ignore merge commits
                 continue
-            output = tuple(
-                output.decode("utf-8").strip().split("\n")[0].rsplit(".", 1)[0].split("  ")
+
+            commit_dt = datetime.datetime.utcfromtimestamp(commit.commit_time)
+            if commit_dt < (datetime.datetime.utcnow() - datetime.timedelta(days=730)):
+                # Ignore all commits older than 2 years
+                break
+
+            repo_obj.checkout_tree(
+                commit, strategy=pygit2.GIT_CHECKOUT_FORCE | pygit2.GIT_CHECKOUT_RECREATE_MISSING,
             )
-            nvr = "-".join(output)
+            if os.path.exists(os.path.join(repocopy, f"{name}.spec")):
+                try:
+                    output = run_command(
+                        [
+                            "rpm",
+                            "--qf",
+                            "%{name}  %{version}  %{release}\n",
+                            "--specfile",
+                            f"{name}.spec",
+                        ],
+                        cwd=repocopy,
+                    )
+                except Exception:
+                    continue
+                output = tuple(
+                    output.decode("utf-8").strip().split("\n")[0].rsplit(".", 1)[0].split("  "),
+                )
+                nvr = "-".join(output)
 
-            if commit.parents:
-                diff = repo_obj.diff(commit.parents[0], commit)
+                if commit.parents:
+                    diff = repo_obj.diff(commit.parents[0], commit)
+                else:
+                    # First commit in the repo
+                    diff = commit.tree.diff_to_tree(swap=True)
+
+                if diff.stats.files_changed:
+                    files_changed = [d.new_file.path for d in diff.deltas]
+                    ignore = True
+                    for filename in files_changed:
+                        if filename.endswith((".spec", ".patch")):
+                            ignore = False
+                    if not ignore:
+                        data[output].append(commit)
             else:
-                # First commit in the repo
-                diff = commit.tree.diff_to_tree(swap=True)
-
-            if diff.stats.files_changed:
-                files_changed = [d.new_file.path for d in diff.deltas]
-                ignore = True
-                for filename in files_changed:
-                    if filename.endswith((".spec", ".patch")):
-                        ignore = False
-                if not ignore:
-                    data[output].append(commit)
-        else:
-            print("No more spec file, bailing")
-            break
+                print("No more spec file, bailing")
+                break
 
     for nvr, commits in data.items():
         for idx, commit in enumerate(reversed(commits)):
@@ -108,14 +110,23 @@ def main(args):
             message = wrapper.fill(commit.message.split("\n")[0].strip("- "))
 
             if last_commit:
-                print(
+                lines += [
                     f"* {commit_dt.strftime('%a %b %d %Y')} {commit.author.name}"
-                    f" <{commit.author.email}> - {nvr[1]}-{nvr[2]}"
-                )
+                    f" <{commit.author.email}> - {nvr[1]}-{nvr[2]}",
+                ]
             else:
-                print(
+                lines += [
                     f"* {commit_dt.strftime('%a %b %d %Y')} {commit.author.name}"
-                    f" <{commit.author.email}>"
-                )
-            print("- %s" % message)
-            print()
+                    f" <{commit.author.email}>",
+                ]
+            lines += ["- %s" % message]
+            lines += [""]
+    return lines
+
+
+def main(args):
+    """ Main method. """
+
+    repopath = args.worktree_path
+    changelog = produce_changelog(repopath)
+    print("\n".join(changelog))

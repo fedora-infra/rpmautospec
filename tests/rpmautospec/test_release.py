@@ -62,6 +62,7 @@ class TestRelease:
             main_args.package = test_data["package"]
             main_args.dist = test_data["dist"]
             main_args.evr = None
+            main_args.koji_url = "http://192.0.2.1"
 
             release.main(main_args)
 

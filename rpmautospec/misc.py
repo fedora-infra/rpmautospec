@@ -1,6 +1,9 @@
-from functools import cmp_to_key
 import re
-from typing import List, Optional, Tuple
+from functools import cmp_to_key
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import koji
 import rpm
@@ -14,7 +17,7 @@ rpmvercmp_key = cmp_to_key(
     lambda b1, b2: rpm.labelCompare(
         (str(b1["epoch"]), b1["version"], b1["release"]),
         (str(b2["epoch"]), b2["version"], b2["release"]),
-    )
+    ),
 )
 
 _kojiclient = None
@@ -45,9 +48,12 @@ def parse_release_tag(tag: str) -> Tuple[Optional[int], Optional[str], Optional[
     return pkgrel, middle, minorbump
 
 
-def koji_init(koji_url: str):
+def koji_init(koji_url_or_session: Union[str, koji.ClientSession]) -> koji.ClientSession:
     global _kojiclient
-    _kojiclient = koji.ClientSession(koji_url)
+    if isinstance(koji_url_or_session, str):
+        _kojiclient = koji.ClientSession(koji_url_or_session)
+    else:
+        _kojiclient = koji_url_or_session
     return _kojiclient
 
 

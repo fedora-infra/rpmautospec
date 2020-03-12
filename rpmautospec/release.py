@@ -1,6 +1,4 @@
 #!/usr/bin/python3
-
-import argparse
 from collections import defaultdict
 from itertools import chain
 import logging
@@ -8,9 +6,14 @@ import re
 import sys
 import typing
 
-from .misc import disttag_re, get_package_builds, koji_init, parse_evr, parse_release_tag
-from .misc import rpmvercmp_key
-
+from .misc import (
+    disttag_re,
+    get_package_builds,
+    koji_init,
+    parse_evr,
+    parse_release_tag,
+    rpmvercmp_key,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -63,13 +66,12 @@ def main_sequential_builds_algo(args):
 
 
 def holistic_heuristic_calculate_release(
-    args: argparse.Namespace, lower_bound: dict, higher_bound: typing.Optional[dict],
+    dist, evr, lower_bound: dict, higher_bound: typing.Optional[dict],
 ):
-    dist = args.dist
 
     # So what package EVR are we going for again? Default to "same as lower bound".
     try:
-        epoch, version, release = args.evr
+        epoch, version, release = evr
     except TypeError:
         epoch, version, release = (
             lower_bound["epoch"],
@@ -121,12 +123,11 @@ def holistic_heuristic_calculate_release(
     return new_evr
 
 
-def main_holistic_heuristic_algo(args):
-    match = disttag_re.match(args.dist)
+def holistic_heuristic_algo(package, dist, evr):
+    match = disttag_re.match(dist)
     if not match:
         print(
-            f"Dist tag {args.dist!r} has wrong format (should be e.g. 'fc31', 'epel7')",
-            file=sys.stderr,
+            f"Dist tag {dist!r} has wrong format (should be e.g. 'fc31', 'epel7')", file=sys.stderr,
         )
         sys.exit(1)
 
@@ -135,9 +136,7 @@ def main_holistic_heuristic_algo(args):
 
     dtag_re = re.compile(fr"\.{distcode}(?P<distver>\d+)")
 
-    builds = [
-        build for build in get_package_builds(args.package) if dtag_re.search(build["release"])
-    ]
+    builds = [build for build in get_package_builds(package) if dtag_re.search(build["release"])]
 
     # builds by distro release
     builds_per_distver = defaultdict(list)
@@ -204,13 +203,15 @@ def main_holistic_heuristic_algo(args):
 
     print(f"Lowest satisfiable higher build in higher distro version: {higher_bound_nvr}")
 
-    new_evr = holistic_heuristic_calculate_release(args, lower_bound, higher_bound)
+    new_evr = holistic_heuristic_calculate_release(dist, evr, lower_bound, higher_bound)
     if new_evr["epoch"]:
         new_evr_str = f"{new_evr['epoch']}:{new_evr['version']}-{new_evr['release']}"
     else:
         new_evr_str = f"{new_evr['version']}-{new_evr['release']}"
 
     print(f"Calculated new release, EVR: {new_evr['release']}, {new_evr_str}")
+
+    return new_evr["release"]
 
 
 def main(args):
@@ -220,4 +221,4 @@ def main(args):
     if args.algorithm == "sequential_builds":
         main_sequential_builds_algo(args)
     elif args.algorithm == "holistic_heuristic":
-        main_holistic_heuristic_algo(args)
+        holistic_heuristic_algo(args.package, args.dist, args.evr)

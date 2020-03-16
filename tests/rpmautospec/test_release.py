@@ -39,7 +39,14 @@ class TestRelease:
     @pytest.mark.parametrize("test_data", data_as_test_parameters(test_data))
     def test_main(self, test_data, capsys):
         with open(
-            os.path.join(__here__, "koji-output", "list-builds", test_data["package"] + ".json"),
+            os.path.join(
+                __here__,
+                os.path.pardir,
+                "test-data",
+                "koji-output",
+                "list-builds",
+                test_data["package"] + ".json",
+            ),
             "rb",
         ) as f:
             koji_list_builds_output = json.load(f)

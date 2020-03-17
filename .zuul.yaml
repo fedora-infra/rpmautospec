@@ -1,4 +1,13 @@
+- job:
+    name: pre-commit
+    run: ci/pre-commit.yaml
+    nodeset: fedora-31-vm
+- job:
+    name: pytest
+    run: ci/pytest.yaml
+    nodeset: fedora-31-vm
 - project:
     check:
       jobs:
-        - noop
+        - pre-commit
+        - pytest

@@ -368,4 +368,3 @@ cp -p uuid %{buildroot}%{_datadir}/%{name}
 
 * Thu Jan 09 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0-1
 - Initial import post review
-

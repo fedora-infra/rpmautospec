@@ -1,6 +1,8 @@
 from glob import glob
 import os
 import re
+import shutil
+import tempfile
 
 
 from koji.plugin import callback
@@ -15,6 +17,8 @@ autorel_template = """%global function autorel() {{
 """
 
 autorel_re = re.compile(r"^\s*(?i:Release)\s*:\s+%(?:autorel(?:\s|$)|\{autorel[^\}]*\})")
+changelog_re = re.compile(r"^%changelog(?:\s.*)?$", re.IGNORECASE)
+autochangelog_re = re.compile(r"^\s*%(?:autochangelog|\{autochangelog\})\s*$")
 
 
 def is_autorel(line):
@@ -37,28 +41,52 @@ def autospec_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwargs):
 
     dist = build_tag["tag_name"]
     name = os.path.basename(srcdir)
-    autospec = False
-    autorel = False
     new_rel = get_autorel(name, dist, session)
-    specfiles = glob(f"{srcdir}/*.spec")
-    if len(specfiles) != 1:
+    specfile_names = glob(f"{srcdir}/*.spec")
+    if len(specfile_names) != 1:
         # callback should be run only in if there is a single spec-file
         return
 
-    with open(specfiles[0], "r") as specfile:
-        content = specfile.read()
-        # we remove trailing lines
-        lines = content.rstrip().splitlines(keepends=False)
-        autorel = any(is_autorel(l) for l in lines)
+    specfile_name = specfile_names[0]
 
-        if lines[-1] == "%{autochangelog}":
-            autospec = True
+    has_autorel = False
+    changelog_lineno = None
+    has_autochangelog = None
 
-    if autorel:
-        lines.insert(0, autorel_template.format(autorel=new_rel))
-    if autospec:
-        del lines[-1]
-        lines += produce_changelog(srcdir)
-    if autorel or autospec:
-        with open(f"{srcdir}/{name}.spec", "w") as specfile:
-            specfile.writelines(l + "\n" for l in lines)
+    # Detect if %autorel, %autochangelog are in use
+    with open(specfile_name, "r") as specfile:
+        # Process line by line to cope with large files
+        for lineno, line in enumerate(iter(specfile), start=1):
+            line = line.rstrip("\n")
+
+            if not has_autorel and is_autorel(line):
+                has_autorel = True
+
+            if changelog_lineno is None:
+                if changelog_re.match(line):
+                    changelog_lineno = lineno
+            elif has_autochangelog is None:
+                if autochangelog_re.match(line):
+                    has_autochangelog = True
+                elif line.strip():
+                    # Anything else than %autochangelog after %changelog -> hands off
+                    has_autochangelog = False
+
+    if has_autorel or has_autochangelog:
+        with open(specfile_name, "r") as specfile, tempfile.NamedTemporaryFile("w") as tmp_specfile:
+            # Process the spec file into a temporary file...
+            if has_autorel:
+                # Write %autorel macro header
+                print(autorel_template.format(autorel=new_rel), file=tmp_specfile)
+
+            for lineno, line in enumerate(specfile, start=1):
+                if has_autochangelog and lineno > changelog_lineno:
+                    break
+
+                print(line, file=tmp_specfile, end="")
+
+            if has_autochangelog:
+                print("\n".join(produce_changelog(srcdir)), file=tmp_specfile)
+
+            # ...and copy it back (potentially across device boundaries)
+            shutil.copy2(tmp_specfile.name, specfile_name)

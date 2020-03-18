@@ -1,4 +1,6 @@
 import os
+import re
+
 from glob import glob
 
 from koji.plugin import callback
@@ -7,14 +9,16 @@ from rpmautospec.changelog import produce_changelog
 from rpmautospec.misc import koji_init
 from rpmautospec.release import holistic_heuristic_algo
 
-template = """%global function autorel() {{
+autorel_template = """%global function autorel() {{
     return {autorel}
 }}
 """
 
+autorel_re = re.compile(r"^\s*(?i:Release)\s*:\s+%(?:autorel(?:\s|$)|\{autorel[^\}]*\})")
 
-def is_autorel(l):
-    return "Release:" in l and "%{autorel}" in l
+
+def is_autorel(line):
+    return autorel_re.match(line)
 
 
 def get_autorel(name, dist, session):
@@ -42,14 +46,16 @@ def autospec_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwargs):
         return
 
     with open(specfiles[0], "r") as specfile:
-        lines = [l.rstrip("\n") for l in specfile]
+        content = specfile.read()
+        # we remove trailing lines
+        lines = content.rstrip().splitlines(keepends=False)
         autorel = any(is_autorel(l) for l in lines)
 
-        if lines[-1] == "%{autochangelog}" and lines[-2] == "%changelog":
+        if lines[-1] == "%{autochangelog}":
             autospec = True
 
     if autorel:
-        lines.insert(0, template.format(autorel=new_rel))
+        lines.insert(0, autorel_template.format(autorel=new_rel))
     if autospec:
         del lines[-1]
         lines += produce_changelog(srcdir)

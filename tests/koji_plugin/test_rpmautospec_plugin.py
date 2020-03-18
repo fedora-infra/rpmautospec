@@ -4,7 +4,7 @@ import tarfile
 import tempfile
 from unittest.mock import MagicMock
 
-from koji_plugin.rpmautospec_plugin import autospec_cb
+from koji_plugin.rpmautospec_plugin import autospec_cb, is_autorel
 
 
 __here__ = os.path.dirname(__file__)
@@ -28,6 +28,16 @@ data_build_tag = {"id": "dsttag", "tag_id": "fc32", "tag_name": "fc32"}
 
 class TestRpmautospecPlugin:
     """Test the koji_plugin.rpmautospec_plugin module"""
+
+    def test_is_autorel(self):
+        assert is_autorel("Release: %{autorel}")
+        assert is_autorel("Release: %autorel")
+        assert is_autorel("release: %{autorel}")
+        assert is_autorel(" release :  %{autorel}")
+        assert is_autorel("Release: %{autorel_special}")
+
+        assert not is_autorel("NotRelease: %{autorel}")
+        assert not is_autorel("release: 1%{?dist}")
 
     def test_autospec_cb(self):
         """Test the autospec_cb() function"""

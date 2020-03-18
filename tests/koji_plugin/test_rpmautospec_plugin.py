@@ -38,7 +38,7 @@ class TestRpmautospecPlugin:
                     os.path.pardir,
                     "test-data",
                     "repodata",
-                    "dummy-test-package-gloster_git.tar.gz"
+                    "dummy-test-package-gloster_git.tar.gz",
                 )
             ) as tar:
                 tar.extractall(path=workdir)

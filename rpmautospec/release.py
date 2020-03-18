@@ -66,7 +66,8 @@ def main_sequential_builds_algo(args):
 
 
 def holistic_heuristic_calculate_release(
-    dist, evr, lower_bound: dict, higher_bound: typing.Optional[dict],
+    dist: str, evr: typing.Tuple[int, str, str],
+    lower_bound: dict, higher_bound: typing.Optional[dict],
 ):
 
     # So what package EVR are we going for again? Default to "same as lower bound".
@@ -123,7 +124,7 @@ def holistic_heuristic_calculate_release(
     return new_evr
 
 
-def holistic_heuristic_algo(package, dist, evr):
+def holistic_heuristic_algo(package: str, dist: str, evr: typing.Tuple[int, str, str]):
     match = disttag_re.match(dist)
     if not match:
         print(

@@ -39,5 +39,5 @@ setup(
     zip_safe=False,
     install_requires=INSTALL_REQUIRES,
     tests_require=TESTS_REQUIRE,
-    entry_points={"console_scripts": ["rpmautospec = rpmautospec.cli:main",],},
+    entry_points={"console_scripts": ["rpmautospec = rpmautospec.cli:main"]},
 )

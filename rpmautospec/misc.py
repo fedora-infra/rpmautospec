@@ -1,5 +1,5 @@
-import re
 from functools import cmp_to_key
+import re
 from typing import List
 from typing import Optional
 from typing import Tuple

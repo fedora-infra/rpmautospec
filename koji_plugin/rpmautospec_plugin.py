@@ -1,7 +1,7 @@
+from glob import glob
 import os
 import re
 
-from glob import glob
 
 from koji.plugin import callback
 

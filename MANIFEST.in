@@ -4,3 +4,4 @@ include *.txt
 include *.rst
 recursive-include koji_plugin *.py
 recursive-include tests *.py *.tar.gz *.spec *.json
+recursive-excludes *.pyc

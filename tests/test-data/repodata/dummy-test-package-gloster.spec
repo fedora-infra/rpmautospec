@@ -9,7 +9,7 @@ Name:           dummy-test-package-gloster
 Version:        0
 Release:        %{autorel}
 Summary:        Dummy Test Package called Gloster
-License:        CC0
+License:        MIT
 URL:            http://fedoraproject.org/wiki/DummyTestPackages
 
 # The tarball contains a file with an uuid to test later and a LICENSE

@@ -5,7 +5,7 @@ Summary:    test-autorel
 Name:       test-autorel
 Version:    1.0
 Release:    %autorel
-License:    CC0
+License:    MIT
 
 %description
 A dummy package testing the %%autorel macro. This package is for testing the

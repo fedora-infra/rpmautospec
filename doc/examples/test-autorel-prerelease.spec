@@ -2,7 +2,7 @@ Summary:    test-autorel-prerelease
 Name:       test-autorel-prerelease
 Version:    1.0
 Release:    %autorel -p -e pre1
-License:    CC0
+License:    MIT
 
 %description
 A dummy package testing the %%autorel macro. This package is for testing a

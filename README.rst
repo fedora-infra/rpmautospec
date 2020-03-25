@@ -84,4 +84,4 @@ E.g.:
 
 ---
 
-License: CC0
+License: MIT

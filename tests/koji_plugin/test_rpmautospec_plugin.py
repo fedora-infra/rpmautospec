@@ -91,7 +91,6 @@ class TestRpmautospecPlugin:
     def test_autospec_cb(self, autorel_case, autochangelog_case):
         """Test the autospec_cb() function"""
         with tempfile.TemporaryDirectory() as workdir:
-            workdir = tempfile.mkdtemp()
             with tarfile.open(
                 os.path.join(
                     __here__,

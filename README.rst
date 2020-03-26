@@ -1,7 +1,7 @@
 Python Package for Automatic Generation of RPM Release Fields and Changelogs
 ============================================================================
 
-This project hosts the `rpmautospec` python package and script, which has these functions:
+This project hosts the ``rpmautospec`` python package and script, which has these functions:
 
 - Attempt to automatically calculate release numbers and generate an RPM changelog from the dist-git
   repository of a package and the information available in the Koji build system.
@@ -15,8 +15,8 @@ Dependencies:
 General
 -------
 
-The script `rpmautospec.py` allows testing the various algorithms for automatic release and
-changelog generation. It accepts normal CLI options, run `python rpmautospec.py --help` for more
+The script ``rpmautospec.py`` allows testing the various algorithms for automatic release and
+changelog generation. It accepts normal CLI options, run ``python rpmautospec.py --help`` for more
 information.
 
 Generating a Changelog

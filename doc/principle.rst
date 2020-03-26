@@ -28,7 +28,7 @@ The way it works in koji is:
   the ``changelog`` file, if present, and the git commit logs after it was
   changed last.
 
-* The plugin then replaces the `%autochangelog` macro with the generated
+* The plugin then replaces the ``%autochangelog`` macro with the generated
   changelog.
 
 At this point, the spec file has the release macro defined at its top and

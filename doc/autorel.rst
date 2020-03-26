@@ -17,11 +17,11 @@ The ``%autorel`` macro accepts therefore some parameters to allow the packagers
 to specify the different portions of the release field:
 
 * ``-h <hotfix>``: Designates a hotfix release, i.e. enables bumping the
-  `minorbump` portion in order to not overrun EVRs in later Fedora versions.
-* ``-p <prerelease>``: Designates a pre-release, i.e. `pkgrel` will be prefixed
-  with `0.`.
-* ``-e <extraver>``: Allows specifying the `extraver` portion of the release.
-* ``-s <snapinfo>``: Allows specifying the `snapinfo` portion of the release.
+  ``minorbump`` portion in order to not overrun EVRs in later Fedora versions.
+* ``-p <prerelease>``: Designates a pre-release, i.e. ``pkgrel`` will be prefixed
+  with ``0.``.
+* ``-e <extraver>``: Allows specifying the ``extraver`` portion of the release.
+* ``-s <snapinfo>``: Allows specifying the ``snapinfo`` portion of the release.
 
 
 Some examples:

@@ -1,4 +1,4 @@
-%define autorel 7.%{?dist}
+%define autorel 7%{?dist}
 
 # Our dummy-test-packages are named after canary varieties, meet Gloster, Rubino and Crested
 # Source: https://www.omlet.co.uk/guide/finches_and_canaries/canary/canary_varieties

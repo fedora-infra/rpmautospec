@@ -34,14 +34,14 @@ class TestRpmautospecPlugin:
 
     autorel_autochangelog_cases = [
         (autorel_case, autochangelog_case)
-        for autorel_case in ("unchanged", "without braces")
+        for autorel_case in ("unchanged", "with braces")
         for autochangelog_case in (
             "unchanged",
             "changelog case insensitive",
             "changelog trailing garbage",
             "line in between",
             "trailing line",
-            "without braces",
+            "with braces",
         )
     ]
 
@@ -62,8 +62,8 @@ class TestRpmautospecPlugin:
         with open(spec_file_path, "r") as orig, open(spec_file_path + ".new", "w") as new:
             for line in orig:
                 if line.startswith("Release:") and autorel_case != "unchanged":
-                    if autorel_case == "without braces":
-                        print("Release:        %autorel", file=new)
+                    if autorel_case == "with braces":
+                        print("Release:        %{autorel}", file=new)
                     else:
                         raise ValueError(f"Unknown autorel_case: {autorel_case}")
                 elif line.strip() == "%changelog" and autochangelog_case != "unchanged":
@@ -72,13 +72,13 @@ class TestRpmautospecPlugin:
                     elif autochangelog_case == "changelog trailing garbage":
                         print("%changelog with trailing garbage yes this works", file=new)
                     elif autochangelog_case == "line in between":
-                        print("%changelog\n\n%{autochangelog}", file=new)
+                        print("%changelog\n\n%autochangelog", file=new)
                         break
                     elif autochangelog_case == "trailing line":
-                        print("%changelog\n%{autochangelog}\n", file=new)
+                        print("%changelog\n%autochangelog\n", file=new)
                         break
-                    elif autochangelog_case == "without braces":
-                        print("%changelog\n%autochangelog", file=new)
+                    elif autochangelog_case == "with braces":
+                        print("%changelog\n%{autochangelog}", file=new)
                         break
                     else:
                         raise ValueError(f"Unknown autochangelog_case: {autochangelog_case}")

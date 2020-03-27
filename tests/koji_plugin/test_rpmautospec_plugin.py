@@ -87,6 +87,7 @@ class TestRpmautospecPlugin:
 
         os.rename(spec_file_path + ".new", spec_file_path)
 
+    @pytest.mark.xfail
     @pytest.mark.parametrize("autorel_case,autochangelog_case", autorel_autochangelog_cases)
     def test_autospec_cb(self, autorel_case, autochangelog_case):
         """Test the autospec_cb() function"""

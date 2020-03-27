@@ -11,10 +11,7 @@ from rpmautospec.changelog import produce_changelog
 from rpmautospec.misc import koji_init
 from rpmautospec.release import holistic_heuristic_algo
 
-autorel_template = """%global function autorel() {{
-    return {autorel}
-}}
-"""
+autorel_template = """%define autorel {autorel}"""
 
 autorel_re = re.compile(r"^\s*(?i:Release)\s*:\s+%(?:autorel(?:\s|$)|\{autorel[^\}]*\})")
 changelog_re = re.compile(r"^%changelog(?:\s.*)?$", re.IGNORECASE)

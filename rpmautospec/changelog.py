@@ -37,7 +37,7 @@ def run_command(command: list, cwd: typing.Optional[str] = None) -> bytes:
         _log.error("Command `{}` return code: `{}`".format(" ".join(command), e.returncode))
         _log.error("stdout:\n-------\n{}".format(e.stdout))
         _log.error("stderr:\n-------\n{}".format(e.stderr))
-        raise Exception("Command failed to run")
+        raise
 
     return output
 

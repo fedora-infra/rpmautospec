@@ -1,6 +1,6 @@
-import io
 import os
 import shutil
+from subprocess import check_output
 import tarfile
 import tempfile
 from unittest.mock import MagicMock
@@ -158,6 +158,17 @@ class TestRpmautospecPlugin:
                     expected_spec_file_path = tmpspec.name
                     self.fuzz_spec_file(expected_spec_file_path, autorel_case, autochangelog_case)
 
-                assert list(io.open(unprocessed_spec_file_path)) == list(
-                    io.open(expected_spec_file_path)
+                rpm_cmd = ["rpm", "--define", "dist .fc32", "--specfile"]
+
+                unprocessed_cmd = rpm_cmd + [unprocessed_spec_file_path]
+                expected_cmd = rpm_cmd + [expected_spec_file_path]
+
+                q_release = ["--qf", "%{release}\n"]
+                assert check_output(unprocessed_cmd + q_release) == check_output(
+                    expected_cmd + q_release
+                )
+
+                q_changelog = ["--changelog"]
+                assert check_output(unprocessed_cmd + q_changelog) == check_output(
+                    expected_cmd + q_changelog
                 )

@@ -88,5 +88,7 @@ def autospec_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwargs):
             if has_autochangelog:
                 print("\n".join(produce_changelog(srcdir, latest_rel=new_rel)), file=tmp_specfile)
 
+            tmp_specfile.flush()
+
             # ...and copy it back (potentially across device boundaries)
             shutil.copy2(tmp_specfile.name, specfile_name)

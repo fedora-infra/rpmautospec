@@ -1,4 +1,4 @@
-import filecmp
+import io
 import os
 import shutil
 import tarfile
@@ -158,4 +158,6 @@ class TestRpmautospecPlugin:
                     expected_spec_file_path = tmpspec.name
                     self.fuzz_spec_file(expected_spec_file_path, autorel_case, autochangelog_case)
 
-                assert filecmp.cmp(unprocessed_spec_file_path, expected_spec_file_path)
+                assert list(io.open(unprocessed_spec_file_path)) == list(
+                    io.open(expected_spec_file_path)
+                )

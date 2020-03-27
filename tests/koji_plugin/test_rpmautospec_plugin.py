@@ -122,7 +122,7 @@ class TestRpmautospecPlugin:
                     "release": f"{x}.fc32",
                     "version": "0",
                 }
-                for x in range(2, 14)
+                for x in range(2, 7)
             ]
             koji_session.listBuilds.return_value = builds
             args = ["postSCMCheckout"]

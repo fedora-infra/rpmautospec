@@ -1,6 +1,6 @@
 from unittest import mock
 
-from koji_plugin import tag_in_pagure_plugin
+from koji_plugin import rpmautospec_hub
 
 
 test_config = {
@@ -14,11 +14,11 @@ class MockConfig:
         return test_config.get(key, kwargs.get("fallback"))
 
 
-class TestTagInPagurePlugin:
-    """Test the koji_plugin.rpmautospec_plugin module"""
+class TestRpmautospecHub:
+    """Test the rpmautospec hub plugin for Koji."""
 
-    @mock.patch("koji_plugin.tag_in_pagure_plugin.requests.post")
-    @mock.patch("koji_plugin.tag_in_pagure_plugin.CONFIG", MockConfig())
+    @mock.patch("koji_plugin.rpmautospec_hub.requests.post")
+    @mock.patch("koji_plugin.rpmautospec_hub.CONFIG", MockConfig())
     def test_tag_in_pagure(self, mock_post):
         mock_post.return_value.ok = True
 
@@ -39,7 +39,7 @@ class TestTagInPagurePlugin:
             "user": {"name": None},
         }
 
-        tag_in_pagure_plugin.autotag_cb(cbtype, **kwargs)
+        rpmautospec_hub.autotag_cb(cbtype, **kwargs)
         mock_post.assert_called_with(
             "src.fedoraproject.org/api/0/rpms/deepin-wallpapers/git/tags",
             headers={"Authorization": "token aaabbbcc"},

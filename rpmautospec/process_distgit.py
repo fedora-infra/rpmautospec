@@ -1,5 +1,5 @@
-import logging
 from glob import glob
+import logging
 import os
 import re
 import shutil

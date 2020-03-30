@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from . import changelog, release, tag_package, process_distgit
+from . import changelog, process_distgit, release, tag_package
 
 
 subcmd_modules_by_name = {}

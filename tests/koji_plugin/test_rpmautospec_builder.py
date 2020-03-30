@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from koji_plugin.rpmautospec_process_distgit_plugin import process_distgit_cb
+from koji_plugin.rpmautospec_builder import process_distgit_cb
 
 
 __here__ = os.path.dirname(__file__)
@@ -29,8 +29,8 @@ data_scm_info = {
 data_build_tag = {"id": "dsttag", "tag_id": "fc32", "tag_name": "fc32"}
 
 
-class TestRpmautospecPlugin:
-    """Test the koji_plugin.rpmautospec_plugin module"""
+class TestRpmautospecBuilder:
+    """Test the rpmautospec builder plugin for Koji."""
 
     autorel_autochangelog_cases = [
         (autorel_case, autochangelog_case)

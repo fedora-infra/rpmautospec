@@ -95,7 +95,7 @@ def git_get_changed_files(path: str, commithash: str) -> typing.List[str]:
 
 def git_get_tags(path: str) -> typing.Mapping[str, str]:
     """ Returns a dict containing for each commit tagged the corresponding tag. """
-    cmd = ["git", "show-ref", "--tags"]
+    cmd = ["git", "show-ref", "--tags", "--head"]
     _log.debug(f"git_get_tags {' '.join(cmd)}")
     tags_list = run_command(cmd, cwd=path).decode("UTF-8").strip().split("\n")
 

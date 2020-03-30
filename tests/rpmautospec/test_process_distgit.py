@@ -1,8 +1,8 @@
 from rpmautospec.process_distgit import is_autorel
 
 
-class TestModifyRepo:
-    """Test the koji_plugin.rpmautospec_plugin module"""
+class TestProcessDistgit:
+    """Test the rpmautospec.process_distgit module"""
 
     def test_is_autorel(self):
         assert is_autorel("Release: %{autorel}")

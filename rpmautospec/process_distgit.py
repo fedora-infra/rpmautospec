@@ -1,3 +1,4 @@
+import logging
 from glob import glob
 import os
 import re
@@ -5,11 +6,25 @@ import shutil
 import tempfile
 
 
-from koji.plugin import callback
-
 from rpmautospec.changelog import produce_changelog
 from rpmautospec.misc import koji_init
 from rpmautospec.release import holistic_heuristic_algo
+
+_log = logging.getLogger(__name__)
+
+
+def register_subcommand(subparsers):
+    subcmd_name = "process-distgit"
+
+    process_distgit_parser = subparsers.add_parser(
+        subcmd_name, help="Modify the contents of the specfile according to the repo",
+    )
+
+    process_distgit_parser.add_argument("worktree_path", help="Path to the dist-git worktree")
+    process_distgit_parser.add_argument("dist", help="The dist tag")
+
+    return subcmd_name
+
 
 autorel_template = """%define autorel {autorel}"""
 
@@ -29,14 +44,7 @@ def get_autorel(name, dist, session):
     return release
 
 
-@callback("postSCMCheckout")
-def autospec_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwargs):
-    if taskinfo["method"] != "buildSRPMFromSCM":
-        # callback should be run only in this instance
-        # i.e. maven and image builds don't have spec-files
-        return
-
-    dist = build_tag["tag_name"]
+def process_distgit(srcdir, dist, session):
     name = os.path.basename(srcdir)
     new_rel = get_autorel(name, dist, session)
     specfile_names = glob(f"{srcdir}/*.spec")
@@ -89,3 +97,13 @@ def autospec_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwargs):
 
             # ...and copy it back (potentially across device boundaries)
             shutil.copy2(tmp_specfile.name, specfile_name)
+
+
+def main(args):
+    """ Main method. """
+
+    repopath = args.worktree_path
+    dist = args.dist
+    kojiclient = koji_init(args.koji_url)
+
+    process_distgit(repopath, dist, kojiclient)

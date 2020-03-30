@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from koji_plugin.rpmautospec_plugin import autospec_cb, is_autorel
+from koji_plugin.rpmautospec_process_distgit_plugin import process_distgit_cb
 
 
 __here__ = os.path.dirname(__file__)
@@ -44,16 +44,6 @@ class TestRpmautospecPlugin:
             "with braces",
         )
     ]
-
-    def test_is_autorel(self):
-        assert is_autorel("Release: %{autorel}")
-        assert is_autorel("Release: %autorel")
-        assert is_autorel("release: %{autorel}")
-        assert is_autorel(" release :  %{autorel}")
-        assert is_autorel("Release: %{autorel_special}")
-
-        assert not is_autorel("NotRelease: %{autorel}")
-        assert not is_autorel("release: 1%{?dist}")
 
     @staticmethod
     def fuzz_spec_file(spec_file_path, autorel_case, autochangelog_case):
@@ -134,7 +124,7 @@ class TestRpmautospecPlugin:
                 "session": koji_session,
             }
 
-            autospec_cb(*args, **kwargs)
+            process_distgit_cb(*args, **kwargs)
 
             expected_spec_file_path = os.path.join(
                 __here__,

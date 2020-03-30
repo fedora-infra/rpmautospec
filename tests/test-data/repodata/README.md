@@ -24,9 +24,12 @@ been tagged when the first automatic commit is built in Koji.
 As an additional snag, the third to last commit vandalizes the spec file and its commit log with
 data encoded in ISO-8859-15 rather than UTF-8, which the second to last commit undoes.
 
-The file `dummy-test-package-gloster.spec` outside the tarball is used to verify the correct function
-of the release bumping and changelog generating algorithms. To verify, run either of the following
-commands against this file and the generated spec file and compare their output for both:
+The file `dummy-test-package-gloster.spec.expected` outside the tarball is used to verify the
+correct function of the release bumping and changelog generating algorithms. Its file extension may
+not be ``spec``, otherwise ``rpmbuild -t`` won't accept a source tarball of ``rpmautospec``. To
+verify, run either of the following commands against this file and the generated spec file and
+compare their output for
+both:
 
 * To verify the release field:
 

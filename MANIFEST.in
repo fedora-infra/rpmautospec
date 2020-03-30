@@ -4,5 +4,5 @@ include python-rpmautospec.spec
 include *.txt
 include *.rst
 recursive-include koji_plugin *.py
-recursive-include tests *.py *.tar.gz *.spec *.json
+recursive-include tests *.py *.tar.gz *.spec.expected *.json
 recursive-excludes *.pyc

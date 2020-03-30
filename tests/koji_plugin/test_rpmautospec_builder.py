@@ -131,7 +131,7 @@ class TestRpmautospecBuilder:
                 os.path.pardir,
                 "test-data",
                 "repodata",
-                "dummy-test-package-gloster.spec",
+                "dummy-test-package-gloster.spec.expected",
             )
 
             with tempfile.NamedTemporaryFile() as tmpspec:

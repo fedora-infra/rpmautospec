@@ -126,7 +126,9 @@ def holistic_heuristic_calculate_release(
     return new_evr
 
 
-def holistic_heuristic_algo(package: str, dist: str, evr: typing.Tuple[int, str, str]):
+def holistic_heuristic_algo(
+    package: str, dist: str, evr: typing.Tuple[int, str, str], strip_dist: bool = False,
+):
     match = disttag_re.match(dist)
     if not match:
         print(
@@ -214,7 +216,12 @@ def holistic_heuristic_algo(package: str, dist: str, evr: typing.Tuple[int, str,
 
     print(f"Calculated new release, EVR: {new_evr['release']}, {new_evr_str}")
 
-    return new_evr["release"]
+    release = new_evr["release"]
+
+    if strip_dist:
+        release = release.replace(f".{dist}", "")
+
+    return release
 
 
 def main(args):

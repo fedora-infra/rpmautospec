@@ -4,11 +4,11 @@ import logging
 import os
 import re
 import shutil
-import subprocess
 import tempfile
 import textwrap
 import typing
 
+from .misc import run_command
 from .py2compat.escape_tags import unescape_tag
 
 _log = logging.getLogger(__name__)
@@ -24,22 +24,6 @@ def register_subcommand(subparsers):
     gen_changelog_parser.add_argument("worktree_path", help="Path to the dist-git worktree")
 
     return subcmd_name
-
-
-def run_command(command: list, cwd: typing.Optional[str] = None) -> bytes:
-    """ Run the specified command in a specific working directory if one
-    is specified.
-    """
-    output = None
-    try:
-        output = subprocess.check_output(command, cwd=cwd, stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError as e:
-        _log.error("Command `{}` return code: `{}`".format(" ".join(command), e.returncode))
-        _log.error("stdout:\n-------\n{}".format(e.stdout))
-        _log.error("stderr:\n-------\n{}".format(e.stderr))
-        raise
-
-    return output
 
 
 def git_get_log(

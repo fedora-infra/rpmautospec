@@ -1,5 +1,7 @@
 from functools import cmp_to_key
+import logging
 import re
+import subprocess
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -21,6 +23,8 @@ rpmvercmp_key = cmp_to_key(
 )
 
 _kojiclient = None
+
+_log = logging.getLogger(__name__)
 
 
 def parse_evr(evr_str: str) -> Tuple[int, str, str]:
@@ -65,3 +69,19 @@ def get_package_builds(pkgname: str, extras: bool = False) -> List[dict]:
         raise ValueError(f"Package {pkgname!r} not found!")
 
     return _kojiclient.listBuilds(pkgid, type="rpm", queryOpts={"order": "-nvr"})
+
+
+def run_command(command: list, cwd: Optional[str] = None) -> bytes:
+    """ Run the specified command in a specific working directory if one
+    is specified.
+    """
+    output = None
+    try:
+        output = subprocess.check_output(command, cwd=cwd, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as e:
+        _log.error("Command `{}` return code: `{}`".format(" ".join(command), e.returncode))
+        _log.error("stdout:\n-------\n{}".format(e.stdout))
+        _log.error("stderr:\n-------\n{}".format(e.stderr))
+        raise
+
+    return output

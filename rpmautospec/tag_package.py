@@ -2,9 +2,8 @@
 
 import logging
 import os
-import subprocess
 
-from .misc import get_package_builds, koji_init
+from .misc import get_package_builds, koji_init, run_command
 from .py2compat.escape_tags import escape_tag, tag_prefix
 
 
@@ -21,25 +20,6 @@ def register_subcommand(subparsers):
     tag_project_parser.add_argument("worktree_path", help="Path to the dist-git worktree")
 
     return subcmd_name
-
-
-def run_command(command, cwd=None):
-    """ Run the specified command in a specific working directory if one
-    is specified.
-    """
-    output = None
-    try:
-        output = subprocess.check_output(command, cwd=cwd, stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError as e:
-        command_str = " ".join(command)
-        _log.error("Command `{}` return code: `{}`".format(command_str, e.returncode))
-        _log.error("stdout:\n-------\n{}".format(e.stdout))
-        _log.error("stderr:\n-------\n{}".format(e.stderr))
-        raise RuntimeError(
-            "Command `{}` failed to run, returned {}".format(command_str, e.returncode)
-        )
-
-    return output
 
 
 def main(args):

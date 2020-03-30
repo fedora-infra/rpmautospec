@@ -23,14 +23,12 @@ Summary:        %{summary}
 BuildRequires:  python3-devel >= 3.6.0
 BuildRequires:  koji
 BuildRequires:  python3-koji
-BuildRequires:  python3-pygit2
 BuildRequires:  python%{python3_pkgversion}-pytest
 %{?python_provide:%python_provide python3-%{srcname}}
 
 Requires: koji
 Requires: python3-rpm
 Requires: python3-koji
-Requires: python3-pygit2
 
 %description -n python3-%{srcname} %_description
 

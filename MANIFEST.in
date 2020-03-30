@@ -1,5 +1,6 @@
 include LICENSE
 include README.rst
+include python-rpmautospec.spec
 include *.txt
 include *.rst
 recursive-include koji_plugin *.py

@@ -51,7 +51,7 @@ CLI tool for generating RPM releases and changelogs
 %files -n %{srcname}
 %{_bindir}/rpmautospec
 
-# package the Koji plugin
+# package the Koji plugins
 
 %package -n koji-builder-plugin-rpmautospec
 Summary: Koji plugin for generating RPM releases and changelogs
@@ -63,7 +63,19 @@ Requires: python3-koji
 A Koji plugin for generating RPM releases and changelogs.
 
 %files -n koji-builder-plugin-rpmautospec
-%{_prefix}/lib/koji-builder-plugins/rpmautospec_plugin.py
+%{_prefix}/lib/koji-builder-plugins/rpmautospec_builder.py
+
+%package -n koji-hub-plugin-rpmautospec
+Summary: Koji plugin for tagging successful builds in dist-git
+Requires: python3-%{srcname} = %{version}-%{release}
+Requires: koji-hub-plugins
+Requires: python3-koji
+
+%description -n koji-hub-plugin-rpmautospec
+A Koji plugin for tagging successful builds in their dist-git repository.
+
+%files -n koji-hub-plugin-rpmautospec
+%{_prefix}/lib/koji-hub-plugins/rpmautospec_hub.py
 
 #--------------------------------------------------------
 
@@ -75,8 +87,11 @@ A Koji plugin for generating RPM releases and changelogs.
 
 %install
 %py3_install
-mkdir -p  %{buildroot}%{_prefix}/lib/koji-builder-plugins/
-install -m 0644 koji_plugin/rpmautospec_plugin.py %{buildroot}%{_prefix}/lib/koji-builder-plugins/
+for plugin_type in builder hub; do
+    mkdir -p  %{buildroot}%{_prefix}/lib/koji-${plugin_type}-plugins/
+    install -m 0644 koji_plugin/rpmautospec_${plugin_type}.py \
+        %{buildroot}%{_prefix}/lib/koji-${plugin_type}-plugins/
+done
 
 %check
 %{__python3} -m pytest

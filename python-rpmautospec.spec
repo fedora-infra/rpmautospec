@@ -89,7 +89,7 @@ A Koji plugin for tagging successful builds in their dist-git repository.
 %py3_install
 for plugin_type in builder hub; do
     mkdir -p  %{buildroot}%{_prefix}/lib/koji-${plugin_type}-plugins/
-    install -m 0644 koji_plugin/rpmautospec_${plugin_type}.py \
+    install -m 0644 koji_plugins/rpmautospec_${plugin_type}.py \
         %{buildroot}%{_prefix}/lib/koji-${plugin_type}-plugins/
 done
 

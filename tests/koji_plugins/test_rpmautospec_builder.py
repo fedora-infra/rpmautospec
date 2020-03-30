@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from koji_plugin.rpmautospec_builder import process_distgit_cb
+from koji_plugins.rpmautospec_builder import process_distgit_cb
 
 
 __here__ = os.path.dirname(__file__)

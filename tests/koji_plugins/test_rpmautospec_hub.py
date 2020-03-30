@@ -1,6 +1,6 @@
 from unittest import mock
 
-from koji_plugin import rpmautospec_hub
+from koji_plugins import rpmautospec_hub
 
 
 test_config = {
@@ -17,8 +17,8 @@ class MockConfig:
 class TestRpmautospecHub:
     """Test the rpmautospec hub plugin for Koji."""
 
-    @mock.patch("koji_plugin.rpmautospec_hub.requests.post")
-    @mock.patch("koji_plugin.rpmautospec_hub.CONFIG", MockConfig())
+    @mock.patch("koji_plugins.rpmautospec_hub.requests.post")
+    @mock.patch("koji_plugins.rpmautospec_hub.CONFIG", MockConfig())
     def test_tag_in_pagure(self, mock_post):
         mock_post.return_value.ok = True
 

@@ -11,6 +11,20 @@ from rpmautospec.misc import koji_init
 from rpmautospec.release import holistic_heuristic_algo
 
 _log = logging.getLogger(__name__)
+__here__ = os.path.dirname(__file__)
+
+autorel_macro_path = os.path.join(__here__, "etc", "autorel-macro.txt")
+autorel_template = """## START: Set by rpmautospec
+%define _autorel_normal_cadence {autorel_normal}%{{?_autorel_extraver}}%{{?_autorel_snapinfo}}%{{?dist}}
+%define _autorel_hotfix_cadence %nil
+%define _autorel_prerel_cadence %nil
+%define _autorel_prerel_hotfix_cadence %nil
+## END: Set by rpmautospec
+"""  # noqa: E501
+
+autorel_re = re.compile(r"^\s*(?i:Release)\s*:\s+%(?:autorel(?:\s|$)|\{autorel[^\}]*\})")
+changelog_re = re.compile(r"^%changelog(?:\s.*)?$", re.IGNORECASE)
+autochangelog_re = re.compile(r"^\s*%(?:autochangelog|\{autochangelog\})\s*$")
 
 
 def register_subcommand(subparsers):
@@ -26,13 +40,6 @@ def register_subcommand(subparsers):
     return subcmd_name
 
 
-autorel_template = """%define autorel {autorel}"""
-
-autorel_re = re.compile(r"^\s*(?i:Release)\s*:\s+%(?:autorel(?:\s|$)|\{autorel[^\}]*\})")
-changelog_re = re.compile(r"^%changelog(?:\s.*)?$", re.IGNORECASE)
-autochangelog_re = re.compile(r"^\s*%(?:autochangelog|\{autochangelog\})\s*$")
-
-
 def is_autorel(line):
     return autorel_re.match(line)
 
@@ -40,7 +47,7 @@ def is_autorel(line):
 def get_autorel(name, dist, session):
     koji_init(session)
     # evr=None forces to search from lower bound
-    release = holistic_heuristic_algo(package=name, dist=dist, evr=None)
+    release = holistic_heuristic_algo(package=name, dist=dist, evr=None, strip_dist=True)
     return release
 
 
@@ -82,7 +89,10 @@ def process_distgit(srcdir, dist, session):
             # Process the spec file into a temporary file...
             if has_autorel:
                 # Write %autorel macro header
-                print(autorel_template.format(autorel=new_rel), file=tmp_specfile)
+                with open(autorel_macro_path, "r") as autorel_macro_file:
+                    print(autorel_template.format(autorel_normal=new_rel), file=tmp_specfile)
+                    for line in autorel_macro_file:
+                        print(line, file=tmp_specfile, end="")
 
             for lineno, line in enumerate(specfile, start=1):
                 if has_autochangelog and lineno > changelog_lineno:

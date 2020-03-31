@@ -10,5 +10,5 @@ def process_distgit_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwarg
         # i.e. maven and image builds don't have spec-files
         return
 
-    dist = build_tag["tag_name"]
+    dist = build_tag["name"]
     process_distgit(srcdir, dist, session)

@@ -11,10 +11,15 @@ Source0:        https://releases.pagure.org/Fedora-Infra/rpmautospec/rpmautospec
 
 BuildArch:      noarch
 BuildRequires:  python3-devel >= 3.6.0
+# EPEL7 does not have python3-koji and the other dependencies here are only
+# needed in the buildroot for the tests, which can't run because of the lack of
+# python3-koji
+%if ! 0%{?rhel} || 0%{?rhel} > 7
 BuildRequires:  koji
 BuildRequires:  python3-koji
 BuildRequires:  python%{python3_pkgversion}-pytest
 BuildRequires:  git
+%endif
 
 %global _description %{expand:
 A package and CLI tool to generate RPM release fields and changelogs.}
@@ -110,8 +115,12 @@ install -m 0644 rpmautospec/py2compat/escape_tags.py %{buildroot}%{_prefix}/lib/
 mkdir -p %{buildroot}%{_sysconfdir}/koji-hub/plugins/
 install -m 0644 koji_plugins/rpmautospec_hub.conf %{buildroot}%{_sysconfdir}/koji-hub/plugins/rpmautospec_hub.conf
 
+# EPEL7 does not have python3-koji which is needed to run the tests, so there
+# is no point in running them
+%if ! 0%{?rhel} || 0%{?rhel} > 7
 %check
 %{__python3} -m pytest
+%endif
 
 %changelog
 * Wed Mar 18 2020  Adam Saleh <asaleh@redhat.com> - 0.0.1-1

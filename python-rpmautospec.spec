@@ -76,6 +76,11 @@ A Koji plugin for tagging successful builds in their dist-git repository.
 
 %files -n koji-hub-plugin-rpmautospec
 %{_prefix}/lib/koji-hub-plugins/rpmautospec_hub.py
+%{_prefix}/lib/koji-hub-plugins/rpmautospec/__init__.py
+%{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat/__init__.py
+%{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat/escape_tags.py
+
+%config(noreplace) %{_sysconfdir}/koji-hub/plugins/rpmautospec_hub.conf
 
 #--------------------------------------------------------
 
@@ -92,6 +97,17 @@ for plugin_type in builder hub; do
     install -m 0644 koji_plugins/rpmautospec_${plugin_type}.py \
         %{buildroot}%{_prefix}/lib/koji-${plugin_type}-plugins/
 done
+
+# the hub-plugin py2 tagging library
+# Install the py2compat files to the koji-hub-plugin
+mkdir -p  %{buildroot}%{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat
+touch %{buildroot}%{_prefix}/lib/koji-hub-plugins/rpmautospec/__init__.py \
+      %{buildroot}%{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat/__init__.py
+install -m 0644 rpmautospec/py2compat/escape_tags.py %{buildroot}%{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat
+
+# the hub-plugin config
+mkdir -p %{buildroot}%{_sysconfdir}/koji-hub/plugins/
+install -m 0644 koji_plugins/rpmautospec_hub.conf %{buildroot}%{_sysconfdir}/koji-hub/plugins/rpmautospec_hub.conf
 
 %check
 %{__python3} -m pytest

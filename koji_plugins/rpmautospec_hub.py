@@ -8,7 +8,7 @@ import requests
 from rpmautospec.py2compat import escape_tags
 
 
-CONFIG_FILE = "/etc/koji-hub/plugins/tag_in_pagure.conf"
+CONFIG_FILE = "/etc/koji-hub/plugins/rpmautospec_hub.conf"
 CONFIG = None
 
 

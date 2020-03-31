@@ -16,7 +16,7 @@ CONFIG = None
 def autotag_cb(cb_type, **kwargs):
     global CONFIG
 
-    log = logging.getLogger("koji.plugin.tag_in_pagure")
+    log = logging.getLogger("koji.plugin.rpmautospec_hub")
 
     if not CONFIG:
         try:

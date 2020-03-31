@@ -73,9 +73,7 @@ A Koji plugin for generating RPM releases and changelogs.
 
 %package -n koji-hub-plugin-rpmautospec
 Summary: Koji plugin for tagging successful builds in dist-git
-Requires: python3-%{srcname} = %{version}-%{release}
 Requires: koji-hub-plugins
-Requires: python3-koji
 
 %description -n koji-hub-plugin-rpmautospec
 A Koji plugin for tagging successful builds in their dist-git repository.

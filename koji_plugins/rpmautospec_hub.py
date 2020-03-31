@@ -28,11 +28,13 @@ def autotag_cb(cb_type, **kwargs):
 
     base_url = CONFIG.get("pagure", "url")
     token = CONFIG.get("pagure", "token")
-    git_filter = CONFIG.get(
-        "pagure",
-        "git_filter",
-        fallback=r".*\.fedoraproject\.org/(?P<repo>rpms/.*)\.git#(?P<commit>[a-f0-9]{40})$",
-    )
+
+    git_filter = r".*\.fedoraproject\.org/(?P<repo>rpms/.*)\.git#(?P<commit>[a-f0-9]{40})$"
+    if CONFIG.has_option("pagure", "git_filter"):
+        git_filter = CONFIG.get(
+            "pagure",
+            "git_filter",
+        )
     git_filter_re = re.compile(git_filter)
 
     build = kwargs["build"]

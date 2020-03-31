@@ -13,6 +13,9 @@ class MockConfig:
     def get(self, section, key, **kwargs):
         return test_config.get(key, kwargs.get("fallback"))
 
+    def has_option(*args):
+        return False
+
 
 class TestRpmautospecHub:
     """Test the rpmautospec hub plugin for Koji."""

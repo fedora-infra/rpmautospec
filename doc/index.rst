@@ -13,6 +13,7 @@ the release and changelog fields in RPM spec files that chose to use it.
    opting-in
    autorel
    autochangelog
+   install
 
 
 

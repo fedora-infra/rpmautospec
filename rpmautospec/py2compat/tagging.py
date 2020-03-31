@@ -1,6 +1,7 @@
 """Tagging functionality shared with the Koji hub plugin
 
 - Escape/unescape NEVRs for use as git tags.
+- Tag commits via the Pagure API
 
 This module should work in Python 2.7 to be usable from a Koji plugin running
 in the context of the hub. Let's avoid Py2-isms where we can, though.
@@ -10,6 +11,7 @@ Things to do once we convert this back to Python3-only:
 - remove monkey-patches for urllib.parse, the str type, re.Pattern
 - use f-strings instead of str.format()
 - revert to using Python 3 syntax for type hints
+- drop explicitly inheriting classes from object
 """
 
 from __future__ import absolute_import
@@ -17,8 +19,11 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import logging
 import re
 import sys
+
+import requests
 
 try:
     from urllib import parse
@@ -43,6 +48,8 @@ if sys.version_info < (3,):
     re.Pattern = type(re.compile(""))
 else:
     PY = 3
+
+_log = logging.getLogger(__name__)
 
 # See https://git-scm.com/docs/git-check-ref-format
 git_tag_seqs_to_escape = [
@@ -136,3 +143,49 @@ def unescape_tag(escaped_tagname):
     Returns: An unescaped tag name.
     """
     return parse.unquote(escaped_tagname)
+
+
+class PagureTaggingProxy(object):
+    """A small proxy around remote tagging via the Pagure API
+
+    This is mainly to avoid passing the whole slew of Pagure instance
+    configuration around for every single tagging operation.
+    """
+
+    endpoint_url_tmpl = "{base_url}/api/0/{repository}/git/tags"
+
+    def __init__(self, base_url, auth_token, logger=None):
+        # type: (str, str, str)
+        self.base_url = base_url
+        self.auth_token = auth_token
+        self.log = logger or _log
+
+    def create_tag(
+        self, repository, tagname, commit_hash, message=None, with_commits=True, force=False,
+    ):
+        # type: (str, str, str, str, bool, bool) -> requests.Response
+        """Tag a commit remotely in a Pagure repository"""
+        data = {
+            "tagname": tagname,
+            "commit_hash": commit_hash,
+            "message": message,
+            "with_commits": with_commits,
+            "force": force,
+        }
+
+        endpoint_url = self.endpoint_url_tmpl.format(base_url=self.base_url, repository=repository)
+        headers = {"Authorization": "token {}".format(self.auth_token)}
+
+        try:
+            response = requests.post(endpoint_url, headers=headers, data=data)
+        except Exception:
+            error = "While attempting to create a tag in %s, an exception occurred:"
+            self.log.exception(error, endpoint_url)
+            return
+
+        if not response.ok:
+            error = "While attempting to create a tag in %s, the request failed with: STATUS %s %s"
+            self.log.error(error, endpoint_url, response.status_code, response.text)
+            return
+
+        return response

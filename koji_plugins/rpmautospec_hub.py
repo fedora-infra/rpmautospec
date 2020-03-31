@@ -3,7 +3,6 @@ import re
 
 import koji
 from koji.plugin import callback
-import requests
 
 from rpmautospec.py2compat import tagging
 
@@ -13,10 +12,14 @@ CONFIG = None
 
 _log = logging.getLogger("koji.plugin.rpmautospec_hub")
 
+git_filter = None
+git_filter_re = None
+pagure_proxy = None
+
 
 @callback("postTag")
 def autotag_cb(cb_type, **kwargs):
-    global CONFIG
+    global CONFIG, pagure_proxy, git_filter, git_filter_re
 
     if not CONFIG:
         try:
@@ -26,16 +29,15 @@ def autotag_cb(cb_type, **kwargs):
             _log.exception(message, CONFIG_FILE)
             return
 
-    base_url = CONFIG.get("pagure", "url")
-    token = CONFIG.get("pagure", "token")
+        git_filter = r".*\.fedoraproject\.org/(?P<repo>rpms/.*)\.git#(?P<commit>[a-f0-9]{40})$"
+        if CONFIG.has_option("pagure", "git_filter"):
+            git_filter = CONFIG.get("pagure", "git_filter",)
+        git_filter_re = re.compile(git_filter)
 
-    git_filter = r".*\.fedoraproject\.org/(?P<repo>rpms/.*)\.git#(?P<commit>[a-f0-9]{40})$"
-    if CONFIG.has_option("pagure", "git_filter"):
-        git_filter = CONFIG.get(
-            "pagure",
-            "git_filter",
-        )
-    git_filter_re = re.compile(git_filter)
+    if not pagure_proxy:
+        base_url = CONFIG.get("pagure", "url")
+        token = CONFIG.get("pagure", "token")
+        pagure_proxy = tagging.PagureTaggingProxy(base_url=base_url, auth_token=token, logger=_log)
 
     build = kwargs["build"]
 
@@ -52,31 +54,5 @@ def autotag_cb(cb_type, **kwargs):
         return
 
     build["epoch"] = build.get("epoch") or 0
-
-    nevr = "{name}-{epoch}-{version}-{release}".format(**build)
-
-    if not build["epoch"]:
-        nevr = "{name}-{version}-{release}".format(**build)
-
-    escaped_nevr = tagging.escape_tag(nevr)
-
-    data = {
-        "tagname": escaped_nevr,
-        "commit_hash": commit,
-        "message": None,
-        "with_commits": True,
-    }
-
-    endpoint_url = "{}/api/0/{}/git/tags".format(base_url, repo)
-    headers = {"Authorization": "token {}".format(token)}
-    try:
-        response = requests.post(endpoint_url, headers=headers, data=data)
-    except Exception:
-        error = "While attempting to create a tag in %s, an exception occurred:"
-        _log.exception(error, endpoint_url)
-        return
-
-    if not response.ok:
-        error = "While attempting to create a tag in %s, the request failed with: STATUS %s %s"
-        _log.error(error, endpoint_url, response.status_code, response.text)
-        return
+    tagname = "build/" + tagging.escape_tag("{name}-{epoch}-{version}-{release}".format(**build))
+    pagure_proxy.create_tag(repository=repo, tagname=tagname, commit_hash=commit)

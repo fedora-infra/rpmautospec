@@ -3,7 +3,7 @@ include README.rst
 include python-rpmautospec.spec
 include *.txt
 include *.rst
-recursive-include rpmautospec *.py
+recursive-include rpmautospec *.py *.txt
 recursive-include koji_plugins *.py
 recursive-include tests *.py *.tar.gz *.spec.expected *.json
 recursive-excludes *.pyc

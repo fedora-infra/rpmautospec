@@ -22,7 +22,7 @@ class TestRpmautospecHub:
 
     @mock.patch("koji_plugins.rpmautospec_hub.requests.post")
     @mock.patch("koji_plugins.rpmautospec_hub.CONFIG", MockConfig())
-    def test_tag_in_pagure(self, mock_post):
+    def test_autotag_cb(self, mock_post):
         mock_post.return_value.ok = True
 
         cbtype = "postTag"

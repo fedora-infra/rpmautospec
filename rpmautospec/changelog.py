@@ -9,7 +9,7 @@ import textwrap
 import typing
 
 from .misc import run_command
-from .py2compat.escape_tags import unescape_tag
+from .py2compat.tagging import unescape_tag
 
 _log = logging.getLogger(__name__)
 

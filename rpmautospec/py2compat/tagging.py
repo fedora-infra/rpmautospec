@@ -1,4 +1,6 @@
-"""Escape/unescape NEVRs for use as git tags.
+"""Tagging functionality shared with the Koji hub plugin
+
+- Escape/unescape NEVRs for use as git tags.
 
 This module should work in Python 2.7 to be usable from a Koji plugin running
 in the context of the hub. Let's avoid Py2-isms where we can, though.

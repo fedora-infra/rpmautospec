@@ -2,11 +2,11 @@ from unittest import mock
 
 import pytest
 
-from rpmautospec.py2compat import escape_tags
+from rpmautospec.py2compat import tagging
 
 
-class TestEscapeTags:
-    """Test the rpmautospec.py2compat.escape_tags module."""
+class TestTagging:
+    """Test the rpmautospec.py2compat.tagging module."""
 
     test_escape_sequences = {
         "%": "%25",
@@ -42,21 +42,21 @@ class TestEscapeTags:
     @pytest.mark.parametrize("sequence", test_escape_sequences)
     def test_escape_sequence(self, sequence):
         """Test escape_sequence()"""
-        assert escape_tags.escape_sequence(sequence) == self.test_escape_sequences[sequence]
+        assert tagging.escape_sequence(sequence) == self.test_escape_sequences[sequence]
 
     @pytest.mark.parametrize("unescaped_tag", test_escape_tags)
     def test_escape_tag(self, unescaped_tag):
         """Test escape_tag()"""
-        assert escape_tags.escape_tag(unescaped_tag) == self.test_escape_tags[unescaped_tag]
+        assert tagging.escape_tag(unescaped_tag) == self.test_escape_tags[unescaped_tag]
 
-    @mock.patch.object(escape_tags, "git_tag_seqs_to_escape", [b"Not a string"])
+    @mock.patch.object(tagging, "git_tag_seqs_to_escape", [b"Not a string"])
     def test_escape_tag_broken_git_tag_seqs_to_escape(self):
         """Test escape_tag() with garbage in git_tag_seqs_to_escape"""
         with pytest.raises(TypeError):
-            escape_tags.escape_tag("a string")
+            tagging.escape_tag("a string")
 
     @pytest.mark.parametrize("unescaped_tag", test_escape_tags)
     def test_unescape_tag(self, unescaped_tag):
         """Test escape_tag()"""
         escaped_tag = self.test_escape_tags[unescaped_tag]
-        assert escape_tags.unescape_tag(escaped_tag) == unescaped_tag
+        assert tagging.unescape_tag(escaped_tag) == unescaped_tag

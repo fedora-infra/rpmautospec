@@ -82,7 +82,7 @@ A Koji plugin for tagging successful builds in their dist-git repository.
 %{_prefix}/lib/koji-hub-plugins/rpmautospec_hub.py
 %{_prefix}/lib/koji-hub-plugins/rpmautospec/__init__.py
 %{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat/__init__.py
-%{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat/escape_tags.py
+%{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat/tagging.py
 
 %config(noreplace) %{_sysconfdir}/koji-hub/plugins/rpmautospec_hub.conf
 
@@ -107,7 +107,7 @@ done
 mkdir -p  %{buildroot}%{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat
 touch %{buildroot}%{_prefix}/lib/koji-hub-plugins/rpmautospec/__init__.py \
       %{buildroot}%{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat/__init__.py
-install -m 0644 rpmautospec/py2compat/escape_tags.py %{buildroot}%{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat
+install -m 0644 rpmautospec/py2compat/tagging.py %{buildroot}%{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat
 
 # the hub-plugin config
 mkdir -p %{buildroot}%{_sysconfdir}/koji-hub/plugins/

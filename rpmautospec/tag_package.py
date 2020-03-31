@@ -4,7 +4,7 @@ import logging
 import os
 
 from .misc import get_package_builds, koji_init, run_command
-from .py2compat.escape_tags import escape_tag, tag_prefix
+from .py2compat.tagging import escape_tag, tag_prefix
 
 
 _log = logging.getLogger(__name__)

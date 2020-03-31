@@ -5,7 +5,7 @@ import koji
 from koji.plugin import callback
 import requests
 
-from rpmautospec.py2compat import escape_tags
+from rpmautospec.py2compat import tagging
 
 
 CONFIG_FILE = "/etc/koji-hub/plugins/rpmautospec_hub.conf"
@@ -58,7 +58,7 @@ def autotag_cb(cb_type, **kwargs):
     if not build["epoch"]:
         nevr = "{name}-{version}-{release}".format(**build)
 
-    escaped_nevr = escape_tags.escape_tag(nevr)
+    escaped_nevr = tagging.escape_tag(nevr)
 
     data = {
         "tagname": escaped_nevr,

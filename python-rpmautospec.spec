@@ -12,7 +12,7 @@
 %endif
 
 Name:           python-rpmautospec
-Version:        0.0.4
+Version:        0.0.5
 Release:        1%{?dist}
 Summary:        Package and CLI tool to generate release fields and changelogs
 
@@ -151,6 +151,9 @@ install -m 0644 koji_plugins/rpmautospec_hub.conf %{buildroot}%{_sysconfdir}/koj
 %endif
 
 %changelog
+* Tue Mar 31 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0.0.5-1
+- Update to 0.0.5
+
 * Tue Mar 31 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0.0.4-1
 - Update to 0.0.4
 

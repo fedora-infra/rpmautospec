@@ -11,6 +11,8 @@ Source0:        https://releases.pagure.org/Fedora-Infra/rpmautospec/rpmautospec
 
 BuildArch:      noarch
 BuildRequires:  python3-devel >= 3.6.0
+# We need Python 2 macros for the Koji hub plugin
+BuildRequires:  python2-devel
 # EPEL7 does not have python3-koji and the other dependencies here are only
 # needed in the buildroot for the tests, which can't run because of the lack of
 # python3-koji
@@ -79,10 +81,8 @@ Requires: koji-hub-plugins
 A Koji plugin for tagging successful builds in their dist-git repository.
 
 %files -n koji-hub-plugin-rpmautospec
+%{python2_sitelib}/rpmautospec/
 %{_prefix}/lib/koji-hub-plugins/rpmautospec_hub.py
-%{_prefix}/lib/koji-hub-plugins/rpmautospec/__init__.py
-%{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat/__init__.py
-%{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat/tagging.py
 
 %config(noreplace) %{_sysconfdir}/koji-hub/plugins/rpmautospec_hub.conf
 
@@ -104,10 +104,11 @@ done
 
 # the hub-plugin py2 tagging library
 # Install the py2compat files to the koji-hub-plugin
-mkdir -p  %{buildroot}%{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat
-touch %{buildroot}%{_prefix}/lib/koji-hub-plugins/rpmautospec/__init__.py \
-      %{buildroot}%{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat/__init__.py
-install -m 0644 rpmautospec/py2compat/tagging.py %{buildroot}%{_prefix}/lib/koji-hub-plugins/rpmautospec/py2compat
+mkdir -p %{buildroot}%{python2_sitelib}/rpmautospec/py2compat/
+touch %{buildroot}%{python2_sitelib}/rpmautospec/__init__.py \
+    %{buildroot}%{python2_sitelib}/rpmautospec/py2compat/__init__.py
+install -m 0644 rpmautospec/py2compat/tagging.py \
+    %{buildroot}%{python2_sitelib}/rpmautospec/py2compat/
 
 # the hub-plugin config
 mkdir -p %{buildroot}%{_sysconfdir}/koji-hub/plugins/

@@ -34,7 +34,7 @@ setup(
     url="https://pagure.io/Fedora-Infra/rpmautospec",
     keywords="fedora",
     packages=["rpmautospec", "rpmautospec.py2compat"],
-    include_package_data=False,
+    include_package_data=True,
     package_data={},
     zip_safe=False,
     install_requires=INSTALL_REQUIRES,

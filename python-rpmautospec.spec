@@ -1,5 +1,12 @@
 %global srcname rpmautospec
 
+# Up to EL7, the Koji hub plugin is run under Python 2.x
+%if ! 0%{?rhel} || 0%{?rhel} > 7
+%bcond_with epel_le_7
+%else
+%bcond_without epel_le_7
+%endif
+
 Name:           python-rpmautospec
 Version:        0.0.3
 Release:        1%{?dist}
@@ -11,12 +18,13 @@ Source0:        https://releases.pagure.org/Fedora-Infra/rpmautospec/rpmautospec
 
 BuildArch:      noarch
 BuildRequires:  python3-devel >= 3.6.0
-# We need Python 2 macros for the Koji hub plugin
+%if %{with epel_le_7}
 BuildRequires:  python2-devel
+%endif
 # EPEL7 does not have python3-koji and the other dependencies here are only
 # needed in the buildroot for the tests, which can't run because of the lack of
 # python3-koji
-%if ! 0%{?rhel} || 0%{?rhel} > 7
+%if ! %{with epel_le_7}
 BuildRequires:  koji
 BuildRequires:  python3-koji
 BuildRequires:  python%{python3_pkgversion}-pytest
@@ -64,8 +72,8 @@ CLI tool for generating RPM releases and changelogs
 %package -n koji-builder-plugin-rpmautospec
 Summary: Koji plugin for generating RPM releases and changelogs
 Requires: python3-%{srcname} = %{version}-%{release}
-Requires: koji-builder-plugins
 Requires: python3-koji
+Requires: koji-builder-plugins
 
 %description -n koji-builder-plugin-rpmautospec
 A Koji plugin for generating RPM releases and changelogs.
@@ -75,13 +83,19 @@ A Koji plugin for generating RPM releases and changelogs.
 
 %package -n koji-hub-plugin-rpmautospec
 Summary: Koji plugin for tagging successful builds in dist-git
+%if ! %{with epel_le_7}
+Requires: python3-%{srcname} = %{version}-%{release}
+Requires: python3-koji
+%endif
 Requires: koji-hub-plugins
 
 %description -n koji-hub-plugin-rpmautospec
 A Koji plugin for tagging successful builds in their dist-git repository.
 
 %files -n koji-hub-plugin-rpmautospec
+%if %{with epel_le_7}
 %{python2_sitelib}/rpmautospec/
+%endif
 %{_prefix}/lib/koji-hub-plugins/rpmautospec_hub.py
 
 %config(noreplace) %{_sysconfdir}/koji-hub/plugins/rpmautospec_hub.conf
@@ -102,6 +116,7 @@ for plugin_type in builder hub; do
         %{buildroot}%{_prefix}/lib/koji-${plugin_type}-plugins/
 done
 
+%if %{with epel_le_7}
 # the hub-plugin py2 tagging library
 # Install the py2compat files to the koji-hub-plugin
 mkdir -p %{buildroot}%{python2_sitelib}/rpmautospec/py2compat/
@@ -109,6 +124,7 @@ touch %{buildroot}%{python2_sitelib}/rpmautospec/__init__.py \
     %{buildroot}%{python2_sitelib}/rpmautospec/py2compat/__init__.py
 install -m 0644 rpmautospec/py2compat/tagging.py \
     %{buildroot}%{python2_sitelib}/rpmautospec/py2compat/
+%endif
 
 # the hub-plugin config
 mkdir -p %{buildroot}%{_sysconfdir}/koji-hub/plugins/

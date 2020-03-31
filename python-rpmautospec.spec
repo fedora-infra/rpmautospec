@@ -1,10 +1,14 @@
 %global srcname rpmautospec
 
-# Up to EL7, the Koji hub plugin is run under Python 2.x
+# Up to EL7, the Koji hub plugin is run under Python 2.x and Python files in private directories
+# would be byte-compiled.
 %if ! 0%{?rhel} || 0%{?rhel} > 7
 %bcond_with epel_le_7
 %else
 %bcond_without epel_le_7
+# We don't want to byte-compile Python files in private directories, i.e. the Koji plugins. As a
+# side effect, this doesn't byte-compile Python files in the system locations either, huzzah!
+%global __os_install_post %(echo '%{__os_install_post}' | sed -e 's!/usr/lib[^[:space:]]*/brp-python-bytecompile[[:space:]].*$!!g')
 %endif
 
 Name:           python-rpmautospec
@@ -79,7 +83,7 @@ Requires: koji-builder-plugins
 A Koji plugin for generating RPM releases and changelogs.
 
 %files -n koji-builder-plugin-rpmautospec
-%{_prefix}/lib/koji-builder-plugins/rpmautospec_builder.py
+%{_prefix}/lib/koji-builder-plugins/*
 
 %package -n koji-hub-plugin-rpmautospec
 Summary: Koji plugin for tagging successful builds in dist-git
@@ -96,7 +100,7 @@ A Koji plugin for tagging successful builds in their dist-git repository.
 %if %{with epel_le_7}
 %{python2_sitelib}/rpmautospec/
 %endif
-%{_prefix}/lib/koji-hub-plugins/rpmautospec_hub.py
+%{_prefix}/lib/koji-hub-plugins/*
 
 %config(noreplace) %{_sysconfdir}/koji-hub/plugins/rpmautospec_hub.conf
 
@@ -124,7 +128,16 @@ touch %{buildroot}%{python2_sitelib}/rpmautospec/__init__.py \
     %{buildroot}%{python2_sitelib}/rpmautospec/py2compat/__init__.py
 install -m 0644 rpmautospec/py2compat/tagging.py \
     %{buildroot}%{python2_sitelib}/rpmautospec/py2compat/
+
+# EL <= 7: Byte-compile all the things
+%py_byte_compile %{python3} %{buildroot}%{python3_sitelib}
+%py_byte_compile %{python2} %{buildroot}%{python2_sitelib}
+%py_byte_compile %{python2} %{buildroot}%{_prefix}/lib/koji-hub-plugins/
+%else
+# EL > 7, Fedora
+%py_byte_compile %{python3} %{buildroot}%{_prefix}/lib/koji-hub-plugins/
 %endif
+%py_byte_compile %{python3} %{buildroot}%{_prefix}/lib/koji-builder-plugins/
 
 # the hub-plugin config
 mkdir -p %{buildroot}%{_sysconfdir}/koji-hub/plugins/

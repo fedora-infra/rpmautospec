@@ -10,6 +10,11 @@ URL:            https://pagure.io/Fedora-Infra/rpmautospec
 Source0:        https://releases.pagure.org/Fedora-Infra/rpmautospec/rpmautospec-%{version}.tar.gz
 
 BuildArch:      noarch
+BuildRequires:  python3-devel >= 3.6.0
+BuildRequires:  koji
+BuildRequires:  python3-koji
+BuildRequires:  python%{python3_pkgversion}-pytest
+BuildRequires:  git
 
 %global _description %{expand:
 A package and CLI tool to generate RPM release fields and changelogs.}
@@ -20,10 +25,6 @@ A package and CLI tool to generate RPM release fields and changelogs.}
 
 %package -n python3-%{srcname}
 Summary:        %{summary}
-BuildRequires:  python3-devel >= 3.6.0
-BuildRequires:  koji
-BuildRequires:  python3-koji
-BuildRequires:  python%{python3_pkgversion}-pytest
 %{?python_provide:%python_provide python3-%{srcname}}
 
 Requires: koji

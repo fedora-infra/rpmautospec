@@ -1,9 +1,16 @@
+# setuptools related
+/build/
+/dist/
+/rpmautospec.egg-info/
+
+# Visual Studio Code configuration
+/.vscode
+
+# Coverage related
+/htmlcov/
+/.coverage
+/coverage.xml
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-.vscode
-dist/
-*.egg-info/
-.coverage
-coverage.xml
-htmlcov

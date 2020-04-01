@@ -7,7 +7,7 @@ import tempfile
 
 
 from rpmautospec.changelog import produce_changelog
-from rpmautospec.misc import koji_init
+from rpmautospec.misc import koji_init, run_command
 from rpmautospec.release import holistic_heuristic_algo
 
 _log = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ def register_subcommand(subparsers):
     )
 
     process_distgit_parser.add_argument("worktree_path", help="Path to the dist-git worktree")
-    process_distgit_parser.add_argument("dist", help="The dist tag")
+    process_distgit_parser.add_argument("dist", requires=False, help="The dist tag")
 
     process_distgit_parser.add_argument(
         "--check",
@@ -113,6 +113,9 @@ def needs_processing(srcdir):
 def process_specfile(srcdir, dist, session, has_autorel, has_autochangelog, changelog_lineno):
     name = os.path.basename(srcdir)
     specfile_name = get_specfile_name(srcdir)
+
+    if not dist:
+        dist = run_command(["rpm", "--eval", "%dist"])
 
     new_rel = get_autorel(name, dist, session)
     with open(specfile_name, "r") as specfile, tempfile.NamedTemporaryFile("w") as tmp_specfile:

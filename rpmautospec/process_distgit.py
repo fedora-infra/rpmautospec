@@ -37,6 +37,22 @@ def register_subcommand(subparsers):
     process_distgit_parser.add_argument("worktree_path", help="Path to the dist-git worktree")
     process_distgit_parser.add_argument("dist", help="The dist tag")
 
+    process_distgit_parser.add_argument(
+        "--check",
+        dest="actions",
+        action="append_const",
+        const="check",
+        help="Check if the spec file uses %autorel or %autochangelog macros at all.",
+    )
+
+    process_distgit_parser.add_argument(
+        "--process-specfile",
+        dest="action",
+        action="append_const",
+        const="process-specfile",
+        help="Generate next release and changelog values and write into the spec file.",
+    )
+
     return subcmd_name
 
 
@@ -51,19 +67,21 @@ def get_autorel(name, dist, session):
     return release
 
 
-def process_distgit(srcdir, dist, session):
-    name = os.path.basename(srcdir)
-    new_rel = get_autorel(name, dist, session)
+def get_specfile_name(srcdir):
     specfile_names = glob(f"{srcdir}/*.spec")
     if len(specfile_names) != 1:
-        # callback should be run only in if there is a single spec-file
+        # this code should be run only if there is a single spec-file
         return
 
-    specfile_name = specfile_names[0]
+    return specfile_names[0]
 
+
+def check_distgit(srcdir):
     has_autorel = False
     changelog_lineno = None
     has_autochangelog = None
+
+    specfile_name = get_specfile_name(srcdir)
 
     # Detect if %autorel, %autochangelog are in use
     with open(specfile_name, "r") as specfile:
@@ -84,29 +102,53 @@ def process_distgit(srcdir, dist, session):
                     # Anything else than %autochangelog after %changelog -> hands off
                     has_autochangelog = False
 
-    if has_autorel or has_autochangelog:
-        with open(specfile_name, "r") as specfile, tempfile.NamedTemporaryFile("w") as tmp_specfile:
-            # Process the spec file into a temporary file...
-            if has_autorel:
-                # Write %autorel macro header
-                with open(autorel_macro_path, "r") as autorel_macro_file:
-                    print(autorel_template.format(autorel_normal=new_rel), file=tmp_specfile)
-                    for line in autorel_macro_file:
-                        print(line, file=tmp_specfile, end="")
+    return has_autorel, has_autochangelog, changelog_lineno
 
-            for lineno, line in enumerate(specfile, start=1):
-                if has_autochangelog and lineno > changelog_lineno:
-                    break
 
-                print(line, file=tmp_specfile, end="")
+def needs_processing(srcdir):
+    has_autorel, has_autochangelog, changelog_lineno = check_distgit(srcdir)
+    return has_autorel or has_autochangelog
 
-            if has_autochangelog:
-                print("\n".join(produce_changelog(srcdir, latest_rel=new_rel)), file=tmp_specfile)
 
-            tmp_specfile.flush()
+def process_specfile(srcdir, dist, session, has_autorel, has_autochangelog, changelog_lineno):
+    name = os.path.basename(srcdir)
+    specfile_name = get_specfile_name(srcdir)
 
-            # ...and copy it back (potentially across device boundaries)
-            shutil.copy2(tmp_specfile.name, specfile_name)
+    new_rel = get_autorel(name, dist, session)
+    with open(specfile_name, "r") as specfile, tempfile.NamedTemporaryFile("w") as tmp_specfile:
+        # Process the spec file into a temporary file...
+        if has_autorel:
+            # Write %autorel macro header
+            with open(autorel_macro_path, "r") as autorel_macro_file:
+                print(autorel_template.format(autorel_normal=new_rel), file=tmp_specfile)
+                for line in autorel_macro_file:
+                    print(line, file=tmp_specfile, end="")
+
+        for lineno, line in enumerate(specfile, start=1):
+            if has_autochangelog and lineno > changelog_lineno:
+                break
+
+            print(line, file=tmp_specfile, end="")
+
+        if has_autochangelog:
+            print("\n".join(produce_changelog(srcdir, latest_rel=new_rel)), file=tmp_specfile)
+
+        tmp_specfile.flush()
+
+        # ...and copy it back (potentially across device boundaries)
+        shutil.copy2(tmp_specfile.name, specfile_name)
+
+
+def process_distgit(srcdir, dist, session, actions=None):
+    if not actions:
+        actions = ["check", "process-specfile"]
+
+    if "check" in actions or "process-specfile" in actions:
+        has_autorel, has_autochangelog, changelog_lineno = check_distgit(srcdir)
+        processing_necessary = has_autorel or has_autochangelog
+
+    if "process-specfile" in actions and processing_necessary:
+        process_specfile(srcdir, dist, session, has_autorel, has_autochangelog, changelog_lineno)
 
 
 def main(args):
@@ -116,4 +158,4 @@ def main(args):
     dist = args.dist
     kojiclient = koji_init(args.koji_url)
 
-    process_distgit(repopath, dist, kojiclient)
+    process_distgit(repopath, dist, kojiclient, args.actions)

@@ -143,12 +143,18 @@ def process_distgit(srcdir, dist, session, actions=None):
     if not actions:
         actions = ["check", "process-specfile"]
 
+    retval = True
+
     if "check" in actions or "process-specfile" in actions:
         has_autorel, has_autochangelog, changelog_lineno = check_distgit(srcdir)
         processing_necessary = has_autorel or has_autochangelog
+        if "process-specfile" not in actions:
+            retval = processing_necessary
 
     if "process-specfile" in actions and processing_necessary:
         process_specfile(srcdir, dist, session, has_autorel, has_autochangelog, changelog_lineno)
+
+    return retval
 
 
 def main(args):
@@ -158,4 +164,4 @@ def main(args):
     dist = args.dist
     kojiclient = koji_init(args.koji_url)
 
-    process_distgit(repopath, dist, kojiclient, args.actions)
+    return 0 if process_distgit(repopath, dist, kojiclient, args.actions) else 1

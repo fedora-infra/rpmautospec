@@ -42,4 +42,4 @@ def main():
 
     if args.subcommand:
         subcmd_module = subcmd_modules_by_name[args.subcommand]
-        subcmd_module.main(args)
+        sys.exit(subcmd_module.main(args))

@@ -5,7 +5,13 @@
     - name: install deps
       become: yes
       package:
-        name: ['rpm-build', 'python3-devel', 'koji', 'python3-koji', 'pytest']
+        name:
+          - 'koji'
+          - 'python3-devel'
+          - 'python3-koji'
+          - 'python3-pytest'
+          - 'python3-pytest-cov'
+          - 'rpm-build'
         state: present
     - name: build source tarball
       command: chdir={{ansible_user_dir}}/{{zuul.project.src_dir}} python setup.py sdist

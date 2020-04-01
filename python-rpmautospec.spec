@@ -32,6 +32,7 @@ BuildRequires:  python2-devel
 BuildRequires:  koji
 BuildRequires:  python3-koji
 BuildRequires:  python%{python3_pkgversion}-pytest
+BuildRequires:  python%{python3_pkgversion}-pytest-cov
 BuildRequires:  git
 %endif
 

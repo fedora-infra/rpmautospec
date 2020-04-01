@@ -1,0 +1,12 @@
+[run]
+branch = True
+source = rpmautospec koji_plugins
+omit =
+
+[report]
+precision = 2
+#fail_under = 99
+exclude_lines =
+    pragma: no cover
+    def __repr__
+show_missing = True

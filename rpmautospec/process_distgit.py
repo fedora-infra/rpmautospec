@@ -72,8 +72,7 @@ def get_autorel(name, dist, session):
 def get_specfile_name(srcdir):
     specfile_names = glob(f"{srcdir}/*.spec")
     if len(specfile_names) != 1:
-        # this code should be run only if there is a single spec-file
-        return
+        raise RuntimeError(f"Didn't find exactly one spec file in {srcdir}.")
 
     return specfile_names[0]
 

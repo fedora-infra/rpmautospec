@@ -11,6 +11,7 @@ def _steal_buildroot_object_from_frame_stack():
         # Skip 2 frames, this fn and its caller
         stack = inspect.stack()[2:]
         for frame_info in stack:
+            frame = frame_info.frame
             if (
                 type(frame.f_locals.get("self")).__name__ == "BuildSRPMFromSCMTask"
                 and frame_info.function == "handler"

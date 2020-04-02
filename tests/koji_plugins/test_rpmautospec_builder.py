@@ -118,8 +118,8 @@ class TestRpmautospecBuilder:
         if rpmautospec_installed:
             assert not any("--install" in call[0] for call in buildroot.mock.call_args_list)
         else:
-            buildroot.mock.assert_any_call("--install", "python3-rpmautospec")
+            buildroot.mock.assert_any_call(["--install", "python3-rpmautospec"])
 
         buildroot.mock.assert_called_with(
-            "--shell", "rpmautospec", "process-distgit", "--process-specfile", srcdir_within,
+            ["--shell", "rpmautospec", "process-distgit", "--process-specfile", srcdir_within]
         )

@@ -46,7 +46,9 @@ def process_distgit_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwarg
 
     br_packages = buildroot.getPackageList()
     if not any(p["name"] == "python3-rpmautospec" for p in br_packages):
-        buildroot.mock("--install", "python3-rpmautospec")
+        buildroot.mock(["--install", "python3-rpmautospec"])
 
     srcdir_within = buildroot.path_without_to_within(srcdir)
-    buildroot.mock("--shell", "rpmautospec", "process-distgit", "--process-specfile", srcdir_within)
+    buildroot.mock(
+        ["--shell", "rpmautospec", "process-distgit", "--process-specfile", srcdir_within]
+    )

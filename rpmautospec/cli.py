@@ -22,6 +22,8 @@ def get_cli_args(args):
         default="https://koji.fedoraproject.org/kojihub",
     )
 
+    parser.add_argument("-q", "--quiet", action="store_true", help="Be less talkative")
+
     # parsers for sub-commands
 
     subparsers = parser.add_subparsers(dest="subcommand", required=True)

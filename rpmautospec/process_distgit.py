@@ -35,14 +35,16 @@ def register_subcommand(subparsers):
     )
 
     process_distgit_parser.add_argument("worktree_path", help="Path to the dist-git worktree")
-    process_distgit_parser.add_argument("dist", requires=False, help="The dist tag")
+    process_distgit_parser.add_argument(
+        "dist", nargs="?", help="The dist tag (taken from the %%dist RPM macro if not specified)"
+    )
 
     process_distgit_parser.add_argument(
         "--check",
         dest="actions",
         action="append_const",
         const="check",
-        help="Check if the spec file uses %autorel or %autochangelog macros at all.",
+        help="Check if the spec file uses %%autorel or %%autochangelog macros at all.",
     )
 
     process_distgit_parser.add_argument(
@@ -50,7 +52,7 @@ def register_subcommand(subparsers):
         dest="action",
         action="append_const",
         const="process-specfile",
-        help="Generate next release and changelog values and write into the spec file.",
+        help="Generate next release and changelog values and write them into the spec file.",
     )
 
     return subcmd_name

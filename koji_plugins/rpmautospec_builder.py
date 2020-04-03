@@ -1,8 +1,13 @@
 import inspect
+import logging
 
 from koji.plugin import callback
 
 from rpmautospec import process_distgit
+
+
+_log = logging.getLogger(__name__)
+_log.setLevel(logging.DEBUG)
 
 
 def _steal_buildroot_object_from_frame_stack():
@@ -38,17 +43,36 @@ def process_distgit_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwarg
         return
 
     if not process_distgit.needs_processing(srcdir):
+        _log.info("No %autorel/%autochangelog found, skipping.")
         return
 
     buildroot = kwargs.get("buildroot")
     if not buildroot:
+        _log.debug("Stealing buildroot from caller.")
         buildroot = _steal_buildroot_object_from_frame_stack()
+
+    # Save previous log level of the buildroot logger...
+    buildroot_loglevel = buildroot.logger.level
+
+    # ...and set our own
+    buildroot.logger.setLevel(logging.DEBUG)
 
     br_packages = buildroot.getPackageList()
     if not any(p["name"] == "python3-rpmautospec" for p in br_packages):
+        _log.info("Installing python3-rpmautospec into build root")
         buildroot.mock(["--install", "python3-rpmautospec"])
 
     srcdir_within = buildroot.path_without_to_within(srcdir)
     buildroot.mock(
-        ["--shell", "rpmautospec", "process-distgit", "--process-specfile", srcdir_within]
+        [
+            "--shell",
+            "rpmautospec",
+            "--debug",
+            "process-distgit",
+            "--process-specfile",
+            srcdir_within,
+        ]
     )
+
+    # Restore log level of the buildroot logger
+    buildroot.logger.level = buildroot_loglevel

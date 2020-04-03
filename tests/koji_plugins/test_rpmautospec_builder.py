@@ -80,9 +80,7 @@ class TestRpmautospecBuilder:
         ]
 
         if rpmautospec_installed:
-            installed_packages.append(
-                {"name": "python3-rpmautospec", "version": "0.1", "release": "1"}
-            )
+            installed_packages.append({"name": "rpmautospec", "version": "0.1", "release": "1"})
 
         buildroot.getPackageList.return_value = installed_packages
 
@@ -118,7 +116,7 @@ class TestRpmautospecBuilder:
         if rpmautospec_installed:
             assert not any("--install" in call[0] for call in buildroot.mock.call_args_list)
         else:
-            buildroot.mock.assert_any_call(["--install", "python3-rpmautospec"])
+            buildroot.mock.assert_any_call(["--install", "rpmautospec"])
 
         mock_args = [
             "--shell",

@@ -58,9 +58,9 @@ def process_distgit_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwarg
     buildroot.logger.setLevel(logging.DEBUG)
 
     br_packages = buildroot.getPackageList()
-    if not any(p["name"] == "python3-rpmautospec" for p in br_packages):
-        _log.info("Installing python3-rpmautospec into build root")
-        buildroot.mock(["--install", "python3-rpmautospec"])
+    if not any(p["name"] == "rpmautospec" for p in br_packages):
+        _log.info("Installing rpmautospec into build root")
+        buildroot.mock(["--install", "rpmautospec"])
 
     srcdir_within = buildroot.path_without_to_within(srcdir)
     buildroot.mock(

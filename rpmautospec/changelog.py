@@ -11,6 +11,7 @@ import typing
 from .misc import run_command
 from .py2compat.tagging import unescape_tag
 
+
 _log = logging.getLogger(__name__)
 
 
@@ -57,7 +58,7 @@ def git_get_log(
     if target:
         cmd.extend(["--", target])
 
-    _log.debug(f"git_get_log {' '.join(cmd)}")
+    _log.debug("git_get_log(): %s", cmd)
     return run_command(cmd, cwd=path).decode("UTF-8").strip().split("\n")
 
 
@@ -66,21 +67,21 @@ def git_get_commit_info(path: str, commithash: str) -> typing.List[str]:
     specified commit and returns the output from git
     """
     cmd = ["git", "show", "--no-patch", "--format=%P|%H|%ct|%aN <%aE>|%s", commithash]
-    _log.debug(f"git_get_commit_info {' '.join(cmd)}")
+    _log.debug("git_get_commit_info: %s", cmd)
     return run_command(cmd, cwd=path).decode("UTF-8").strip().split("\n")
 
 
 def git_get_changed_files(path: str, commithash: str) -> typing.List[str]:
     """ Returns the list of files changed in the specified commit. """
     cmd = ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", commithash]
-    _log.debug(f"git_get_changed_files {' '.join(cmd)}")
+    _log.debug("git_get_changed_files: %s", cmd)
     return run_command(cmd, cwd=path).decode("UTF-8").strip().split("\n")
 
 
 def git_get_tags(path: str) -> typing.Mapping[str, str]:
     """ Returns a dict containing for each commit tagged the corresponding tag. """
     cmd = ["git", "show-ref", "--tags", "--head"]
-    _log.debug(f"git_get_tags {' '.join(cmd)}")
+    _log.debug("git_get_tags: %s", cmd)
     tags_list = run_command(cmd, cwd=path).decode("UTF-8").strip().split("\n")
 
     output = {}
@@ -134,7 +135,7 @@ def produce_changelog(repopath, latest_rel=None):
     with tempfile.TemporaryDirectory(prefix="rpmautospec-") as workdir:
         repocopy = f"{workdir}/{name}"
         shutil.copytree(repopath, repocopy)
-        _log.debug(f"Working directory: {repocopy}")
+        _log.debug("Working directory: %s", repocopy)
         lines = []
 
         # Get all the tags in the repo
@@ -176,7 +177,7 @@ def produce_changelog(repopath, latest_rel=None):
             info = git_get_commit_info(repocopy, commit)
             if len(info) > 1:
                 # Ignore merge commits
-                _log.debug(f"commit {commit} is a merge commit, skipping")
+                _log.debug("commit %s is a merge commit, skipping", commit)
                 continue
 
             _, commithash, commit_ts, author_info, commit_summary = info[0].split("|", 4)
@@ -193,7 +194,7 @@ def produce_changelog(repopath, latest_rel=None):
                 # they will be cut down anyway when the RPM gets built, so
                 # the gap between the commits we are gathering here and the
                 # ones in the `changelog` file can be ignored.
-                # print(f"commit {commit} is too old, breaking iteration")
+                _log.debug("commit %s is too old, breaking iteration", commit)
                 break
 
             files_changed = git_get_changed_files(repocopy, commit)
@@ -217,7 +218,7 @@ def produce_changelog(repopath, latest_rel=None):
                     )
                 last_author = author_info
             else:
-                _log.debug(f"commit {commit} is not changing a file of interest, ignoring")
+                _log.debug("commit %s is not changing a file of interest, ignoring", commit)
 
         # Last entries
         output.append(entry)
@@ -246,4 +247,4 @@ def main(args):
 
     repopath = args.worktree_path
     changelog = produce_changelog(repopath)
-    print("\n".join(changelog))
+    _log.info("\n".join(changelog))

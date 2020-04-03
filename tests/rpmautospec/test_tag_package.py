@@ -1,3 +1,4 @@
+import logging
 from unittest import mock
 
 import pytest
@@ -88,8 +89,10 @@ class TestTagPackage:
     @mock.patch("rpmautospec.tag_package.run_command")
     @mock.patch("rpmautospec.tag_package.koji_init")
     @mock.patch("rpmautospec.tag_package.get_package_builds")
-    def test_main(self, get_package_builds, koji_init, run_command, phenomena, capsys):
+    def test_main(self, get_package_builds, koji_init, run_command, phenomena, caplog):
         """Test the tag_package.main() under various conditions."""
+        caplog.set_level(logging.DEBUG)
+
         phenomena = [p.strip() for p in phenomena.split(",")]
         koji_init.return_value = kojiclient = mock.Mock()
         get_package_builds.return_value = test_builds = get_test_builds(phenomena)
@@ -163,9 +166,7 @@ class TestTagPackage:
             tag = f"build/{nevr}"
             run_command.assert_called_once_with(["git", "tag", tag, commit], cwd=repopath)
 
-            stdout, stderr = capsys.readouterr()
-
             if "tagcmdfails" in phenomena:
-                assert stdout.strip() == "lp0 is on fire"
+                assert "lp0 is on fire" in caplog.text
             else:
-                assert stdout.strip() == f"tagged commit {commit} as {tag}"
+                assert f"Tagged commit {commit} as {tag}" in caplog.messages

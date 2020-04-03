@@ -46,8 +46,7 @@ def autotag_cb(cb_type, **kwargs):
         repo = match.group("repo")
         commit = match.group("commit")
         if not repo or not commit:
-            info = "Could not parse repo and commit from {}, skipping."
-            _log.info(info.format(build["source"]))
+            _log.info("Could not parse repo and commit from %s, skipping.", build["source"])
             return
     else:
         _log.info("No source for this build, skipping.")

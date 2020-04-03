@@ -1,4 +1,5 @@
 import json
+import logging
 import os.path
 from unittest import mock
 
@@ -37,7 +38,8 @@ class TestRelease:
     """Test the rpmautospec.release module"""
 
     @pytest.mark.parametrize("test_data", data_as_test_parameters(test_data))
-    def test_main(self, test_data, capsys):
+    def test_main(self, test_data, caplog):
+        caplog.set_level(logging.DEBUG)
         with open(
             os.path.join(
                 __here__,
@@ -69,7 +71,7 @@ class TestRelease:
         mock_client.getPackageID.assert_called_once()
         mock_client.listBuilds.assert_called_once()
 
-        expected_output = f"Last build: {test_data['last']}\n" f"Next build: {test_data['next']}\n"
-        captured_output = capsys.readouterr()
+        expected_messages = [f"Last build: {test_data['last']}", f"Next build: {test_data['next']}"]
 
-        assert captured_output.out == expected_output
+        for msg in expected_messages:
+            assert msg in caplog.messages

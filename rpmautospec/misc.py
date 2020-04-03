@@ -79,9 +79,9 @@ def run_command(command: list, cwd: Optional[str] = None) -> bytes:
     try:
         output = subprocess.check_output(command, cwd=cwd, stderr=subprocess.PIPE)
     except subprocess.CalledProcessError as e:
-        _log.error("Command `{}` return code: `{}`".format(" ".join(command), e.returncode))
-        _log.error("stdout:\n-------\n{}".format(e.stdout))
-        _log.error("stderr:\n-------\n{}".format(e.stderr))
+        _log.error("Command `%s` return code: `%s`", " ".join(command), e.returncode)
+        _log.error("stdout:\n-------\n%s", e.stdout)
+        _log.error("stderr:\n-------\n%s", e.stderr)
         raise
 
     return output

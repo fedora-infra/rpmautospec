@@ -53,16 +53,18 @@ def main_sequential_builds_algo(args):
                 n_builds += 1
 
     if not last_build:
-        print("No build found")
+        _log.info("No build found")
         return
 
-    print(f"Last build: {last_build['nvr']}")
+    _log.info("Last build: %s", last_build["nvr"])
     pkgrel, middle, minorbump = parse_release_tag(last_build["release"])
     try:
         n_builds = max([pkgrel + 1, n_builds])
     except TypeError:
         pass
-    print(f"Next build: {last_build['name']}-{last_build['version']}-{n_builds}.{args.dist}")
+    _log.info(
+        "Next build: %s-%s-%d.%s", last_build["name"], last_build["version"], n_builds, args.dist
+    )
 
 
 def holistic_heuristic_calculate_release(
@@ -157,7 +159,7 @@ def holistic_heuristic_algo(
         builds_per_distver[distver].append(build)
 
     if not builds_per_distver:
-        _log.warning(f"No matching builds found for dist tag pattern '{distcode}<number>'.")
+        _log.warning("No matching builds found for dist tag pattern '%s<number>'.", distcode)
         return
 
     for builds in builds_per_distver.values():
@@ -187,8 +189,8 @@ def holistic_heuristic_algo(
     )
     higher_bound_builds_nvr = [b["nvr"] for b in higher_bound_builds]
 
-    print(f"Highest build of lower or current distro versions: {lower_bound_nvr}")
-    print(f"Highest builds of higher distro versions: {', '.join(higher_bound_builds_nvr)}")
+    _log.info("Highest build of lower or current distro versions: %s", lower_bound_nvr)
+    _log.info("Highest builds of higher distro versions: %s", ", ".join(higher_bound_builds_nvr))
 
     lower_bound_rpmvercmp_key = rpmvercmp_key(lower_bound)
 
@@ -206,7 +208,7 @@ def holistic_heuristic_algo(
     else:
         higher_bound = higher_bound_nvr = None
 
-    print(f"Lowest satisfiable higher build in higher distro version: {higher_bound_nvr}")
+    _log.info("Lowest satisfiable higher build in higher distro version: %s", higher_bound_nvr)
 
     new_evr = holistic_heuristic_calculate_release(dist, evr, lower_bound, higher_bound)
     if new_evr["epoch"]:
@@ -214,7 +216,7 @@ def holistic_heuristic_algo(
     else:
         new_evr_str = f"{new_evr['version']}-{new_evr['release']}"
 
-    print(f"Calculated new release, EVR: {new_evr['release']}, {new_evr_str}")
+    _log.info("Calculated new release, EVR: %s, %s", new_evr["release"], new_evr_str)
 
     release = new_evr["release"]
 

@@ -143,7 +143,7 @@ def process_specfile(srcdir, dist, session, has_autorel, has_autochangelog, chan
         shutil.copy2(tmp_specfile.name, specfile_name)
 
 
-def process_distgit(srcdir, dist, session, actions=None, quiet=False):
+def process_distgit(srcdir, dist, session, actions=None):
     if not actions:
         actions = ["process-specfile"]
 
@@ -156,7 +156,7 @@ def process_distgit(srcdir, dist, session, actions=None, quiet=False):
             retval = processing_necessary
 
         # Only print output if explicitly requested
-        if "check" in actions and not quiet:
+        if "check" in actions:
             features_used = []
             if has_autorel:
                 features_used.append("%autorel")
@@ -164,9 +164,9 @@ def process_distgit(srcdir, dist, session, actions=None, quiet=False):
                 features_used.append("%autochangelog")
 
             if not features_used:
-                print("The spec file doesn't use automatic release or changelog.")
+                _log.info("The spec file doesn't use automatic release or changelog.")
             else:
-                print(f"Features used by the spec file: {', '.join(features_used)}")
+                _log.info("Features used by the spec file: %s", ", ".join(features_used))
 
     if "process-specfile" in actions and processing_necessary:
         process_specfile(srcdir, dist, session, has_autorel, has_autochangelog, changelog_lineno)
@@ -181,7 +181,7 @@ def main(args):
     dist = args.dist
     kojiclient = koji_init(args.koji_url)
 
-    if process_distgit(repopath, dist, kojiclient, actions=args.actions, quiet=args.quiet):
+    if process_distgit(repopath, dist, kojiclient, actions=args.actions):
         return 0
     else:
         return 1

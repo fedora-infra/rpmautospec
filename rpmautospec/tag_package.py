@@ -35,7 +35,7 @@ def main(args):
         owner_name = build["owner_name"]
         # Ignore modular builds, account for staging
         if owner_name.startswith("mbs/") and owner_name.endswith(".fedoraproject.org"):
-            _log.info(f"Ignoring modular build: {nevr}")
+            _log.debug("Ignoring modular build: %s", nevr)
             continue
 
         commit = None
@@ -60,9 +60,11 @@ def main(args):
             try:
                 task = [t for t in tasks if t["method"] == "buildSRPMFromSCM"][0]
             except IndexError:
-                _log.info(
+                _log.debug(
                     "Ignoring build without buildSRPMFromSCM task, or any task at all, "
-                    f"probably an old dist-cvs build: {nevr} (build id: {build['build_id']})"
+                    "probably an old dist-cvs build: %s (build id: %s)",
+                    nevr,
+                    build["build_id"],
                 )
                 continue
 
@@ -86,7 +88,7 @@ def main(args):
             command = ["git", "tag", tag, commit]
             try:
                 run_command(command, cwd=repopath)
-            except RuntimeError as err:
-                print(err)
+            except RuntimeError:
+                _log.exception("Error while tagging %s with %s:", commit, tag)
             else:
-                print(f"tagged commit {commit} as {tag}")
+                _log.info("Tagged commit %s as %s", commit, tag)

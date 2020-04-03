@@ -3,7 +3,6 @@ from collections import defaultdict
 from itertools import chain
 import logging
 import re
-import sys
 import typing
 
 from .misc import (
@@ -133,10 +132,7 @@ def holistic_heuristic_algo(
 ):
     match = disttag_re.match(dist)
     if not match:
-        print(
-            f"Dist tag {dist!r} has wrong format (should be e.g. 'fc31', 'epel7')", file=sys.stderr,
-        )
-        sys.exit(1)
+        raise RuntimeError("Dist tag %r has wrong format (should be e.g. 'fc31', 'epel7')", dist)
 
     distcode = match.group("distcode")
     pkgdistver = int(match.group("distver"))

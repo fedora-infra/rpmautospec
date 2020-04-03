@@ -49,6 +49,7 @@ Summary:        %{summary}
 
 Requires: koji
 Requires: git-core
+Requires: rpm-build
 Requires: python3-rpm
 Requires: python3-koji
 

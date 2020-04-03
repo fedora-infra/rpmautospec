@@ -182,6 +182,8 @@ def produce_changelog(repopath, latest_rel=None):
                 continue
 
             _, commithash, commit_ts, author_info, commit_summary = info[0].split("|", 4)
+            author_info = author_info.replace("%", "%%")
+            commit_summary = commit_summary.replace("%", "%%")
 
             if commithash in tags:
                 output.append(entry)

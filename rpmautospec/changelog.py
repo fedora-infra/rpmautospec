@@ -245,6 +245,6 @@ def produce_changelog(repopath, latest_rel=None):
 def main(args):
     """ Main method. """
 
-    repopath = args.worktree_path
+    repopath = args.worktree_path.rstrip(os.path.sep)
     changelog = produce_changelog(repopath)
     _log.info("\n".join(changelog))

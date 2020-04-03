@@ -178,7 +178,7 @@ def process_distgit(srcdir, dist, session, actions=None):
 def main(args):
     """ Main method. """
 
-    repopath = args.worktree_path
+    repopath = args.worktree_path.rstrip(os.path.sep)
     dist = args.dist
     kojiclient = koji_init(args.koji_url)
 

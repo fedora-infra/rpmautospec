@@ -1,4 +1,5 @@
 import argparse
+import logging
 import sys
 import typing
 
@@ -6,6 +7,27 @@ from . import changelog, process_distgit, release, tag_package
 
 
 subcmd_modules_by_name = {}
+
+
+def setup_logging(log_level: int):
+    handlers = []
+
+    # We want all messages logged at level INFO or lower to be printed to stdout
+    info_handler = logging.StreamHandler(stream=sys.stdout)
+    info_handler.setLevel(log_level)
+    info_handler.addFilter(lambda record: record.levelno <= logging.INFO)
+    handlers.append(info_handler)
+
+    # Don't log levels <= INFO to stderr
+    logging.lastResort.addFilter(lambda record: record.levelno > logging.INFO)
+    handlers.append(logging.lastResort)
+
+    if log_level == logging.INFO:
+        # In normal operation, don't decorate messages
+        for handler in handlers:
+            handler.setFormatter(logging.Formatter("%(message)s"))
+
+    logging.basicConfig(level=log_level, handlers=handlers)
 
 
 def get_cli_args(args: typing.List[str]) -> argparse.Namespace:
@@ -23,7 +45,23 @@ def get_cli_args(args: typing.List[str]) -> argparse.Namespace:
         default="https://koji.fedoraproject.org/kojihub",
     )
 
-    parser.add_argument("-q", "--quiet", action="store_true", help="Be less talkative")
+    log_level_group = parser.add_mutually_exclusive_group()
+    log_level_group.add_argument(
+        "-q",
+        "--quiet",
+        action="store_const",
+        dest="log_level",
+        const=logging.WARNING,
+        default=logging.INFO,
+        help="Be less talkative",
+    )
+    log_level_group.add_argument(
+        "--debug",
+        action="store_const",
+        dest="log_level",
+        const=logging.DEBUG,
+        help="Enable debugging output",
+    )
 
     # parsers for sub-commands
 
@@ -42,6 +80,8 @@ def get_cli_args(args: typing.List[str]) -> argparse.Namespace:
 
 def main():
     args = get_cli_args(sys.argv[1:])
+
+    setup_logging(log_level=args.log_level)
 
     if args.subcommand:
         subcmd_module = subcmd_modules_by_name[args.subcommand]

@@ -5,9 +5,10 @@ import re
 import shutil
 import tempfile
 
+import rpm
 
 from rpmautospec.changelog import produce_changelog
-from rpmautospec.misc import koji_init, run_command
+from rpmautospec.misc import koji_init
 from rpmautospec.release import holistic_heuristic_algo
 
 _log = logging.getLogger(__name__)
@@ -116,7 +117,7 @@ def process_specfile(srcdir, dist, session, has_autorel, has_autochangelog, chan
     specfile_name = get_specfile_name(srcdir)
 
     if not dist:
-        dist = run_command(["rpm", "--eval", "%dist"])
+        dist = rpm.expandMacro("%dist")
 
     new_rel = get_autorel(name, dist, session)
     with open(specfile_name, "r") as specfile, tempfile.NamedTemporaryFile("w") as tmp_specfile:

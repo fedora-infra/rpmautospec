@@ -48,6 +48,7 @@ Summary:        %{summary}
 %{?python_provide:%python_provide python3-%{srcname}}
 
 Requires: koji
+Requires: git-core
 Requires: python3-rpm
 Requires: python3-koji
 

@@ -123,6 +123,7 @@ def get_rpm_current_version(path: str, name: str) -> str:
         output = (
             run_command(["rpm", "--qf", "%{version}\n", "--specfile", f"{name}.spec"], cwd=path,)
             .decode("UTF-8")
+            .split("\n")[0]
             .strip()
         )
     except Exception:
@@ -141,7 +142,7 @@ def produce_changelog(repopath, latest_rel=None):
         # Get all the tags in the repo
         tags = git_get_tags(repocopy)
 
-        # Get the lastest commit in the repo
+        # Get the latest commit in the repo
         head = git_get_log(repocopy, log_options=["-1"])[0]
         head_hash = head.split(" ", 1)[0]
         head_info = git_get_commit_info(repocopy, head_hash)[0]

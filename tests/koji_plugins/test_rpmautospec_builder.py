@@ -122,10 +122,6 @@ class TestRpmautospecBuilder:
 
         mock_args = [
             "--shell",
-            "rpmautospec",
-            "--debug",
-            "process-distgit",
-            "--process-specfile",
-            srcdir_within,
+            f"rpmautospec --debug process-distgit --process-specfile {srcdir_within}",
         ]
         buildroot.mock.assert_called_with(mock_args)

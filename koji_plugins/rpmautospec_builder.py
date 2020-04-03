@@ -64,14 +64,7 @@ def process_distgit_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwarg
 
     srcdir_within = buildroot.path_without_to_within(srcdir)
     buildroot.mock(
-        [
-            "--shell",
-            "rpmautospec",
-            "--debug",
-            "process-distgit",
-            "--process-specfile",
-            srcdir_within,
-        ]
+        ["--shell", f"rpmautospec --debug process-distgit --process-specfile {srcdir_within}"]
     )
 
     # Restore log level of the buildroot logger

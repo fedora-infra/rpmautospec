@@ -1,5 +1,6 @@
 import argparse
 import sys
+import typing
 
 from . import changelog, process_distgit, release, tag_package
 
@@ -7,7 +8,7 @@ from . import changelog, process_distgit, release, tag_package
 subcmd_modules_by_name = {}
 
 
-def get_cli_args(args):
+def get_cli_args(args: typing.List[str]) -> argparse.Namespace:
     global subcmd_modules_by_name
 
     parser = argparse.ArgumentParser(

@@ -109,6 +109,9 @@ A Koji plugin for tagging successful builds in their dist-git repository.
 
 %prep
 %autosetup -n %{srcname}-%{version}
+# The python3-koji package doesn't declare itself properly, so we may not depend on it when
+# installed as an RPM.
+sed -i d/koji/ requirements.txt
 
 %build
 %py3_build

@@ -61,7 +61,7 @@ class TestRelease:
 
             main_args = mock.Mock()
             main_args.algorithm = "sequential_builds"
-            main_args.package = test_data["package"]
+            main_args.dist_git = os.path.sep.join(["tmp", test_data["package"]])
             main_args.dist = test_data["dist"]
             main_args.evr = None
             main_args.koji_url = "http://192.0.2.1"

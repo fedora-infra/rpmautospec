@@ -2,6 +2,7 @@
 from collections import defaultdict
 from itertools import chain
 import logging
+import os
 import re
 import typing
 
@@ -33,7 +34,9 @@ def register_subcommand(subparsers):
         choices=["sequential_builds", "holistic_heuristic"],
         default="sequential_builds",
     )
-    calc_release_parser.add_argument("package", help="The name of the package of interest")
+    calc_release_parser.add_argument(
+        "dist_git", help="Clone of the dist-git repository to use for input"
+    )
     calc_release_parser.add_argument("dist", help="The dist-tag of interest")
     calc_release_parser.add_argument(
         "evr", help="The [epoch:]version[-release] of the package", nargs="?", type=parse_evr,
@@ -45,7 +48,8 @@ def register_subcommand(subparsers):
 def main_sequential_builds_algo(args):
     n_builds = 1
     last_build = last_version = None
-    for build in get_package_builds(args.package):
+    name = os.path.basename(args.dist_git.rstrip(os.path.sep))
+    for build in get_package_builds(name):
         if args.dist in build["release"]:
             if n_builds == 1:
                 last_build = build
@@ -237,4 +241,4 @@ def main(args):
     if args.algorithm == "sequential_builds":
         main_sequential_builds_algo(args)
     elif args.algorithm == "holistic_heuristic":
-        holistic_heuristic_algo(args.package, args.dist, args.evr)
+        holistic_heuristic_algo(args.dist_git, args.dist, args.evr)

@@ -23,6 +23,7 @@ def register_subcommand(subparsers):
 
 
 def tag_package(srcdir, session):
+    koji_init(session)
     repopath = srcdir.rstrip(os.path.sep)
 
     name = os.path.basename(repopath)

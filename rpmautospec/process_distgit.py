@@ -119,6 +119,9 @@ def process_specfile(srcdir, dist, session, has_autorel, has_autochangelog, chan
     if not dist:
         dist = rpm.expandMacro("%dist")
 
+    if dist.startswith("."):
+        dist = dist[1:]
+
     new_rel = get_autorel(name, dist, session)
     with open(specfile_name, "r") as specfile, tempfile.NamedTemporaryFile("w") as tmp_specfile:
         # Process the spec file into a temporary file...

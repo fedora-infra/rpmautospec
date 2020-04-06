@@ -49,7 +49,6 @@ Summary:        %{summary}
 
 Requires: koji
 Requires: git-core
-Requires: rpm-build
 Requires: python3-rpm
 Requires: python3-koji
 
@@ -67,6 +66,10 @@ Requires: python3-koji
 %package -n %{srcname}
 Summary:  CLI tool for generating RPM releases and changelogs
 Requires: python3-%{srcname} = %{version}-%{release}
+# We add this require here and not in python3-rpmautospec because we do not want
+# it on the builders, the hub and builders plugins will work fine without it but
+# we need this in the chroot or when packagers run the CLI on their machines.
+Requires: rpm-build
 
 %description -n %{srcname}
 CLI tool for generating RPM releases and changelogs

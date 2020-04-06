@@ -8,7 +8,7 @@ import tempfile
 import textwrap
 import typing
 
-from .misc import git_get_tags, run_command
+from .misc import get_rpm_current_version, git_get_tags, run_command
 
 
 _log = logging.getLogger(__name__)
@@ -94,23 +94,6 @@ def nevrd_to_evr(nevrd: str) -> str:
     release = re.sub(r"\.fc\d+", "", release)
     release = re.sub(r"\.el\d+", "", release)
     return f"{version}{release}"
-
-
-def get_rpm_current_version(path: str, name: str) -> str:
-    """ Retrieve the current version set in the spec file named ``name``.spec
-    at the given path.
-    """
-    output = None
-    try:
-        output = (
-            run_command(["rpm", "--qf", "%{version}\n", "--specfile", f"{name}.spec"], cwd=path,)
-            .decode("UTF-8")
-            .split("\n")[0]
-            .strip()
-        )
-    except Exception:
-        pass
-    return output
 
 
 def produce_changelog(repopath, latest_rel=None):

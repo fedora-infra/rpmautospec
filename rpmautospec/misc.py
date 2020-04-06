@@ -1,5 +1,6 @@
 from functools import cmp_to_key
 import logging
+import os
 import re
 import subprocess
 from typing import List
@@ -53,6 +54,31 @@ def parse_release_tag(tag: str) -> Tuple[Optional[int], Optional[str], Optional[
         except TypeError:
             pass
     return pkgrel, middle, minorbump
+
+
+def get_rpm_current_version(path: str, name: Optional[str] = None, with_epoch: bool = False) -> str:
+    """ Retrieve the current version set in the spec file named ``name``.spec
+    at the given path.
+    """
+    if not name:
+        path = path.rstrip(os.path.sep)
+        name = os.path.basename(path)
+
+    query = "%{version}"
+    if with_epoch:
+        query = "%|epoch?{%{epoch}:}:{}|" + query
+
+    output = None
+    try:
+        output = (
+            run_command(["rpm", "--qf", f"{query}\n", "--specfile", f"{name}.spec"], cwd=path,)
+            .decode("UTF-8")
+            .split("\n")[0]
+            .strip()
+        )
+    except Exception:
+        pass
+    return output
 
 
 def koji_init(koji_url_or_session: Union[str, koji.ClientSession]) -> koji.ClientSession:

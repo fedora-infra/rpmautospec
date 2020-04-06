@@ -162,6 +162,9 @@ done
 %endif
 
 %changelog
+* Mon Apr 06 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0.0.11-1
+- Update to 0.0.11
+
 * Fri Apr 03 2020 Nils Philippsen <nils@redhat.com> - 0.0.10-1
 - Update to 0.0.10
 

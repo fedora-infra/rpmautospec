@@ -73,10 +73,9 @@ def is_autorel(line):
     return autorel_re.match(line)
 
 
-def get_autorel(name, dist, session):
-    koji_init(session)
+def get_autorel(srcdir, dist, session):
     # evr=None forces to search from lower bound
-    release = holistic_heuristic_algo(package=name, dist=dist, evr=None, strip_dist=True)
+    release = holistic_heuristic_algo(srcdir=srcdir, dist=dist, evr=None, strip_dist=True)
     return release
 
 
@@ -123,7 +122,6 @@ def needs_processing(srcdir):
 
 
 def process_specfile(srcdir, dist, session, has_autorel, has_autochangelog, changelog_lineno):
-    name = os.path.basename(srcdir)
     specfile_name = get_specfile_name(srcdir)
 
     if not dist:
@@ -132,7 +130,7 @@ def process_specfile(srcdir, dist, session, has_autorel, has_autochangelog, chan
     if dist.startswith("."):
         dist = dist[1:]
 
-    new_rel = get_autorel(name, dist, session)
+    new_rel = get_autorel(srcdir, dist, session)
     with open(specfile_name, "r") as specfile, tempfile.NamedTemporaryFile("w") as tmp_specfile:
         # Process the spec file into a temporary file...
         if has_autorel:

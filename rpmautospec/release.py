@@ -8,6 +8,7 @@ import typing
 from .misc import (
     disttag_re,
     get_package_builds,
+    git_get_tags,
     koji_init,
     parse_evr,
     parse_release_tag,
@@ -129,7 +130,7 @@ def holistic_heuristic_calculate_release(
 
 
 def holistic_heuristic_algo(
-    package: str, dist: str, evr: typing.Tuple[int, str, str], strip_dist: bool = False,
+    srcdir: str, dist: str, evr: typing.Tuple[int, str, str], strip_dist: bool = False,
 ):
     match = disttag_re.match(dist)
     if not match:
@@ -140,7 +141,13 @@ def holistic_heuristic_algo(
 
     dtag_re = re.compile(fr"\.{distcode}(?P<distver>\d+)")
 
-    builds = [build for build in get_package_builds(package) if dtag_re.search(build["release"])]
+    tags = git_get_tags(srcdir) or []
+    builds = []
+    if tags:
+        for build in tags.values():
+            b_evr = "-".join(build.rsplit("-", 2)[1:])
+            epoch, version, release = parse_evr(b_evr)
+            builds.append({"nvr": build, "epoch": epoch, "version": version, "release": release})
 
     # builds by distro release
     builds_per_distver = defaultdict(list)

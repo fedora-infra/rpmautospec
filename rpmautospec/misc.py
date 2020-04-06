@@ -31,7 +31,7 @@ _kojiclient = None
 _log = logging.getLogger(__name__)
 
 
-def parse_evr(evr_str: str) -> Tuple[int, str, str]:
+def parse_evr(evr_str: str) -> Tuple[int, str, Optional[str]]:
     match = evr_re.match(evr_str)
 
     if not match:

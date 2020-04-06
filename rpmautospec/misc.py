@@ -35,7 +35,7 @@ def parse_evr(evr_str: str) -> Tuple[int, str, Optional[str]]:
     match = evr_re.match(evr_str)
 
     if not match:
-        raise ValueError(str)
+        raise ValueError(evr_str)
 
     epoch = match.group("epoch") or 0
     epoch = int(epoch)

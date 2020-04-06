@@ -2,13 +2,11 @@
 from collections import defaultdict
 from itertools import chain
 import logging
-import os
 import re
 import typing
 
 from .misc import (
     disttag_re,
-    get_package_builds,
     git_get_tags,
     koji_init,
     parse_evr,

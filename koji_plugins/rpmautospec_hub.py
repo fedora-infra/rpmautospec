@@ -7,7 +7,7 @@ from koji.plugin import callback
 from rpmautospec.py2compat import tagging
 
 
-CONFIG_FILE = "/etc/koji-hub/plugins/rpmautospec_hub.conf"
+CONFIG_FILE = "/etc/koji-hub/plugins/rpmautospec.conf"
 CONFIG = None
 
 _log = logging.getLogger("koji.plugin.rpmautospec_hub")

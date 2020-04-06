@@ -88,6 +88,8 @@ A Koji plugin for generating RPM releases and changelogs.
 %files -n koji-builder-plugin-rpmautospec
 %{_prefix}/lib/koji-builder-plugins/*
 
+%config(noreplace) %{_sysconfdir}/kojid/plugins/rpmautospec.conf
+
 %package -n koji-hub-plugin-rpmautospec
 Summary: Koji plugin for tagging successful builds in dist-git
 %if ! %{with epel_le_7}
@@ -105,7 +107,7 @@ A Koji plugin for tagging successful builds in their dist-git repository.
 %endif
 %{_prefix}/lib/koji-hub-plugins/*
 
-%config(noreplace) %{_sysconfdir}/koji-hub/plugins/rpmautospec_hub.conf
+%config(noreplace) %{_sysconfdir}/koji-hub/plugins/rpmautospec.conf
 
 #--------------------------------------------------------
 
@@ -145,9 +147,12 @@ install -m 0644 rpmautospec/py2compat/tagging.py \
 %endif
 %py_byte_compile %{python3} %{buildroot}%{_prefix}/lib/koji-builder-plugins/
 
-# the hub-plugin config
-mkdir -p %{buildroot}%{_sysconfdir}/koji-hub/plugins/
-install -m 0644 koji_plugins/rpmautospec_hub.conf %{buildroot}%{_sysconfdir}/koji-hub/plugins/rpmautospec_hub.conf
+# configuration shared by the plugins
+for dest in kojid koji-hub; do
+    mkdir -p %{buildroot}%{_sysconfdir}/$dest/plugins/
+    install -m 0644 koji_plugins/rpmautospec.conf \
+        %{buildroot}%{_sysconfdir}/$dest/plugins/rpmautospec.conf
+done
 
 # EPEL7 does not have python3-koji which is needed to run the tests, so there
 # is no point in running them

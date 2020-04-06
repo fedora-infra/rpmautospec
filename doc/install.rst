@@ -33,10 +33,10 @@ in: ``/usr/lib/koji-hub-plugins/``.
 It is python2 compatible and requires the package ``rpmautospec.py2compat``.
 
 This plugin also requires a configuration file at:
-``/etc/koji-hub/plugins/rpmautospec_hub.conf``
+``/etc/koji-hub/plugins/rpmautospec.conf``
 
 An example configuration file can be found in the sources at:
-``koji_plugins/rpmautospec_hub.conf``
+``koji_plugins/rpmautospec.conf``
 
 The plugin can then be enabled by adding: ``rpmautospec_hub`` in the line
 ``Plugins`` in the ``/etc/koji-hub/hub.conf`` configuration file for koji hub.
@@ -48,6 +48,12 @@ Installing the koji-builders plugin
 The koji plugin ``rpmautospec_builder`` is meant to be installed on all the
 koji builders running the ``buildSRPMFromSCM`` task in:
 ``/usr/lib/koji-builder-plugins/``.
+
+This plugin also requires a configuration file at:
+``/etc/kojid/plugins/rpmautospec.conf``
+
+An example configuration file can be found in the sources at:
+``koji_plugins/rpmautospec.conf``
 
 The plugin then can be enabled by adding: ``rpmautospec_builder`` in the line
 ``plugins`` in the ``/etc/kojid/kojid.conf`` configuration file for the koji

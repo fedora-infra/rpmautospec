@@ -7,9 +7,10 @@ import tempfile
 
 import rpm
 
-from rpmautospec.changelog import produce_changelog
-from rpmautospec.misc import koji_init
-from rpmautospec.release import holistic_heuristic_algo
+from .changelog import produce_changelog
+from .misc import koji_init
+from .release import holistic_heuristic_algo
+
 
 _log = logging.getLogger(__name__)
 __here__ = os.path.dirname(__file__)

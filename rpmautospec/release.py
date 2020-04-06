@@ -14,6 +14,7 @@ from .misc import (
     rpmvercmp_key,
 )
 
+
 _log = logging.getLogger(__name__)
 
 

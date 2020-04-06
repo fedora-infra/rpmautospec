@@ -26,13 +26,6 @@ def register_subcommand(subparsers):
     )
 
     calc_release_parser.add_argument(
-        "--algorithm",
-        "--algo",
-        help="The algorithm with which to calculate the next release",
-        choices=["sequential_builds", "holistic_heuristic"],
-        default="sequential_builds",
-    )
-    calc_release_parser.add_argument(
         "dist_git", help="Clone of the dist-git repository to use for input"
     )
     calc_release_parser.add_argument("dist", help="The dist-tag of interest")
@@ -43,31 +36,6 @@ def register_subcommand(subparsers):
     return subcmd_name
 
 
-def main_sequential_builds_algo(args):
-    n_builds = 1
-    last_build = last_version = None
-    name = os.path.basename(args.dist_git.rstrip(os.path.sep))
-    for build in get_package_builds(name):
-        if args.dist in build["release"]:
-            if n_builds == 1:
-                last_build = build
-                last_version = build["version"]
-            if build["version"] == last_version:
-                n_builds += 1
-
-    if not last_build:
-        _log.info("No build found")
-        return
-
-    _log.info("Last build: %s", last_build["nvr"])
-    pkgrel, middle, minorbump = parse_release_tag(last_build["release"])
-    try:
-        n_builds = max([pkgrel + 1, n_builds])
-    except TypeError:
-        pass
-    _log.info(
-        "Next build: %s-%s-%d.%s", last_build["name"], last_build["version"], n_builds, args.dist
-    )
 
 
 def holistic_heuristic_calculate_release(
@@ -236,7 +204,4 @@ def main(args):
     """ Main method. """
     koji_init(args.koji_url)
 
-    if args.algorithm == "sequential_builds":
-        main_sequential_builds_algo(args)
-    elif args.algorithm == "holistic_heuristic":
-        holistic_heuristic_algo(args.dist_git, args.dist, args.evr)
+    holistic_heuristic_algo(args.dist_git, args.dist, args.evr)

@@ -1,5 +1,6 @@
 import inspect
 import logging
+import shlex
 
 from koji.plugin import callback
 
@@ -62,7 +63,7 @@ def process_distgit_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwarg
         _log.info("Installing rpmautospec into build root")
         buildroot.mock(["--install", "rpmautospec"])
 
-    srcdir_within = buildroot.path_without_to_within(srcdir)
+    srcdir_within = shlex.quote(buildroot.path_without_to_within(srcdir))
     buildroot.mock(
         ["--shell", f"rpmautospec --debug process-distgit --process-specfile {srcdir_within}"]
     )

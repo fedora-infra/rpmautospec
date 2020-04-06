@@ -1,3 +1,4 @@
+import shlex
 from unittest import mock
 
 import pytest
@@ -54,7 +55,7 @@ class TestRpmautospecBuilder:
         skip_processing = testcase != "skip processing"
 
         # prepare test environment
-        srcdir_within = "/builddir/build/BUILD/something"
+        srcdir_within = "/builddir/build/BUILD/something with spaces"
         unpacked_repo_dir = f"/var/lib/mock/some-root/{srcdir_within}"
         args = ["postSCMCheckout"]
         kwargs = {
@@ -120,6 +121,6 @@ class TestRpmautospecBuilder:
 
         mock_args = [
             "--shell",
-            f"rpmautospec --debug process-distgit --process-specfile {srcdir_within}",
+            f"rpmautospec --debug process-distgit --process-specfile {shlex.quote(srcdir_within)}",
         ]
         buildroot.mock.assert_called_with(mock_args)

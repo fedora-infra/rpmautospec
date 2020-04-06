@@ -7,8 +7,10 @@ import typing
 
 from .misc import (
     disttag_re,
+    get_rpm_current_version,
     git_get_tags,
     koji_init,
+    parse_epoch_version,
     parse_evr,
     parse_release_tag,
     rpmvercmp_key,
@@ -26,38 +28,48 @@ def register_subcommand(subparsers):
     )
 
     calc_release_parser.add_argument(
-        "dist_git", help="Clone of the dist-git repository to use for input"
+        "--latest-evr",
+        help="The [epoch:]version[-release] of the latest build",
+        nargs="?",
+        type=parse_evr,
+    )
+
+    calc_release_parser.add_argument(
+        "--next-epoch-version",
+        help="The [epoch:]version of the next build",
+        nargs="?",
+        type=parse_epoch_version,
+    )
+
+    calc_release_parser.add_argument(
+        "srcdir", help="Clone of the dist-git repository to use for input"
     )
     calc_release_parser.add_argument("dist", help="The dist-tag of interest")
-    calc_release_parser.add_argument(
-        "evr", help="The [epoch:]version[-release] of the package", nargs="?", type=parse_evr,
-    )
 
     return subcmd_name
 
 
-
-
 def holistic_heuristic_calculate_release(
     dist: str,
-    evr: typing.Tuple[int, str, str],
-    lower_bound: dict,
+    next_epoch_version: typing.Tuple[int, str],
+    latest_evr: typing.Optional[typing.Tuple[int, str, typing.Optional[str]]],
+    lower_bound: typing.Optional[dict],
     higher_bound: typing.Optional[dict],
 ):
+    # epoch, version, release for the next build...
+    epoch, version = next_epoch_version
+    release = None  # == unknown
 
-    # So what package EVR are we going for again? Default to "same as lower bound".
-    try:
-        epoch, version, release = evr
-    except TypeError:
-        epoch, version, release = (
-            lower_bound["epoch"],
-            lower_bound["version"],
-            lower_bound["release"],
-        )
+    if latest_evr and latest_evr[:2] == next_epoch_version:
+        release = latest_evr["release"]
+    else:
+        # So later bumping produces "1"
+        release = "0"
 
-    new_evr = {"epoch": epoch, "version": version, "release": release}
-    if rpmvercmp_key(new_evr) > rpmvercmp_key(lower_bound):
-        lower_bound = new_evr
+    next_evr = {"epoch": epoch, "version": version, "release": release}
+
+    if not lower_bound or rpmvercmp_key(next_evr) > rpmvercmp_key(lower_bound):
+        lower_bound = next_evr
         if not release:
             lower_bound["release"] = f"1.{dist}"
 
@@ -72,44 +84,59 @@ def holistic_heuristic_calculate_release(
 
     # Bump the left-most release number and check that it doesn't violate the higher bound, if it
     # exists.
-    new_evr["release"] = f"{lpkgrel + 1}.{dist}"
+    next_evr["release"] = f"{lpkgrel + 1}.{dist}"
 
-    if not higher_bound or rpmvercmp_key(new_evr) < rpmvercmp_key(higher_bound):
+    if not higher_bound or rpmvercmp_key(next_evr) < rpmvercmp_key(higher_bound):
         # No (satisfiable) higher bound exists or it has a higher epoch-version-release.
-        return new_evr
+        return next_evr
 
     if lminorbump:
         nminorbump = lminorbump + 1
     else:
         nminorbump = 1
 
-    new_evr["release"] = rel_bak = f"{lpkgrel}.{dist}.{nminorbump}"
+    next_evr["release"] = rel_bak = f"{lpkgrel}.{dist}.{nminorbump}"
 
-    if rpmvercmp_key(new_evr) < rpmvercmp_key(higher_bound):
-        return new_evr
+    if rpmvercmp_key(next_evr) < rpmvercmp_key(higher_bound):
+        return next_evr
 
     # Oops. Attempt appending '.1' to the minor bump, ...
-    new_evr["release"] += ".1"
+    next_evr["release"] += ".1"
 
-    if rpmvercmp_key(new_evr) < rpmvercmp_key(higher_bound):
-        return new_evr
+    if rpmvercmp_key(next_evr) < rpmvercmp_key(higher_bound):
+        return next_evr
 
     # ... otherwise don't bother.
-    new_evr["release"] = rel_bak
-    return new_evr
+    next_evr["release"] = rel_bak
+    return next_evr
 
 
 def holistic_heuristic_algo(
-    srcdir: str, dist: str, evr: typing.Tuple[int, str, str], strip_dist: bool = False,
+    srcdir: str,
+    dist: str,
+    next_epoch_version: typing.Optional[typing.Tuple[int, str]] = None,
+    latest_evr: typing.Optional[typing.Tuple[int, str, str]] = None,
+    strip_dist: bool = False,
 ):
     match = disttag_re.match(dist)
     if not match:
         raise RuntimeError("Dist tag %r has wrong format (should be e.g. 'fc31', 'epel7')", dist)
 
+    if not next_epoch_version:
+        next_epoch_version = parse_epoch_version(get_rpm_current_version(srcdir, with_epoch=True))
+
     distcode = match.group("distcode")
     pkgdistver = int(match.group("distver"))
 
     dtag_re = re.compile(fr"\.{distcode}(?P<distver>\d+)")
+
+    if not next_epoch_version:
+        if latest_evr:
+            next_epoch_version = latest_evr[:2]
+        else:
+            next_epoch_version = parse_epoch_version(
+                get_rpm_current_version(srcdir, with_epoch=True)
+            )
 
     tags = git_get_tags(srcdir) or []
     builds = []
@@ -151,8 +178,11 @@ def holistic_heuristic_algo(
     # TODO: Cope with epoch-version being higher in a previous Fedora release.
 
     # Lower bound: the RPM-wise "highest" build which this release has to exceed.
-    lower_bound = lower_bound_builds[0]
-    lower_bound_nvr = lower_bound["nvr"]
+    if lower_bound_builds:
+        lower_bound = lower_bound_builds[0]
+        lower_bound_nvr = lower_bound["nvr"]
+        lower_bound_rpmvercmp_key = rpmvercmp_key(lower_bound)
+        _log.info("Highest build of lower or current distro versions: %s", lower_bound_nvr)
 
     # All builds that should be 'higher' than what we are targetting, i.e. the highest build of each
     # newer release. We aim at a new release which is lower than every one of them, but if this
@@ -162,18 +192,17 @@ def holistic_heuristic_algo(
         key=rpmvercmp_key,
     )
     higher_bound_builds_nvr = [b["nvr"] for b in higher_bound_builds]
-
-    _log.info("Highest build of lower or current distro versions: %s", lower_bound_nvr)
     _log.info("Highest builds of higher distro versions: %s", ", ".join(higher_bound_builds_nvr))
 
-    lower_bound_rpmvercmp_key = rpmvercmp_key(lower_bound)
-
-    # Disregard builds of higher distro versions that we can't go below. Sort so the first element
-    # is the lowest build we can (and should) go "under".
-    satisfiable_higher_bound_builds = sorted(
-        (b for b in higher_bound_builds if lower_bound_rpmvercmp_key < rpmvercmp_key(b)),
-        key=rpmvercmp_key,
-    )
+    if lower_bound_builds:
+        # Disregard builds of higher distro versions that we can't go below. Sort so the first
+        # element is the lowest build we can (and should) go "under".
+        satisfiable_higher_bound_builds = sorted(
+            (b for b in higher_bound_builds if lower_bound_rpmvercmp_key < rpmvercmp_key(b)),
+            key=rpmvercmp_key,
+        )
+    else:
+        satisfiable_higher_bound_builds = None
 
     if satisfiable_higher_bound_builds:
         # Find the higher bound which we can stay below.
@@ -184,15 +213,21 @@ def holistic_heuristic_algo(
 
     _log.info("Lowest satisfiable higher build in higher distro version: %s", higher_bound_nvr)
 
-    new_evr = holistic_heuristic_calculate_release(dist, evr, lower_bound, higher_bound)
-    if new_evr["epoch"]:
-        new_evr_str = f"{new_evr['epoch']}:{new_evr['version']}-{new_evr['release']}"
+    next_evr = holistic_heuristic_calculate_release(
+        dist,
+        next_epoch_version,
+        latest_evr=latest_evr,
+        lower_bound=lower_bound,
+        higher_bound=higher_bound,
+    )
+    if next_evr["epoch"]:
+        next_evr_str = f"{next_evr['epoch']}:{next_evr['version']}-{next_evr['release']}"
     else:
-        new_evr_str = f"{new_evr['version']}-{new_evr['release']}"
+        next_evr_str = f"{next_evr['version']}-{next_evr['release']}"
 
-    _log.info("Calculated new release, EVR: %s, %s", new_evr["release"], new_evr_str)
+    _log.info("Calculated next release, EVR: %s, %s", next_evr["release"], next_evr_str)
 
-    release = new_evr["release"]
+    release = next_evr["release"]
 
     if strip_dist:
         release = release.replace(f".{dist}", "")
@@ -204,4 +239,9 @@ def main(args):
     """ Main method. """
     koji_init(args.koji_url)
 
-    holistic_heuristic_algo(args.dist_git, args.dist, args.evr)
+    holistic_heuristic_algo(
+        srcdir=args.srcdir,
+        dist=args.dist,
+        next_epoch_version=args.next_epoch_version,
+        latest_evr=args.latest_evr,
+    )

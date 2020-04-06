@@ -74,8 +74,9 @@ def is_autorel(line):
 
 
 def get_autorel(srcdir, dist, session):
-    # evr=None forces to search from lower bound
-    release = holistic_heuristic_algo(srcdir=srcdir, dist=dist, evr=None, strip_dist=True)
+    # Not setting latest_evr, next_epoch_version just goes with what's in the package and latest
+    # builds.
+    release = holistic_heuristic_algo(srcdir=srcdir, dist=dist, strip_dist=True)
     return release
 
 

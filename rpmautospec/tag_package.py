@@ -22,11 +22,8 @@ def register_subcommand(subparsers):
     return subcmd_name
 
 
-def main(args):
-    """ Main method. """
-    kojiclient = koji_init(args.koji_url)
-
-    repopath = args.worktree_path.rstrip(os.path.sep)
+def tag_package(srcdir, session):
+    repopath = srcdir.rstrip(os.path.sep)
 
     name = os.path.basename(repopath)
     for build in get_package_builds(name):
@@ -56,7 +53,7 @@ def main(args):
                     pass
 
         if commit is None:
-            tasks = kojiclient.getTaskChildren(build["task_id"])
+            tasks = session.getTaskChildren(build["task_id"])
             try:
                 task = [t for t in tasks if t["method"] == "buildSRPMFromSCM"][0]
             except IndexError:
@@ -68,7 +65,7 @@ def main(args):
                 )
                 continue
 
-            task_req = kojiclient.getTaskRequest(task["id"])
+            task_req = session.getTaskRequest(task["id"])
             if "fedoraproject.org" in task_req[0]:
                 com = task_req[0].partition("#")[-1]
                 # git commit hashes are 40 characters long, so we will
@@ -92,3 +89,10 @@ def main(args):
                 _log.exception("Error while tagging %s with %s:", commit, tag)
             else:
                 _log.info("Tagged commit %s as %s", commit, tag)
+
+
+def main(args):
+    """ Main method. """
+    session = koji_init(args.koji_url)
+
+    tag_package(args.worktree_path, session)

@@ -8,8 +8,7 @@ import tempfile
 import textwrap
 import typing
 
-from .misc import run_command
-from .py2compat.tagging import unescape_tag
+from .misc import git_get_tags, run_command
 
 
 _log = logging.getLogger(__name__)
@@ -76,23 +75,6 @@ def git_get_changed_files(path: str, commithash: str) -> typing.List[str]:
     cmd = ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", commithash]
     _log.debug("git_get_changed_files: %s", cmd)
     return run_command(cmd, cwd=path).decode("UTF-8").strip().split("\n")
-
-
-def git_get_tags(path: str) -> typing.Mapping[str, str]:
-    """ Returns a dict containing for each commit tagged the corresponding tag. """
-    cmd = ["git", "show-ref", "--tags", "--head"]
-    _log.debug("git_get_tags: %s", cmd)
-    tags_list = run_command(cmd, cwd=path).decode("UTF-8").strip().split("\n")
-
-    output = {}
-    for row in tags_list:
-        commit, name = row.split(" ", 1)
-        # we're only interested in the build/* tags
-        if name.startswith("refs/tags/build/"):
-            name = name.replace("refs/tags/build/", "")
-            output[commit] = unescape_tag(name)
-
-    return output
 
 
 def nevrd_to_evr(nevrd: str) -> str:

@@ -46,8 +46,11 @@ class TestRpmautospecBuilder:
         ),
     )
     @mock.patch("rpmautospec.process_distgit.needs_processing")
+    @mock.patch("rpmautospec.tag_package.tag_package")
     @mock.patch("koji_plugins.rpmautospec_builder._steal_buildroot_object_from_frame_stack")
-    def test_process_distgit_cb(self, steal_buildroot_fn, needs_processing_fn, testcase):
+    def test_process_distgit_cb(
+        self, steal_buildroot_fn, tag_package_fn, needs_processing_fn, testcase
+    ):
         """Test the process_distgit_cb() function"""
         buildroot_supplied = testcase != "no buildroot supplied"
         rpmautospec_installed = testcase == "rpmautospec installed"
@@ -58,13 +61,14 @@ class TestRpmautospecBuilder:
         srcdir_within = "/builddir/build/BUILD/something with spaces"
         unpacked_repo_dir = f"/var/lib/mock/some-root/{srcdir_within}"
         args = ["postSCMCheckout"]
+        koji_session = mock.MagicMock()
         kwargs = {
             "scminfo": self.data_scm_info,
             "build_tag": self.data_build_tag,
             "scratch": mock.MagicMock(),
             "srcdir": unpacked_repo_dir,
             "taskinfo": {"method": "buildSRPMFromSCM"},
-            "session": mock.MagicMock(),
+            "session": koji_session,
         }
 
         if not taskinfo_method_responsible:
@@ -104,7 +108,10 @@ class TestRpmautospecBuilder:
 
         if skip_processing:
             buildroot.getPackageList.assert_not_called()
+            tag_package_fn.assert_not_called()
             return
+
+        tag_package_fn.assert_called_once_with(unpacked_repo_dir, koji_session)
 
         buildroot.getPackageList.assert_called_once()
         buildroot.path_without_to_within.assert_called_once()

@@ -4,7 +4,7 @@ import shlex
 
 from koji.plugin import callback
 
-from rpmautospec import process_distgit
+from rpmautospec import process_distgit, tag_package
 
 
 _log = logging.getLogger(__name__)
@@ -46,6 +46,9 @@ def process_distgit_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwarg
     if not process_distgit.needs_processing(srcdir):
         _log.info("No %autorel/%autochangelog found, skipping.")
         return
+
+    _log.info("Tagging existing builds...")
+    tag_package.tag_package(srcdir, session)
 
     buildroot = kwargs.get("buildroot")
     if not buildroot:

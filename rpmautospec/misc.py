@@ -43,6 +43,13 @@ def parse_evr(evr_str: str) -> Tuple[int, str, Optional[str]]:
     return epoch, match.group("version"), match.group("release")
 
 
+def parse_epoch_version(epoch_version_str: str) -> Tuple[int, str]:
+    e, v, r = parse_evr(epoch_version_str)
+    if r is not None:
+        raise ValueError(epoch_version_str)
+    return e, v
+
+
 def parse_release_tag(tag: str) -> Tuple[Optional[int], Optional[str], Optional[str]]:
     pkgrel = middle = minorbump = None
     match = release_re.match(tag)

@@ -12,7 +12,7 @@
 %endif
 
 Name:           python-rpmautospec
-Version:        0.0.16
+Version:        0.0.17
 Release:        1%{?dist}
 Summary:        Package and CLI tool to generate release fields and changelogs
 
@@ -165,6 +165,9 @@ done
 %endif
 
 %changelog
+* Tue Apr 07 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0.0.17-1
+- Update to 0.0.17
+
 * Tue Apr 07 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0.0.16-1
 - Update to 0.0.16
 

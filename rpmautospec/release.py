@@ -141,11 +141,14 @@ def holistic_heuristic_algo(
     tags = git_get_tags(srcdir) or []
     builds = []
     if tags:
-        for build in tags.values():
-            _log.debug("Found tagged build: %s", build)
-            b_evr = "-".join(build.rsplit("-", 2)[1:])
-            epoch, version, release = parse_evr(b_evr)
-            builds.append({"nvr": build, "epoch": epoch, "version": version, "release": release})
+        for tmp_builds in tags.values():
+            for build in tmp_builds:
+                _log.debug("Found tagged build: %s", build)
+                b_evr = "-".join(build.rsplit("-", 2)[1:])
+                epoch, version, release = parse_evr(b_evr)
+                builds.append(
+                    {"nvr": build, "epoch": epoch, "version": version, "release": release}
+                )
 
     # builds by distro release
     builds_per_distver = defaultdict(list)

@@ -8,7 +8,7 @@ import tempfile
 import textwrap
 import typing
 
-from .misc import get_rpm_current_version, git_get_tags, run_command
+from .misc import get_rpm_current_version, git_get_tags, parse_evr, rpmvercmp_key, run_command
 
 
 _log = logging.getLogger(__name__)
@@ -133,7 +133,7 @@ def produce_changelog(repopath, latest_rel=None):
 
         output = []
         entry = []
-        nevr = current_evr or "LATEST"
+        evr = current_evr or "LATEST"
         last_author = None
         for log_line in git_get_log(repocopy, toref=f"{stop_commit_hash}^"):
             if not log_line.strip():
@@ -153,7 +153,14 @@ def produce_changelog(repopath, latest_rel=None):
             if commithash in tags:
                 output.append(entry)
                 entry = []
-                nevr = nevrd_to_evr(tags[commithash])
+                # Use the most recent build for EVR
+                builds = [parse_evr(nevrd_to_evr(b)) for b in tags[commithash]]
+                builds.sort(key=rpmvercmp_key, reverse=True)
+                _epo, _ver, _rel = builds[0]
+                if _epo:
+                    evr = f"{_epo}:{_ver}-{_rel}"
+                else:
+                    evr = f"{_ver}-{_rel}"
 
             commit_dt = datetime.datetime.utcfromtimestamp(int(commit_ts))
             if commit_dt < (head_commit_dt - datetime.timedelta(days=730)):
@@ -181,7 +188,7 @@ def produce_changelog(repopath, latest_rel=None):
                             "commit_ts": commit_ts,
                             "commit_author": author_info,
                             "commits": [commit_summary],
-                            "nevr": nevr,
+                            "evr": evr,
                         }
                     )
                 last_author = author_info
@@ -196,9 +203,9 @@ def produce_changelog(repopath, latest_rel=None):
         for commit in entries:
             commit_dt = datetime.datetime.utcfromtimestamp(int(commit["commit_ts"]))
             author_info = commit["commit_author"]
-            nevr = commit["nevr"]
+            evr = commit["evr"]
             lines += [
-                f"* {commit_dt.strftime('%a %b %d %Y')} {author_info} - {nevr}",
+                f"* {commit_dt.strftime('%a %b %d %Y')} {author_info} - {evr}",
             ]
             for message in reversed(commit["commits"]):
                 if message.strip():

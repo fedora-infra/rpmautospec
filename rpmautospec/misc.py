@@ -1,3 +1,4 @@
+import collections
 from functools import cmp_to_key
 import logging
 import os
@@ -129,13 +130,13 @@ def git_get_tags(path: str) -> Mapping[str, str]:
     _log.debug("git_get_tags: %s", cmd)
     tags_list = run_command(cmd, cwd=path).decode("UTF-8").strip().split("\n")
 
-    output = {}
+    output = collections.defaultdict(list)
     for row in tags_list:
         _log.debug("  %s", row)
         commit, name = row.split(" ", 1)
         # we're only interested in the build/* tags
         if name.startswith("refs/tags/build/"):
             name = name.replace("refs/tags/build/", "")
-            output[commit] = unescape_tag(name)
+            output[commit].append(unescape_tag(name))
 
     return output

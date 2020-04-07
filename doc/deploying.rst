@@ -42,3 +42,14 @@ to be done before `rpmautospec` can be deployed in production.
   Before `rpmautospec` is made generally available, we should improve ``fedpkg``
   to ignore these warnings/errors.
 
+* The Koji builder plugin of `rpmautospec` currently installs ``rpmautospec``
+  (the package containing the CLI tool) in the mock chroot if the packager has
+  opted in for this package. This means that an additional yum/dnf transaction
+  is performed, which slows down the build a little bit, but only affects
+  packagers who have opted in. Alternatively, ``rpmautospec`` could be added
+  to the list of packages Koji installs in the build root for building SRPMs.
+  This would install all the packages in one transaction but adds
+  ``rpmautospec`` to the build root even if it's not needed. It would be good
+  to figure out the preferred approach for this before `rpmautospec` is
+  deployed in production (and potentially adjust the Koji hub plugin
+  accordingly).

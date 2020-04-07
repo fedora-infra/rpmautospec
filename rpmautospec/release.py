@@ -142,6 +142,7 @@ def holistic_heuristic_algo(
     builds = []
     if tags:
         for build in tags.values():
+            _log.debug("Found tagged build: %s", build)
             b_evr = "-".join(build.rsplit("-", 2)[1:])
             epoch, version, release = parse_evr(b_evr)
             builds.append({"nvr": build, "epoch": epoch, "version": version, "release": release})
@@ -174,6 +175,8 @@ def holistic_heuristic_algo(
         key=rpmvercmp_key,
         reverse=True,
     )
+
+    _log.debug("Lower bound builds: %s", [b["nvr"] for b in lower_bound_builds])
 
     # TODO: Cope with epoch-version being higher in a previous Fedora release.
 

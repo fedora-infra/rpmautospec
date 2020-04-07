@@ -92,7 +92,7 @@ def tag_package(srcdir, session, pagure_proxy=None):
 
         if commit:
             tag = tag_prefix + escape_tag(nevr)
-            command = ["git", "tag", tag, commit]
+            command = ["git", "tag", "--force", tag, commit]
             try:
                 run_command(command, cwd=repopath)
             except Exception:

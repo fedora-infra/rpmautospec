@@ -131,6 +131,7 @@ def git_get_tags(path: str) -> Mapping[str, str]:
 
     output = {}
     for row in tags_list:
+        _log.debug("  %s", row)
         commit, name = row.split(" ", 1)
         # we're only interested in the build/* tags
         if name.startswith("refs/tags/build/"):

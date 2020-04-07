@@ -172,7 +172,7 @@ def produce_changelog(repopath, latest_rel=None):
                     ignore = False
 
             if not ignore:
-                if last_author == author_info:
+                if last_author == author_info and entry:
                     entry[-1]["commits"].append(commit_summary)
                 else:
                     entry.append(

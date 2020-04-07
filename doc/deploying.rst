@@ -30,3 +30,15 @@ to be done before `rpmautospec` can be deployed in production.
   :ref:`using-autorel`. So before `rpmautospec` is deployed in production,
   these use cases should be fully implemented.
 
+* Currently, running ``fedpkg`` on a package that has opted in on `rpmautospec` leads
+  to warnings and error messages such as these::
+
+    warning: line 12: Possible unexpanded macro in: Release:            %autorel
+    warning: line 12: Possible unexpanded macro in: Release:            %autorel
+    warning: line 39: Possible unexpanded macro in: Provides: python-arrow = 0.14.6-%autorel
+    warning: line 39: Possible unexpanded macro in: Obsoletes: python-arrow < 0.14.6-%autorel
+    error: %changelog entries must start with *
+
+  Before `rpmautospec` is made generally available, we should improve ``fedpkg``
+  to ignore these warnings/errors.
+

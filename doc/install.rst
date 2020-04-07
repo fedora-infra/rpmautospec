@@ -10,7 +10,7 @@ Each needs to be correctly installed and configured for rpmautospec to work
 properly.
 
 .. Note: This document relies on the premise that koji-hub runs on python2
-while the builders are running in python3.
+         while the builders are running in python3.
 
 
 Installing the python library

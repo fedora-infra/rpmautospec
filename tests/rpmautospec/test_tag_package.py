@@ -187,7 +187,9 @@ class TestTagPackage:
                 for partname in ("name", "epoch", "version", "release")
             )
             tag = f"build/{nevr}"
-            run_command.assert_called_once_with(["git", "tag", tag, commit], cwd=repopath)
+            run_command.assert_called_once_with(
+                ["git", "tag", "--force", tag, commit], cwd=repopath
+            )
 
             if "tagcmdfails" in phenomena:
                 assert "lp0 is on fire" in caplog.text

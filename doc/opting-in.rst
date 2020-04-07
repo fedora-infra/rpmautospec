@@ -1,19 +1,13 @@
-Opting into using rpmautospec
-=============================
+Opting into using `rpmautospec`
+===============================
 
-To opt into using rpmautospec you need to use the two macros as explained here
-below:
+To opt into using `rpmautospec` you need to use the two macros as explained
+here below:
 
 Use the ``%autorel`` macro
 --------------------------
 
-Basically, you need to replace in your spec file the line:
-
-::
-
-   Release:     ...{%dist}
-
-for example:
+Basically, in the spec file you replace the manually set release, e.g.:
 
 ::
 
@@ -35,9 +29,8 @@ Use the ``%autochangelog`` macro
 For new packages
 ^^^^^^^^^^^^^^^^
 
-If you are using this macro from a brand-new package that has no git
-history, you can simply put at the end of your spec file the following two
-lines:
+If you use this macro in a brand-new package without git history, you can
+simply put the following two lines at the end of your spec file:
 
 ::
 

@@ -1,8 +1,8 @@
-Welcome to rpmautospec's documentation!
-=======================================
+Welcome to the documentation of `rpmautospec`!
+==============================================
 
-rpmautospec is the program and library used to automatically generate
-the release and changelog fields in RPM spec files that chose to use it.
+`rpmautospec` is a program and library used to automatically generate the
+release and changelog fields in RPM spec files opting to use it.
 
 
 .. toctree::

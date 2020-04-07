@@ -1,20 +1,19 @@
 .. _using-autorel:
 
-Using the ``%autorel`` macro
+Using the ``%autorel`` Macro
 ============================
 
-Fedora's `Versioning Guidelines`_ define the different element that can
-compose a release field as follow:
+Fedora's `Versioning Guidelines`_ define the different elements of which a
+release field can consist. They are as follows:
 
 ::
 
     <pkgrel>[.<extraver>][.<snapinfo>]%{?dist}[.<minorbump>]
 
-Where each element in square brackets indicates an optional item.
+Each element in square brackets indicates an optional item.
 
-
-The ``%autorel`` macro accepts therefore some parameters to allow the packagers
-to specify the different portions of the release field:
+The ``%autorel`` macro accepts these parameters to allow packagers to specify
+the different portions of the release field:
 
 * ``-h <hotfix>``: Designates a hotfix release, i.e. enables bumping the
   ``minorbump`` portion in order to not overrun EVRs in later Fedora versions.
@@ -34,7 +33,7 @@ Some Examples:
 
 .. _simple example:
 
-The simple case
+The Simple Case
 ^^^^^^^^^^^^^^^
 
 .. include:: examples/test-autorel.spec
@@ -49,7 +48,7 @@ Will generate the following NEVR:
 
 .. _hotfix example:
 
-The hotfix case
+The Hotfix Case
 ^^^^^^^^^^^^^^^
 
 .. include:: examples/test-autorel-hotfix.spec
@@ -64,8 +63,8 @@ Will generate the following NEVR:
 
 .. _prerelease example:
 
-The prerelease case
-^^^^^^^^^^^^^^^^^^^
+The Pre-Release Case
+^^^^^^^^^^^^^^^^^^^^
 
 .. include:: examples/test-autorel-prerelease.spec
    :literal:
@@ -79,7 +78,7 @@ Will generate the following NEVR:
 
 .. _extraver case:
 
-The extraver case
+The Extraver Case
 ^^^^^^^^^^^^^^^^^
 
 .. include:: examples/test-autorel-extraver.spec
@@ -94,7 +93,7 @@ Will generate the following NEVR:
 
 .. _snapshot case:
 
-The snapshot case
+The Snapshot Case
 ^^^^^^^^^^^^^^^^^
 
 .. include:: examples/test-autorel-snapshot.spec
@@ -109,7 +108,7 @@ Will generate the following NEVR:
 
 .. _snapshot_and_extraver case:
 
-The snapshot and extraver case
+The Snapshot and Extraver case
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. include:: examples/test-autorel-extraver-snapshot.spec

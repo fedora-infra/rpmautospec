@@ -1,36 +1,38 @@
-Installing rpmautospec
-======================
+Installing `rpmautospec`
+========================
 
-rpmautospec is composed of a few elements:
-- a python library (which includes a small CLI tool)
-- a koji-hub plugin
-- a koji-builders plugin
+`rpmautospec` consists of these components:
+- a Python library (which includes a small CLI tool)
+- a plugin for the Koji hub
+- a plugin for Koji builders
 
-Each needs to be correctly installed and configured for rpmautospec to work
+Each needs to be correctly installed and configured for `rpmautospec` to work
 properly.
 
-.. Note: This document relies on the premise that koji-hub runs on python2
-         while the builders are running in python3.
+.. note:
+    This document relies on the premise that the Koji hub runs on Python 2
+    while the builders run on Python 3.
 
 
-Installing the python library
+Installing the Python Library
 -----------------------------
 
-The python library is handled via a traditional ``setup.py`` file. It can
+The Python library is handled via a traditional ``setup.py`` file. It can
 therefore be installed simply by doing:
 
-`` python setup.py install``.
+``python setup.py install``.
 
-.. warning: that the library is python3 only except for a sub-package:
+.. warning:
+    The library works only with Python 3 except for one sub-package:
     ``rpmautospec.py2compat``.
 
 
-Installing the koji-hub plugin
+Installing the Koji Hub Plugin
 ------------------------------
 
-The koji plugin ``rpmautospec_hub`` is meant to be installed on the koji hub
-in: ``/usr/lib/koji-hub-plugins/``.
-It is python2 compatible and requires the package ``rpmautospec.py2compat``.
+The Koji plugin ``rpmautospec_hub`` is meant to be installed on the Koji hub
+in: ``/usr/lib/koji-hub-plugins/``. It is compatible with Python 2 and
+requires the package ``rpmautospec.py2compat``.
 
 This plugin also requires a configuration file at:
 ``/etc/koji-hub/plugins/rpmautospec.conf``
@@ -39,14 +41,15 @@ An example configuration file can be found in the sources at:
 ``koji_plugins/rpmautospec.conf``
 
 The plugin can then be enabled by adding: ``rpmautospec_hub`` in the line
-``Plugins`` in the ``/etc/koji-hub/hub.conf`` configuration file for koji hub.
+``Plugins`` in the ``/etc/koji-hub/hub.conf`` configuration file for the Koji
+hub.
 
 
-Installing the koji-builders plugin
+Installing the Koji Builders Plugin
 -----------------------------------
 
-The koji plugin ``rpmautospec_builder`` is meant to be installed on all the
-koji builders running the ``buildSRPMFromSCM`` task in:
+The Koji plugin ``rpmautospec_builder`` is meant to be installed on all the
+Koji builders running the ``buildSRPMFromSCM`` task in:
 ``/usr/lib/koji-builder-plugins/``.
 
 This plugin also requires a configuration file at:
@@ -56,5 +59,5 @@ An example configuration file can be found in the sources at:
 ``koji_plugins/rpmautospec.conf``
 
 The plugin then can be enabled by adding: ``rpmautospec_builder`` in the line
-``plugins`` in the ``/etc/kojid/kojid.conf`` configuration file for the koji
+``plugins`` in the ``/etc/kojid/kojid.conf`` configuration file for the Koji
 builders.

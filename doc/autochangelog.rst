@@ -1,30 +1,30 @@
 .. _using-autochangelog:
 
-Using the ``%autochangelog`` macro
+Using the ``%autochangelog`` Macro
 ==================================
 
-rpmautospec combines two sources of information to generate a changelog that
-is inserted in the spec file where the ``%autochangelog`` macro is set.
+`rpmautospec` combines two sources of information to generate a changelog
+which is inserted in the spec file where the ``%autochangelog`` macro is set.
 
 These two sources of information are:
 
-* A ``changelog`` file potentially present in the dist-git repository of
-  the package when it is built. If that file is present it is included
-  **as is** in the spec file (i.e. be careful how you format this file).
+* An optional ``changelog`` file in the dist-git repository of the package. If
+  this file is present, it is included **as is** in the spec file (i.e. be
+  careful how you format this file).
 
 * The git history of the package between the most recent commit touching
-  the ``changelog`` file and the latest commit made to the package.
+  ``changelog`` and the latest commit made to the package.
 
 
-Some examples:
+Some Examples:
 --------------
 
 .. _only commits example:
 
-Only commits
+Only Commits
 ^^^^^^^^^^^^
 
-If a package has no ``changelog`` file, rpmautospec will only use the git
+If a package has no ``changelog`` file, `rpmautospec` will only use the git
 history to generate the changelog.
 
 Thus if the history looks like:
@@ -64,10 +64,10 @@ The automatically generated changelog will look like:
 
 .. _commits and changelog example:
 
-Commits and changelog
+Commits and Changelog
 ^^^^^^^^^^^^^^^^^^^^^
 
-If a package has a ``changelog`` file, rpmautospec will only generate entries
+If a package has a ``changelog`` file, `rpmautospec` will only generate entries
 from the commits after its last change and then append its contents verbatim.
 
 So if the changelog file looks like:
@@ -92,8 +92,8 @@ So if the changelog file looks like:
     * Mon Jun 18 2018 Jane Smith <jane@smith.com> - 0.9-1
     - Initial import
 
-(Do you see the lack of use of ``-`` between the email and version-release
-in the entries from Foo Bar?)
+(Note the lack ``-`` between the email and version-release in the entries from
+"Foo Bar".)
 
 
 And the history looks like:

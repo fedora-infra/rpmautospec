@@ -95,7 +95,7 @@ def tag_package(srcdir, session, pagure_proxy=None):
             command = ["git", "tag", tag, commit]
             try:
                 run_command(command, cwd=repopath)
-            except RuntimeError:
+            except Exception:
                 _log.exception("Error while tagging %s with %s:", commit, tag)
             else:
                 _log.info("Tagged commit %s as %s", commit, tag)

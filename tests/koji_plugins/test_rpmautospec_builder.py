@@ -1,6 +1,7 @@
 import shlex
 from unittest import mock
 
+import koji
 import pytest
 
 from koji_plugins.rpmautospec_builder import process_distgit_cb
@@ -52,6 +53,8 @@ class TestRpmautospecBuilder:
             "rpmautospec installed",
             "other taskinfo method",
             "skip processing",
+            "buildroot install fails",
+            "buildroot cmd fails",
         ),
     )
     @mock.patch("rpmautospec.process_distgit.needs_processing")
@@ -74,7 +77,9 @@ class TestRpmautospecBuilder:
         buildroot_supplied = testcase != "no buildroot supplied"
         rpmautospec_installed = testcase == "rpmautospec installed"
         taskinfo_method_responsible = testcase != "other taskinfo method"
-        skip_processing = testcase != "skip processing"
+        skip_processing = testcase == "skip processing"
+        buildroot_install_fails = testcase == "buildroot install fails"
+        buildroot_cmd_fails = testcase == "buildroot cmd fails"
 
         # prepare test environment
         srcdir_within = "/builddir/build/BUILD/something with spaces"
@@ -89,6 +94,7 @@ class TestRpmautospecBuilder:
             "taskinfo": {"method": "buildSRPMFromSCM"},
             "session": koji_session,
         }
+        mock_retvals = []
 
         if not taskinfo_method_responsible:
             kwargs["taskinfo"]["method"] = "not the method you're looking for"
@@ -105,6 +111,11 @@ class TestRpmautospecBuilder:
 
         if rpmautospec_installed:
             installed_packages.append({"name": "rpmautospec", "version": "0.1", "release": "1"})
+        else:
+            if buildroot_install_fails:
+                mock_retvals.append(1)
+            else:
+                mock_retvals.append(0)
 
         buildroot.getPackageList.return_value = installed_packages
 
@@ -115,8 +126,20 @@ class TestRpmautospecBuilder:
 
         buildroot.path_without_to_within.return_value = srcdir_within
 
+        buildroot.mock.side_effect = mock_retvals
+
+        if buildroot_cmd_fails:
+            mock_retvals.append(128)
+        else:
+            mock_retvals.append(0)
+
         # test the callback
-        process_distgit_cb(*args, **kwargs)
+        if any(retval != 0 for retval in mock_retvals):
+            with pytest.raises(koji.BuildError):
+                process_distgit_cb(*args, **kwargs)
+            return
+        else:
+            process_distgit_cb(*args, **kwargs)
 
         # verify what the callback did
         if not taskinfo_method_responsible:

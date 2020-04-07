@@ -86,12 +86,19 @@ def process_distgit_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwarg
     br_packages = buildroot.getPackageList()
     if not any(p["name"] == "rpmautospec" for p in br_packages):
         _log.info("Installing rpmautospec into build root")
-        buildroot.mock(["--install", "rpmautospec"])
+        status = buildroot.mock(["--install", "rpmautospec"])
+        if status:
+            raise koji.BuildError("Installing `rpmautospec` into the build root failed.")
 
     srcdir_within = shlex.quote(buildroot.path_without_to_within(srcdir))
-    buildroot.mock(
+    status = buildroot.mock(
         ["--shell", f"rpmautospec --debug process-distgit --process-specfile {srcdir_within}"]
     )
+
+    if status:
+        raise koji.BuildError(
+            f"Running `rpmautospec` inside the build root failed (status: {status})"
+        )
 
     # Restore log level of the buildroot logger
     buildroot.logger.level = buildroot_loglevel

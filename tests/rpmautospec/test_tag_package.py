@@ -39,6 +39,7 @@ def get_test_builds(phenomena):
             "stagingbuildsys",
             "wrongbuildsys",
             "tagcmdfails",
+            "pagure_tag",
         ):
             # Ignore phenomena handled above and/or in the test method.
             pass
@@ -84,17 +85,20 @@ class TestTagPackage:
             "nosource,stagingbuildsys",
             "nosource,wrongbuildsys",
             "tagcmdfails",
+            "pagure_tag",
         ),
     )
     @mock.patch("rpmautospec.tag_package.run_command")
     @mock.patch("rpmautospec.tag_package.koji_init")
     @mock.patch("rpmautospec.tag_package.get_package_builds")
-    def test_main(self, get_package_builds, koji_init, run_command, phenomena, caplog):
+    @mock.patch("rpmautospec.py2compat.tagging.requests.post")
+    def test_main(self, pagure_post, get_package_builds, koji_init, run_command, phenomena, caplog):
         """Test the tag_package.main() under various conditions."""
         caplog.set_level(logging.DEBUG)
 
         phenomena = [p.strip() for p in phenomena.split(",")]
         koji_init.return_value = kojiclient = mock.Mock()
+
         get_package_builds.return_value = test_builds = get_test_builds(phenomena)
 
         main_args = mock.Mock()
@@ -103,6 +107,12 @@ class TestTagPackage:
         # attempts to contact a remote Koji instance.
         main_args.koji_url = "https://192.0.2.1"
         main_args.worktree_path = repopath = "/path/to/my/package/repo/pkgname"
+        pagure_post.return_value.ok = True
+
+        if "pagure_tag" in phenomena:
+            main_args.pagure_url = "https://192.0.2.2"
+            main_args.pagure_token = "token"
+
         if "trailingslashpath" in phenomena:
             # This shouldn't change anything, really.
             main_args.worktree_path += "/"
@@ -137,6 +147,19 @@ class TestTagPackage:
             run_command.side_effect = RuntimeError("lp0 is on fire")
 
         tag_package.main(main_args)
+
+        if "pagure_tag" in phenomena:
+            pagure_post.assert_called_once_with(
+                "https://192.0.2.2/api/0/rpms/pkgname/git/tags",
+                data={
+                    "tagname": "build/pkgname-0-1.0-1.fc32",
+                    "commit_hash": "0123456789abcdef0123456789abcdef01234567",
+                    "message": None,
+                    "with_commits": True,
+                    "force": False,
+                },
+                headers={"Authorization": "token token"},
+            )
 
         if "nosource" in phenomena:
             kojiclient.getTaskChildren.assert_called_once_with(test_builds[0]["task_id"])

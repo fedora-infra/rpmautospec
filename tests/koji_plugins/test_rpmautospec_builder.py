@@ -6,6 +6,15 @@ import pytest
 from koji_plugins.rpmautospec_builder import process_distgit_cb
 
 
+class MockConfig:
+    test_config = {
+        "pagure": {"url": "src.fedoraproject.org", "token": "aaabbbcc"},
+    }
+
+    def get(self, section, option, **kwargs):
+        return self.test_config[section][option]
+
+
 class TestRpmautospecBuilder:
     """Test the rpmautospec builder plugin for Koji."""
 
@@ -48,10 +57,20 @@ class TestRpmautospecBuilder:
     @mock.patch("rpmautospec.process_distgit.needs_processing")
     @mock.patch("rpmautospec.tag_package.tag_package")
     @mock.patch("koji_plugins.rpmautospec_builder._steal_buildroot_object_from_frame_stack")
+    @mock.patch("koji_plugins.rpmautospec_builder.pagure_proxy")
+    @mock.patch("koji.read_config_files")
     def test_process_distgit_cb(
-        self, steal_buildroot_fn, tag_package_fn, needs_processing_fn, testcase
+        self,
+        read_config_files,
+        pagure_proxy,
+        steal_buildroot_fn,
+        tag_package_fn,
+        needs_processing_fn,
+        testcase,
     ):
         """Test the process_distgit_cb() function"""
+        read_config_files.return_value = MockConfig()
+
         buildroot_supplied = testcase != "no buildroot supplied"
         rpmautospec_installed = testcase == "rpmautospec installed"
         taskinfo_method_responsible = testcase != "other taskinfo method"
@@ -111,7 +130,7 @@ class TestRpmautospecBuilder:
             tag_package_fn.assert_not_called()
             return
 
-        tag_package_fn.assert_called_once_with(unpacked_repo_dir, koji_session)
+        tag_package_fn.assert_called_once_with(unpacked_repo_dir, koji_session, pagure_proxy)
 
         buildroot.getPackageList.assert_called_once()
         buildroot.path_without_to_within.assert_called_once()

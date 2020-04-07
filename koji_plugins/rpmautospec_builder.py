@@ -2,13 +2,20 @@ import inspect
 import logging
 import shlex
 
+import koji
 from koji.plugin import callback
 
 from rpmautospec import process_distgit, tag_package
+from rpmautospec.py2compat.tagging import PagureTaggingProxy
 
+
+CONFIG_FILE = "/etc/kojid/plugins/rpmautospec.conf"
+CONFIG = None
 
 _log = logging.getLogger(__name__)
 _log.setLevel(logging.DEBUG)
+
+pagure_proxy = None
 
 
 def _steal_buildroot_object_from_frame_stack():
@@ -47,8 +54,23 @@ def process_distgit_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwarg
         _log.info("No %autorel/%autochangelog found, skipping.")
         return
 
+    global CONFIG, pagure_proxy
+
+    if not CONFIG:
+        try:
+            CONFIG = koji.read_config_files([(CONFIG_FILE, True)])
+        except Exception:
+            message = "While attempting to read config file %s, an exception occurred:"
+            _log.exception(message, CONFIG_FILE)
+            return
+
+    if not pagure_proxy:
+        base_url = CONFIG.get("pagure", "url")
+        token = CONFIG.get("pagure", "token")
+        pagure_proxy = PagureTaggingProxy(base_url=base_url, auth_token=token, logger=_log)
+
     _log.info("Tagging existing builds...")
-    tag_package.tag_package(srcdir, session)
+    tag_package.tag_package(srcdir, session, pagure_proxy)
 
     buildroot = kwargs.get("buildroot")
     if not buildroot:

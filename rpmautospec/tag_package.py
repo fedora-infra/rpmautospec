@@ -4,7 +4,7 @@ import logging
 import os
 
 from .misc import get_package_builds, koji_init, run_command
-from .py2compat.tagging import escape_tag, tag_prefix
+from .py2compat.tagging import escape_tag, PagureTaggingProxy, tag_prefix
 
 
 _log = logging.getLogger(__name__)
@@ -18,11 +18,20 @@ def register_subcommand(subparsers):
     )
 
     tag_project_parser.add_argument("worktree_path", help="Path to the dist-git worktree")
+    tag_project_parser.add_argument(
+        "--pagure-url",
+        help="Pagure url for tagging the package in the repo. Requires pagure_token to work.",
+        default="https://src.fedoraproject.org",
+    )
 
+    tag_project_parser.add_argument(
+        "--pagure-token",
+        help="Pagure token for tagging the package in the repo. Requires pagure_url to work.",
+    )
     return subcmd_name
 
 
-def tag_package(srcdir, session):
+def tag_package(srcdir, session, pagure_proxy=None):
     koji_init(session)
     repopath = srcdir.rstrip(os.path.sep)
 
@@ -90,10 +99,19 @@ def tag_package(srcdir, session):
                 _log.exception("Error while tagging %s with %s:", commit, tag)
             else:
                 _log.info("Tagged commit %s as %s", commit, tag)
+                if pagure_proxy:
+                    _log.info("Uploading tag to pagure")
+                    pagure_proxy.create_tag(
+                        repository="rpms/" + name, tagname=tag, commit_hash=commit
+                    )
 
 
 def main(args):
     """ Main method. """
     session = koji_init(args.koji_url)
 
-    tag_package(args.worktree_path, session)
+    pagure_proxy = None
+    if args.pagure_url and args.pagure_token:
+        pagure_proxy = PagureTaggingProxy(base_url=args.pagure_url, auth_token=args.pagure_token)
+
+    tag_package(args.worktree_path, session, pagure_proxy)

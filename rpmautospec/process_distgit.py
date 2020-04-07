@@ -19,9 +19,9 @@ __here__ = os.path.dirname(__file__)
 autorel_macro_path = os.path.join(__here__, "etc", "autorel-macro.txt")
 autorel_template = """## START: Set by rpmautospec
 %define _autorel_normal_cadence {autorel_normal}%{{?_autorel_extraver}}%{{?_autorel_snapinfo}}%{{?dist}}
-%define _autorel_hotfix_cadence %nil
-%define _autorel_prerel_cadence %nil
-%define _autorel_prerel_hotfix_cadence %nil
+%define _autorel_hotfix_cadence Sorry, the hotfix cadence isn't implemented yet.
+%define _autorel_prerel_cadence Sorry, the pre-release cadence isn't implemented yet.
+%define _autorel_prerel_hotfix_cadence Sorry, the hotfix, pre-release cadences aren't implemented yet.
 ## END: Set by rpmautospec
 """  # noqa: E501
 

@@ -24,7 +24,12 @@ to specify the different portions of the release field:
 * ``-s <snapinfo>``: Allows specifying the ``snapinfo`` portion of the release.
 
 
-Some examples:
+.. warning::
+    To date, only the normal release cadence is fully implemented. Please don't use the hotfix or
+    pre-release parameters yet, attempting to build such packages will fail.
+
+
+Some Examples:
 --------------
 
 .. _simple example:

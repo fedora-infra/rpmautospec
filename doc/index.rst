@@ -14,6 +14,7 @@ the release and changelog fields in RPM spec files that chose to use it.
    autorel
    autochangelog
    install
+   deploying
 
 
 

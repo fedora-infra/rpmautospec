@@ -30,12 +30,21 @@ def setup_logging(log_level: int):
     logging.basicConfig(level=log_level, handlers=handlers)
 
 
+class CustomArgumentParser(argparse.ArgumentParser):
+    """Custom argument parser class for this program
+
+    This overrides the `formatter_class` globally, for all created subparsers.
+    """
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("formatter_class", argparse.ArgumentDefaultsHelpFormatter)
+        super().__init__(*args, **kwargs)
+
+
 def get_cli_args(args: typing.List[str]) -> argparse.Namespace:
     global subcmd_modules_by_name
 
-    parser = argparse.ArgumentParser(
-        prog="rpmautospec", formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
+    parser = CustomArgumentParser(prog="rpmautospec")
 
     # global arguments
 

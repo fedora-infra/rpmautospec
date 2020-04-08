@@ -135,7 +135,10 @@ def produce_changelog(repopath, latest_rel=None):
         entry = []
         evr = current_evr or "LATEST"
         last_author = None
-        for log_line in git_get_log(repocopy, toref=f"{stop_commit_hash}^"):
+        toref = None
+        if stop_commit_hash:
+            toref = f"{stop_commit_hash}^"
+        for log_line in git_get_log(repocopy, toref=toref):
             if not log_line.strip():
                 continue
             commit = log_line.split(" ", 1)[0]

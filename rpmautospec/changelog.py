@@ -155,10 +155,10 @@ def produce_changelog(repopath, latest_rel=None):
                 output.append(entry)
                 entry = []
                 # Use the most recent build for EVR
-                if len(builds) > 1:
                     builds = [parse_evr(nevrd_to_evr(b)) for b in tags[commithash]]
                 _log.debug("Builds to sort: %s", builds)
-                builds.sort(key=rpmvercmp_key, reverse=True)
+                if len(builds) > 1:
+                    builds.sort(key=rpmvercmp_key, reverse=True)
                 _epo, _ver, _rel = builds[0]
                 if _epo:
                     evr = f"{_epo}:{_ver}-{_rel}"

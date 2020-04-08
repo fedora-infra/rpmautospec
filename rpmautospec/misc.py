@@ -98,14 +98,16 @@ def koji_init(koji_url_or_session: Union[str, koji.ClientSession]) -> koji.Clien
     return _kojiclient
 
 
-def get_package_builds(pkgname: str, extras: bool = False) -> List[dict]:
+def get_package_builds(pkgname: str) -> List[dict]:
     assert _kojiclient
 
     pkgid = _kojiclient.getPackageID(pkgname)
     if not pkgid:
         raise ValueError(f"Package {pkgname!r} not found!")
 
-    return _kojiclient.listBuilds(pkgid, type="rpm", queryOpts={"order": "-nvr"})
+    # Don't add queryOpts={"order": "-nvr"} or similar, this sorts alphanumerically and and this is
+    # not how EVRs should be sorted.
+    return _kojiclient.listBuilds(pkgid, type="rpm")
 
 
 def run_command(command: list, cwd: Optional[str] = None) -> bytes:

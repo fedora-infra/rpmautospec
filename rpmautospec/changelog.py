@@ -155,15 +155,19 @@ def produce_changelog(repopath, latest_rel=None):
                 output.append(entry)
                 entry = []
                 # Use the most recent build for EVR
-                builds = [parse_evr(nevrd_to_evr(b)) for b in tags[commithash]]
+                builds = []
+                for b in tags[commithash]:
+                    _epo, _ver, _rel = parse_evr(nevrd_to_evr(b))
+                    builds.append({"epoch": _epo, "version": _ver, "release": _rel})
                 _log.debug("Builds to sort: %s", builds)
                 if len(builds) > 1:
                     builds.sort(key=rpmvercmp_key, reverse=True)
-                _epo, _ver, _rel = builds[0]
-                if _epo:
-                    evr = f"{_epo}:{_ver}-{_rel}"
+
+                build = builds[0]
+                if build["epoch"]:
+                    evr = f"{build['epoch']}:{build['version']}-{build['release']}"
                 else:
-                    evr = f"{_ver}-{_rel}"
+                    evr = f"{build['version']}-{build['release']}"
 
             commit_dt = datetime.datetime.utcfromtimestamp(int(commit_ts))
             if commit_dt < (head_commit_dt - datetime.timedelta(days=730)):

@@ -68,6 +68,8 @@ def get_test_builds(phenomena):
                 firstbuild["source"] = f"git+https://src.fedoraproject.org/rpms/pkgname#{hash_val}"
         elif phenomenon == "nosource":
             del firstbuild["source"]
+        elif phenomenon == "releasewithoutdisttag":
+            lastbuild["release"] = "1"
         else:
             raise ValueError(f"Don't understand phenomenon: {phenomenon}")
 
@@ -225,3 +227,6 @@ class TestTagPackage:
 
         if "tagallbuilds" not in phenomena:
             assert any("Skipping older build:" in s for s in caplog.messages)
+
+        if "releasewithoutdisttag" in phenomena:
+            assert any("Can't find dist tag for build:" in s for s in caplog.messages)

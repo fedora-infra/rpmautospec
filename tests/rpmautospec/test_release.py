@@ -6,6 +6,7 @@ from unittest import mock
 import pytest
 
 from rpmautospec import release
+from ..common import MainArgs
 
 
 __here__ = os.path.dirname(__file__)
@@ -60,7 +61,7 @@ class TestRelease:
             mock_client.getPackageID.return_value = 1234
             mock_client.listBuilds.return_value = koji_list_builds_output
 
-            main_args = mock.Mock()
+            main_args = MainArgs()
             main_args.algorithm = "sequential_builds"
             main_args.dist_git = os.path.sep.join(["tmp", test_data["package"]])
             main_args.dist = test_data["dist"]

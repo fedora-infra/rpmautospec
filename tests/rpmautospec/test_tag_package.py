@@ -4,6 +4,7 @@ from unittest import mock
 import pytest
 
 from rpmautospec import tag_package
+from ..common import MainArgs
 
 
 VALID_HASH = "0123456789abcdef0123456789abcdef01234567"
@@ -101,7 +102,7 @@ class TestTagPackage:
 
         get_package_builds.return_value = test_builds = get_test_builds(phenomena)
 
-        main_args = mock.Mock()
+        main_args = MainArgs()
         # This IP address is from the reserved TEST-NET-1 address space, i.e. should be
         # guaranteed to not exist or be routable. Just in case we fail to mock out code that
         # attempts to contact a remote Koji instance.

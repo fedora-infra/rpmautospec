@@ -155,7 +155,7 @@ def produce_changelog(repopath, latest_rel=None):
                 output.append(entry)
                 entry = []
                 # Use the most recent build for EVR
-                    builds = [parse_evr(nevrd_to_evr(b)) for b in tags[commithash]]
+                builds = [parse_evr(nevrd_to_evr(b)) for b in tags[commithash]]
                 _log.debug("Builds to sort: %s", builds)
                 if len(builds) > 1:
                     builds.sort(key=rpmvercmp_key, reverse=True)

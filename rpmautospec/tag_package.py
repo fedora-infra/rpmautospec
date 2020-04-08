@@ -114,4 +114,4 @@ def main(args):
     if args.pagure_url and args.pagure_token:
         pagure_proxy = PagureTaggingProxy(base_url=args.pagure_url, auth_token=args.pagure_token)
 
-    tag_package(args.worktree_path, session, pagure_proxy)
+    tag_package(args.worktree_path, session, pagure_proxy=pagure_proxy)

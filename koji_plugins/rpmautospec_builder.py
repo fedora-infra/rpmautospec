@@ -70,7 +70,7 @@ def process_distgit_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwarg
         pagure_proxy = PagureTaggingProxy(base_url=base_url, auth_token=token, logger=_log)
 
     _log.info("Tagging existing builds...")
-    tag_package.tag_package(srcdir, session, pagure_proxy)
+    tag_package.tag_package(srcdir, session, pagure_proxy=pagure_proxy)
 
     buildroot = kwargs.get("buildroot")
     if not buildroot:

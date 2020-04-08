@@ -153,7 +153,9 @@ class TestRpmautospecBuilder:
             tag_package_fn.assert_not_called()
             return
 
-        tag_package_fn.assert_called_once_with(unpacked_repo_dir, koji_session, pagure_proxy)
+        tag_package_fn.assert_called_once_with(
+            unpacked_repo_dir, koji_session, pagure_proxy=pagure_proxy
+        )
 
         buildroot.getPackageList.assert_called_once()
         buildroot.path_without_to_within.assert_called_once()

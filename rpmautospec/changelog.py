@@ -151,10 +151,12 @@ def produce_changelog(repopath, latest_rel=None):
             commit_summary = commit_summary.replace("%", "%%")
 
             if commithash in tags:
+                _log.debug("Tags for the commit: %s: %s", commithash, tags[commithash])
                 output.append(entry)
                 entry = []
                 # Use the most recent build for EVR
                 builds = [parse_evr(nevrd_to_evr(b)) for b in tags[commithash]]
+                _log.debug("Builds to sort: %s", builds)
                 builds.sort(key=rpmvercmp_key, reverse=True)
                 _epo, _ver, _rel = builds[0]
                 if _epo:

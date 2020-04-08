@@ -112,6 +112,18 @@ A Koji plugin for tagging successful builds in their dist-git repository.
 
 %config(noreplace) %{_sysconfdir}/koji-hub/plugins/rpmautospec.conf
 
+# Package the placeholder rpm-macros
+
+%package -n rpmautospec-rpm-macros
+Summary: Rpmautospec RPM macros for local rpmbuild
+Requires: rpm
+
+%description -n rpmautospec-rpm-macros
+RPM macros with placeholders for building rpmautospec enabled packages localy
+
+%files -n rpmautospec-rpm-macros
+%{rpmmacrodir}/macros.rpmautospec
+
 #--------------------------------------------------------
 
 %prep
@@ -156,6 +168,10 @@ for dest in kojid koji-hub; do
     install -m 0644 koji_plugins/rpmautospec.conf \
         %{buildroot}%{_sysconfdir}/$dest/plugins/rpmautospec.conf
 done
+
+# RPM macros
+mkdir -p %{buildroot}%{rpmmacrodir}
+install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 
 # EPEL7 does not have python3-koji which is needed to run the tests, so there
 # is no point in running them

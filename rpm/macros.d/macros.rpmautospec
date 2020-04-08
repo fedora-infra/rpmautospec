@@ -1,0 +1,9 @@
+%autorel(e:s:hp) %{?-p:0.}1%{?-e:.%{-e*}}%{?-s:.%{-s*}}%{?dist}%{?-h:.1}
+%autochangelog %{lua:
+    date = os.date("%a %b %d %Y")
+    packager = rpm.expand("%{?packager}%{!?packager:John Doe <packager@example.com>}")
+    evr = rpm.expand("%{?epoch:%{epoch}:}%{version}-%{release}")
+    print("* " .. date .. " " .. packager .. " - " .. evr .. "\\n")
+    print("- local build")
+}
+

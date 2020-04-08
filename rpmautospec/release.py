@@ -118,7 +118,7 @@ def holistic_heuristic_algo(
     latest_evr: typing.Optional[typing.Tuple[int, str, str]] = None,
     strip_dist: bool = False,
 ):
-    match = disttag_re.match(dist)
+    match = disttag_re.fullmatch(dist)
     if not match:
         raise RuntimeError("Dist tag %r has wrong format (should be e.g. 'fc31', 'epel7')", dist)
 

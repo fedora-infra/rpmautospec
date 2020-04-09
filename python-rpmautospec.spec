@@ -69,7 +69,7 @@ Requires: python3-%{srcname} = %{version}-%{release}
 # We add this require here and not in python3-rpmautospec because we do not want
 # it on the builders, the hub and builders plugins will work fine without it but
 # we need this in the chroot or when packagers run the CLI on their machines.
-Requires: rpm-build
+Requires: rpm-build >= 4.9
 
 %description -n %{srcname}
 CLI tool for generating RPM releases and changelogs

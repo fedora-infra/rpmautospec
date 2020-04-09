@@ -12,7 +12,7 @@
 %endif
 
 Name:           python-rpmautospec
-Version:        0.1.1
+Version:        0.1.2
 Release:        1%{?dist}
 Summary:        Package and CLI tool to generate release fields and changelogs
 
@@ -37,13 +37,13 @@ BuildRequires:  git
 %endif
 
 %global _description %{expand:
-    A package and CLI tool to generate RPM release fields and changelogs.}
+A package and CLI tool to generate RPM release fields and changelogs.}
 
-    %description %_description
+%description %_description
 
 # package the library
 
-    %package -n python3-%{srcname}
+%package -n python3-%{srcname}
 Summary:        %{summary}
 %{?python_provide:%python_provide python3-%{srcname}}
 
@@ -91,26 +91,26 @@ A Koji plugin for generating RPM releases and changelogs.
 %files -n koji-builder-plugin-rpmautospec
 %{_prefix}/lib/koji-builder-plugins/*
 
-                                      %config(noreplace) %{_sysconfdir}/kojid/plugins/rpmautospec.conf
+%config(noreplace) %{_sysconfdir}/kojid/plugins/rpmautospec.conf
 
-                                      %package -n koji-hub-plugin-rpmautospec
-                                      Summary: Koji plugin for tagging successful builds in dist-git
-                                      %if ! %{with epel_le_7}
-                                      Requires: python3-%{srcname} = %{version}-%{release}
-                                      Requires: python3-koji
-                                      %endif
-                                      Requires: koji-hub-plugins
+%package -n koji-hub-plugin-rpmautospec
+Summary: Koji plugin for tagging successful builds in dist-git
+%if ! %{with epel_le_7}
+Requires: python3-%{srcname} = %{version}-%{release}
+Requires: python3-koji
+%endif
+Requires: koji-hub-plugins
 
-                                      %description -n koji-hub-plugin-rpmautospec
-                                      A Koji plugin for tagging successful builds in their dist-git repository.
+%description -n koji-hub-plugin-rpmautospec
+A Koji plugin for tagging successful builds in their dist-git repository.
 
-                                      %files -n koji-hub-plugin-rpmautospec
-                                      %if %{with epel_le_7}
-                                      %{python2_sitelib}/rpmautospec/
-                                      %endif
-                                      %{_prefix}/lib/koji-hub-plugins/*
+%files -n koji-hub-plugin-rpmautospec
+%if %{with epel_le_7}
+%{python2_sitelib}/rpmautospec/
+%endif
+%{_prefix}/lib/koji-hub-plugins/*
 
-                                      %config(noreplace) %{_sysconfdir}/koji-hub/plugins/rpmautospec.conf
+%config(noreplace) %{_sysconfdir}/koji-hub/plugins/rpmautospec.conf
 
 # Package the placeholder rpm-macros
 
@@ -138,9 +138,9 @@ sed -i /koji/d requirements.txt
 %install
 %py3_install
 for plugin_type in builder hub; do
-mkdir -p  %{buildroot}%{_prefix}/lib/koji-${plugin_type}-plugins/
-install -m 0644 koji_plugins/rpmautospec_${plugin_type}.py \
-%{buildroot}%{_prefix}/lib/koji-${plugin_type}-plugins/
+    mkdir -p  %{buildroot}%{_prefix}/lib/koji-${plugin_type}-plugins/
+    install -m 0644 koji_plugins/rpmautospec_${plugin_type}.py \
+        %{buildroot}%{_prefix}/lib/koji-${plugin_type}-plugins/
 done
 
 %if %{with epel_le_7}
@@ -148,9 +148,9 @@ done
 # Install the py2compat files to the koji-hub-plugin
 mkdir -p %{buildroot}%{python2_sitelib}/rpmautospec/py2compat/
 touch %{buildroot}%{python2_sitelib}/rpmautospec/__init__.py \
-%{buildroot}%{python2_sitelib}/rpmautospec/py2compat/__init__.py
+    %{buildroot}%{python2_sitelib}/rpmautospec/py2compat/__init__.py
 install -m 0644 rpmautospec/py2compat/tagging.py \
-%{buildroot}%{python2_sitelib}/rpmautospec/py2compat/
+    %{buildroot}%{python2_sitelib}/rpmautospec/py2compat/
 
 # EL <= 7: Byte-compile all the things
 %py_byte_compile %{python3} %{buildroot}%{python3_sitelib}
@@ -164,9 +164,9 @@ install -m 0644 rpmautospec/py2compat/tagging.py \
 
 # configuration shared by the plugins
 for dest in kojid koji-hub; do
-mkdir -p %{buildroot}%{_sysconfdir}/$dest/plugins/
-install -m 0644 koji_plugins/rpmautospec.conf \
-%{buildroot}%{_sysconfdir}/$dest/plugins/rpmautospec.conf
+    mkdir -p %{buildroot}%{_sysconfdir}/$dest/plugins/
+    install -m 0644 koji_plugins/rpmautospec.conf \
+        %{buildroot}%{_sysconfdir}/$dest/plugins/rpmautospec.conf
 done
 
 # RPM macros
@@ -181,6 +181,9 @@ install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 %endif
 
 %changelog
+* Thu Apr 09 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0.1.2-1
+- Update to 0.1.2
+
 * Thu Apr 09 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0.1.1-1
 - Update to 0.1.1
 

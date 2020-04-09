@@ -75,15 +75,23 @@ def get_rpm_current_version(path: str, name: Optional[str] = None, with_epoch: b
     query = "%{version}"
     if with_epoch:
         query = "%|epoch?{%{epoch}:}:{}|" + query
+    query += r"\n"
+
+    rpm_cmd = [
+        "rpm",
+        "--define",
+        "%autorel(e:s:hp) 1%{?dist}",
+        "--define",
+        "autochangelog %nil",
+        "--qf",
+        query,
+        "--specfile",
+        f"{name}.spec",
+    ]
 
     output = None
     try:
-        output = (
-            run_command(["rpm", "--qf", f"{query}\n", "--specfile", f"{name}.spec"], cwd=path,)
-            .decode("UTF-8")
-            .split("\n")[0]
-            .strip()
-        )
+        output = run_command(rpm_cmd, cwd=path).decode("UTF-8").split("\n")[0].strip()
     except Exception:
         pass
     return output

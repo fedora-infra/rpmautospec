@@ -1,3 +1,5 @@
+.. _peculiarities:
+
 Peculiarities of `rpmautospec`
 ==============================
 

@@ -65,3 +65,8 @@ changes the ``changelog`` file.
 
 More explanations on how the ``%autochangelog`` macro works can be found
 in :ref:`using-autochangelog`.
+
+
+.. note::
+    Congratulations for opting into `rpmautospec`. You may now want to have a
+    look at the :ref:`peculiarities`.

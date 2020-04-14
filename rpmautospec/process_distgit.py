@@ -25,9 +25,9 @@ autorel_template = """## START: Set by rpmautospec
 ## END: Set by rpmautospec
 """  # noqa: E501
 
-autorel_re = re.compile(r"^\s*(?i:Release)\s*:\s+%(?:autorel(?:\s|$)|\{autorel[^\}]*\})")
+autorel_re = re.compile(r"\s*(?i:Release)\s*:.*%(?:autorel(?:\s|$)|\{\??autorel\})")
 changelog_re = re.compile(r"^%changelog(?:\s.*)?$", re.IGNORECASE)
-autochangelog_re = re.compile(r"^\s*%(?:autochangelog|\{autochangelog\})\s*$")
+autochangelog_re = re.compile(r"\s*%(?:autochangelog|\{\??autochangelog\})\s*")
 
 
 def register_subcommand(subparsers):

@@ -18,7 +18,7 @@ class TestProcessDistgit:
 
     autorel_autochangelog_cases = [
         (autorel_case, autochangelog_case)
-        for autorel_case in ("unchanged", "with braces")
+        for autorel_case in ("unchanged", "with braces", "optional")
         for autochangelog_case in (
             "unchanged",
             "changelog case insensitive",
@@ -26,6 +26,7 @@ class TestProcessDistgit:
             "line in between",
             "trailing line",
             "with braces",
+            "optional",
         )
     ]
 
@@ -38,6 +39,8 @@ class TestProcessDistgit:
                 if line.startswith("Release:") and autorel_case != "unchanged":
                     if autorel_case == "with braces":
                         print("Release:        %{autorel}", file=new)
+                    elif autorel_case == "optional":
+                        print("Release:        %{?autorel}", file=new)
                     else:
                         raise ValueError(f"Unknown autorel_case: {autorel_case}")
                 elif line.strip() == "%changelog" and autochangelog_case != "unchanged":
@@ -54,6 +57,9 @@ class TestProcessDistgit:
                     elif autochangelog_case == "with braces":
                         print("%changelog\n%{autochangelog}", file=new)
                         break
+                    elif autochangelog_case == "optional":
+                        print("%changelog\n%{?autochangelog}", file=new)
+                        break
                     else:
                         raise ValueError(f"Unknown autochangelog_case: {autochangelog_case}")
                 else:
@@ -66,8 +72,8 @@ class TestProcessDistgit:
         assert process_distgit.is_autorel("Release: %autorel")
         assert process_distgit.is_autorel("release: %{autorel}")
         assert process_distgit.is_autorel(" release :  %{autorel}")
-        assert process_distgit.is_autorel("Release: %{autorel_special}")
 
+        assert not process_distgit.is_autorel("Release: %{autorel_special}")
         assert not process_distgit.is_autorel("NotRelease: %{autorel}")
         assert not process_distgit.is_autorel("release: 1%{?dist}")
 

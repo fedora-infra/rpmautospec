@@ -4,7 +4,7 @@ Python Package for Automatic Generation of RPM Release Fields and Changelogs
 This project hosts the ``rpmautospec`` python package and script, which has these functions:
 
 - Attempt to automatically calculate release numbers and generate an RPM changelog from the dist-git
-  repository of a package and the information available in the Koji build system.
+  repository of a package.
 - Tag commits in a dist-git repository with build NEVRs (quoting certain special characters).
 
 Dependencies:

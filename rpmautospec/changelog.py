@@ -185,7 +185,23 @@ def produce_changelog(repopath, latest_rel=None):
             files_changed = git_get_changed_files(repocopy, commit)
             ignore = True
             for filename in files_changed:
-                if filename.endswith((".spec", ".patch")):
+                if filename.endswith((
+                    ".automount",
+                    ".device",
+                    ".mount",
+                    ".patch",
+                    ".path",
+                    ".pc",
+                    ".preset"
+                    ".scope",
+                    ".service",
+                    ".slice",
+                    ".socket",
+                    ".spec",
+                    ".swap",
+                    ".target",,
+                    ".timer",
+                    )):
                     ignore = False
 
             if not ignore:

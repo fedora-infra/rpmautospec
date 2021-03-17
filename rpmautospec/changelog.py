@@ -199,7 +199,7 @@ def produce_changelog(repopath, latest_rel=None):
                     ".socket",
                     ".spec",
                     ".swap",
-                    ".target",,
+                    ".target",
                     ".timer",
                     )):
                     ignore = False

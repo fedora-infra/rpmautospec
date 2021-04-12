@@ -22,26 +22,30 @@ class MockConfig:
         return option in self.test_config.get(section, {})
 
 
+@pytest.fixture
+def clean_config():
+    rpmautospec_hub.CONFIG = None
+    yield
+
+
 class TestRpmautospecHub:
     """Test the rpmautospec hub plugin for Koji."""
 
-    @pytest.mark.parametrize("recognized_source", (True, False))
+    @pytest.mark.parametrize("phenomenon", (
+        None, "existing config", "unreadable config", "no source", "unknown source"
+    ))
     @mock.patch("rpmautospec.py2compat.tagging.requests.post")
-    @mock.patch("koji.read_config_files")
-    def test_autotag_cb(self, read_config_files, mock_post, recognized_source, caplog):
-        read_config_files.return_value = MockConfig()
+    @mock.patch.object(rpmautospec_hub.koji, "read_config_files")
+    def test_autotag_cb(self, read_config_files, mock_post, phenomenon, clean_config, caplog):
+        if phenomenon == "unreadable config":
+            read_config_files.side_effect = Exception("BOOH!")
+        elif phenomenon == "existing config":
+            rpmautospec_hub.CONFIG = MockConfig()
+        else:
+            read_config_files.return_value = MockConfig()
         mock_post.return_value.ok = True
 
         cbtype = "postTag"
-
-        if recognized_source:
-            git_host = "src.fedoraproject.org"
-        else:
-            git_host = "foo.bar"
-        git_url = (
-            f"git+https://{git_host}/"
-            "rpms/deepin-wallpapers.git#a0698fd21544880718d01a80ea19c91b13011235"
-        )
 
         kwargs = {
             "build": {
@@ -49,16 +53,25 @@ class TestRpmautospecHub:
                 "version": "1.7.6",
                 "release": "4.fc32",
                 "epoch": None,
-                "source": git_url,
             },
             "tag": {"name": None},
             "user": {"name": None},
         }
 
+        if phenomenon != "no source":
+            if phenomenon != "unknown source":
+                git_host = "src.fedoraproject.org"
+            else:
+                git_host = "foo.bar"
+            kwargs["build"]["source"] = (
+                f"git+https://{git_host}/"
+                "rpms/deepin-wallpapers.git#a0698fd21544880718d01a80ea19c91b13011235"
+            )
+
         with caplog.at_level(logging.DEBUG):
             rpmautospec_hub.autotag_cb(cbtype, **kwargs)
 
-        if recognized_source:
+        if phenomenon in (None, "existing config"):
             mock_post.assert_called_with(
                 "src.fedoraproject.org/api/0/rpms/deepin-wallpapers/git/tags",
                 headers={"Authorization": "token aaabbbcc"},
@@ -70,12 +83,25 @@ class TestRpmautospecHub:
                     "force": False,
                 },
             )
-            assert not any(
-                s.startswith("Could not parse repo and commit from") and s.endswith(", skipping.")
-                for s in caplog.messages
-            )
+
+        exc_log_filter = (rec.exc_info for rec in caplog.records)
+        if phenomenon == "unreadable config":
+            assert any(exc_log_filter)
         else:
-            assert any(
-                s.startswith("Could not parse repo and commit from") and s.endswith(", skipping.")
-                for s in caplog.messages
-            )
+            assert not any(exc_log_filter)
+
+        no_source_log = "No source for this build, skipping."
+        if phenomenon == "no source":
+            assert no_source_log in caplog.messages
+        else:
+            assert no_source_log not in caplog.messages
+
+        # More complex than the above in order to ignore the actual logged URL
+        unknown_source_log_filter = (
+            s.startswith("Could not parse repo and commit from") and s.endswith(", skipping.")
+            for s in caplog.messages
+        )
+        if phenomenon == "unknown source":
+            assert any(unknown_source_log_filter)
+        else:
+            assert not any(unknown_source_log_filter)

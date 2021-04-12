@@ -30,7 +30,7 @@ def autotag_cb(cb_type, **kwargs):
             return
 
         git_filter = r".*\.fedoraproject\.org/(?P<repo>rpms/.*)\.git#(?P<commit>[a-f0-9]{40})$"
-        if CONFIG.has_option("pagure", "git_filter"):
+        if CONFIG.has_option("pagure", "git_filter"):  # pragma: no cover
             git_filter = CONFIG.get("pagure", "git_filter",)
         git_filter_re = re.compile(git_filter)
 

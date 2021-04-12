@@ -43,8 +43,10 @@ def autotag_cb(cb_type, **kwargs):
 
     if build.get("source"):
         match = re.match(git_filter_re, build["source"])
-        repo = match.group("repo")
-        commit = match.group("commit")
+        repo = commit = None
+        if match:
+            repo = match.group("repo")
+            commit = match.group("commit")
         if not repo or not commit:
             _log.info("Could not parse repo and commit from %s, skipping.", build["source"])
             return

@@ -1,4 +1,7 @@
+import logging
 from unittest import mock
+
+import pytest
 
 from koji_plugins import rpmautospec_hub
 
@@ -22,17 +25,24 @@ class MockConfig:
 class TestRpmautospecHub:
     """Test the rpmautospec hub plugin for Koji."""
 
+    @pytest.mark.parametrize("recognized_source", (True, False))
     @mock.patch("rpmautospec.py2compat.tagging.requests.post")
     @mock.patch("koji.read_config_files")
-    def test_autotag_cb(self, read_config_files, mock_post):
+    def test_autotag_cb(self, read_config_files, mock_post, recognized_source, caplog):
         read_config_files.return_value = MockConfig()
         mock_post.return_value.ok = True
 
         cbtype = "postTag"
+
+        if recognized_source:
+            git_host = "src.fedoraproject.org"
+        else:
+            git_host = "foo.bar"
         git_url = (
-            "git+https://src.fedoraproject.org/"
+            f"git+https://{git_host}/"
             "rpms/deepin-wallpapers.git#a0698fd21544880718d01a80ea19c91b13011235"
         )
+
         kwargs = {
             "build": {
                 "name": "deepin-wallpapers",
@@ -45,15 +55,27 @@ class TestRpmautospecHub:
             "user": {"name": None},
         }
 
-        rpmautospec_hub.autotag_cb(cbtype, **kwargs)
-        mock_post.assert_called_with(
-            "src.fedoraproject.org/api/0/rpms/deepin-wallpapers/git/tags",
-            headers={"Authorization": "token aaabbbcc"},
-            data={
-                "commit_hash": "a0698fd21544880718d01a80ea19c91b13011235",
-                "message": None,
-                "tagname": "build/deepin-wallpapers-0-1.7.6-4.fc32",
-                "with_commits": True,
-                "force": False,
-            },
-        )
+        with caplog.at_level(logging.DEBUG):
+            rpmautospec_hub.autotag_cb(cbtype, **kwargs)
+
+        if recognized_source:
+            mock_post.assert_called_with(
+                "src.fedoraproject.org/api/0/rpms/deepin-wallpapers/git/tags",
+                headers={"Authorization": "token aaabbbcc"},
+                data={
+                    "commit_hash": "a0698fd21544880718d01a80ea19c91b13011235",
+                    "message": None,
+                    "tagname": "build/deepin-wallpapers-0-1.7.6-4.fc32",
+                    "with_commits": True,
+                    "force": False,
+                },
+            )
+            assert not any(
+                s.startswith("Could not parse repo and commit from") and s.endswith(", skipping.")
+                for s in caplog.messages
+            )
+        else:
+            assert any(
+                s.startswith("Could not parse repo and commit from") and s.endswith(", skipping.")
+                for s in caplog.messages
+            )

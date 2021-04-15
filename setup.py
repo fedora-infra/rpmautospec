@@ -12,7 +12,7 @@ with open(os.path.join(HERE, "test_requirements.txt"), "r") as f:
 
 setup(
     name="rpmautospec",
-    version="0.1.3",
+    version="0.1.4",
     description="Package and CLI tool for generating RPM releases and changelogs",
     # Possible options are at https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
@@ -25,6 +25,7 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Topic :: Software Development :: Build Tools",
     ],
     license="MIT",

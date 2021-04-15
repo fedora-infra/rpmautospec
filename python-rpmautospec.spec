@@ -22,6 +22,7 @@ Source0:        https://releases.pagure.org/Fedora-Infra/rpmautospec/rpmautospec
 
 BuildArch:      noarch
 BuildRequires:  python3-devel >= 3.6.0
+BuildRequires:  python3-setuptools
 %if %{with epel_le_7}
 BuildRequires:  python2-devel
 %endif
@@ -181,6 +182,9 @@ install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 %endif
 
 %changelog
+* Thu Apr 15 2021 Nils Philippsen <nils@redhat.com>
+- explicitly BR: python3-setuptools
+
 * Thu Apr 09 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0.1.3-1
 - Update to 0.1.3
 

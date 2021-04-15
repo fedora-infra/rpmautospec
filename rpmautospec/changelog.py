@@ -193,7 +193,7 @@ def produce_changelog(repopath, latest_rel=None):
                     ".patch",
                     ".path",
                     ".pc",
-                    ".preset"
+                    ".preset",
                     ".scope",
                     ".service",
                     ".slice",

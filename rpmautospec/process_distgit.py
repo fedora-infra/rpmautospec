@@ -72,6 +72,10 @@ def is_autorelease(line):
     return autorelease_re.match(line)
 
 
+def is_autochangelog(line):
+    return autochangelog_re.match(line)
+
+
 def get_autorelease(srcdir, dist, session):
     # Not setting latest_evr, next_epoch_version just goes with what's in the package and latest
     # builds.
@@ -91,6 +95,7 @@ def check_distgit(srcdir):
     has_autorelease = False
     changelog_lineno = None
     has_autochangelog = None
+    autochangelog_lineno = None
 
     specfile_name = get_specfile_name(srcdir)
 
@@ -106,22 +111,21 @@ def check_distgit(srcdir):
             if changelog_lineno is None:
                 if changelog_re.match(line):
                     changelog_lineno = lineno
-            elif has_autochangelog is None:
-                if autochangelog_re.match(line):
-                    has_autochangelog = True
-                elif line.strip():
-                    # Anything else than %autochangelog after %changelog -> hands off
-                    has_autochangelog = False
+            if has_autochangelog is None and is_autochangelog(line):
+                has_autochangelog = True
+                autochangelog_lineno = lineno
 
-    return has_autorelease, has_autochangelog, changelog_lineno
+    return has_autorelease, has_autochangelog, changelog_lineno, autochangelog_lineno
 
 
 def needs_processing(srcdir):
-    has_autorelease, has_autochangelog, changelog_lineno = check_distgit(srcdir)
-    return has_autorelease or has_autochangelog
+    has_autorelease, has_autochangelog, changelog_lineno, _ = check_distgit(srcdir)
+    return has_autorelease or has_autochangelog or not changelog_lineno
 
 
-def process_specfile(srcdir, dist, session, has_autorelease, has_autochangelog, changelog_lineno):
+def process_specfile(
+    srcdir, dist, session, has_autorelease, has_autochangelog, changelog_lineno, autochangelog_lineno
+):
     specfile_name = get_specfile_name(srcdir)
 
     if not dist:
@@ -141,12 +145,21 @@ def process_specfile(srcdir, dist, session, has_autorelease, has_autochangelog, 
                     print(line, file=tmp_specfile, end="")
 
         for lineno, line in enumerate(specfile, start=1):
-            if has_autochangelog and lineno > changelog_lineno:
-                break
+            if changelog_lineno:
+                if has_autochangelog and lineno > changelog_lineno:
+                    break
 
+            else:
+                if has_autochangelog and lineno == autochangelog_lineno:
+                    print("%changelog\n", file=tmp_specfile, end="")
+                    break
             print(line, file=tmp_specfile, end="")
 
         if has_autochangelog:
+            print("\n".join(produce_changelog(srcdir, latest_rel=new_rel)), file=tmp_specfile)
+        elif changelog_lineno is None:
+            print("No changelog found, auto creating")
+            print("\n%changelog\n", file=tmp_specfile, end="")
             print("\n".join(produce_changelog(srcdir, latest_rel=new_rel)), file=tmp_specfile)
 
         tmp_specfile.flush()
@@ -162,8 +175,10 @@ def process_distgit(srcdir, dist, session, actions=None):
     retval = True
 
     if "check" in actions or "process-specfile" in actions:
-        has_autorelease, has_autochangelog, changelog_lineno = check_distgit(srcdir)
-        processing_necessary = has_autorelease or has_autochangelog
+        has_autorelease, has_autochangelog, changelog_lineno, autochangelog_lineno = check_distgit(
+            srcdir
+        )
+        processing_necessary = has_autorelease or has_autochangelog or not changelog_lineno
         if "process-specfile" not in actions:
             retval = processing_necessary
 
@@ -181,7 +196,15 @@ def process_distgit(srcdir, dist, session, actions=None):
                 _log.info("Features used by the spec file: %s", ", ".join(features_used))
 
     if "process-specfile" in actions and processing_necessary:
-        process_specfile(srcdir, dist, session, has_autorelease, has_autochangelog, changelog_lineno)
+        process_specfile(
+            srcdir,
+            dist,
+            session,
+            has_autorelease,
+            has_autochangelog,
+            changelog_lineno,
+            autochangelog_lineno,
+        )
 
     return retval
 

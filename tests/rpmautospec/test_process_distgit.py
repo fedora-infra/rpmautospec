@@ -26,6 +26,7 @@ class TestProcessDistgit:
             "line in between",
             "trailing line",
             "with braces",
+            "missing",
             "optional",
         )
     ]
@@ -56,6 +57,9 @@ class TestProcessDistgit:
                         break
                     elif autochangelog_case == "with braces":
                         print("%changelog\n%{autochangelog}", file=new)
+                        break
+                    elif autochangelog_case == "missing":
+                        # do nothing, i.e. don't print a %changelog to file
                         break
                     elif autochangelog_case == "optional":
                         print("%changelog\n%{?autochangelog}", file=new)

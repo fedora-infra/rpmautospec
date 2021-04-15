@@ -17,8 +17,8 @@ Release:        1%{?dist}
 Summary:        Package and CLI tool to generate release fields and changelogs
 
 License:        MIT
-URL:            https://pagure.io/Fedora-Infra/rpmautospec
-Source0:        https://releases.pagure.org/Fedora-Infra/rpmautospec/rpmautospec-%{version}.tar.gz
+URL:            https://pagure.io/fedora-infra/rpmautospec
+Source0:        https://releases.pagure.org/fedora-infra/rpmautospec/rpmautospec-%{version}.tar.gz
 
 BuildArch:      noarch
 BuildRequires:  python3-devel >= 3.6.0
@@ -182,6 +182,9 @@ install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 %endif
 
 %changelog
+* Thu Apr 15 2021 Nils Philippsen <nils@redhat.com>
+- Have lowercase URLs, because Pagure d'oh
+
 * Thu Apr 15 2021 Nils Philippsen <nils@redhat.com> - 0.1.4-1
 - Update to 0.1.4
 - explicitly BR: python3-setuptools

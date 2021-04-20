@@ -201,7 +201,7 @@ def produce_changelog(repopath, latest_rel=None):
                     ".swap",
                     ".target",
                     ".timer",
-                    )):
+                )):
                     ignore = False
 
             if not ignore:

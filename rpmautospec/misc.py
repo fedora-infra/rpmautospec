@@ -13,8 +13,6 @@ from typing import Union
 import koji
 import rpm
 
-from .py2compat.tagging import unescape_tag
-
 
 release_re = re.compile(r"^(?P<pkgrel>\d+)(?:(?P<middle>.*?)(?:\.(?P<minorbump>\d+))?)?$")
 disttag_re = re.compile(r"\.?(?P<distcode>[^\d\.]+)(?P<distver>\d+)")
@@ -130,23 +128,5 @@ def run_command(command: list, cwd: Optional[str] = None) -> bytes:
         _log.error("stdout:\n-------\n%s", e.stdout)
         _log.error("stderr:\n-------\n%s", e.stderr)
         raise
-
-    return output
-
-
-def git_get_tags(path: str) -> Mapping[str, str]:
-    """ Returns a dict containing for each commit tagged the corresponding tag. """
-    cmd = ["git", "show-ref", "--tags", "--head"]
-    _log.debug("git_get_tags: %s", cmd)
-    tags_list = run_command(cmd, cwd=path).decode("UTF-8").strip().split("\n")
-
-    output = collections.defaultdict(list)
-    for row in tags_list:
-        _log.debug("  %s", row)
-        commit, name = row.split(" ", 1)
-        # we're only interested in the build/* tags
-        if name.startswith("refs/tags/build/"):
-            name = name.replace("refs/tags/build/", "")
-            output[commit].append(unescape_tag(name))
 
     return output

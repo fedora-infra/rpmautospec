@@ -58,7 +58,6 @@ class TestRpmautospecBuilder:
         ),
     )
     @mock.patch("rpmautospec.process_distgit.needs_processing")
-    @mock.patch("rpmautospec.tag_package.tag_package")
     @mock.patch("koji_plugins.rpmautospec_builder._steal_buildroot_object_from_frame_stack")
     @mock.patch("koji_plugins.rpmautospec_builder.pagure_proxy")
     @mock.patch("koji.read_config_files")
@@ -67,7 +66,6 @@ class TestRpmautospecBuilder:
         read_config_files,
         pagure_proxy,
         steal_buildroot_fn,
-        tag_package_fn,
         needs_processing_fn,
         testcase,
     ):
@@ -150,12 +148,7 @@ class TestRpmautospecBuilder:
 
         if skip_processing:
             buildroot.getPackageList.assert_not_called()
-            tag_package_fn.assert_not_called()
             return
-
-        tag_package_fn.assert_called_once_with(
-            unpacked_repo_dir, koji_session, pagure_proxy=pagure_proxy
-        )
 
         buildroot.getPackageList.assert_called_once()
         buildroot.path_without_to_within.assert_called_once()

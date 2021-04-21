@@ -8,7 +8,6 @@ import typing
 from .misc import (
     disttag_re,
     get_rpm_current_version,
-    git_get_tags,
     koji_init,
     parse_epoch_version,
     parse_evr,
@@ -138,7 +137,8 @@ def holistic_heuristic_algo(
                 get_rpm_current_version(srcdir, with_epoch=True)
             )
 
-    tags = git_get_tags(srcdir) or []
+    # FIXME: the whole algo will be replaced
+    tags = []
     builds = []
     if tags:
         for tmp_builds in tags.values():

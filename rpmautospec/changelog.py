@@ -8,7 +8,7 @@ import tempfile
 import textwrap
 import typing
 
-from .misc import get_rpm_current_version, git_get_tags, parse_evr, rpmvercmp_key, run_command
+from .misc import get_rpm_current_version, parse_evr, rpmvercmp_key, run_command
 
 
 _log = logging.getLogger(__name__)
@@ -104,8 +104,8 @@ def produce_changelog(repopath, latest_rel=None):
         _log.debug("Working directory: %s", repocopy)
         lines = []
 
-        # Get all the tags in the repo
-        tags = git_get_tags(repocopy)
+        # FIXME: We don't do tags anymore
+        tags = []
 
         # Get the latest commit in the repo
         head = git_get_log(repocopy, log_options=["-1"])[0]
@@ -153,6 +153,7 @@ def produce_changelog(repopath, latest_rel=None):
             author_info = author_info.replace("%", "%%")
             commit_summary = commit_summary.replace("%", "%%")
 
+            # FIXME: new algo
             if commithash in tags:
                 _log.debug("Tags for the commit: %s: %s", commithash, tags[commithash])
                 output.append(entry)

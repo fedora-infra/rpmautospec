@@ -3,7 +3,7 @@ import logging
 import sys
 import typing
 
-from . import changelog, process_distgit, release, tag_package
+from . import changelog, process_distgit, release
 
 
 subcmd_modules_by_name = {}
@@ -76,7 +76,7 @@ def get_cli_args(args: typing.List[str]) -> argparse.Namespace:
 
     subparsers = parser.add_subparsers(dest="subcommand", required=True)
 
-    for subcmd_module in (changelog, release, tag_package, process_distgit):
+    for subcmd_module in (changelog, release, process_distgit):
         subcmd_name = subcmd_module.register_subcommand(subparsers)
 
         if subcmd_name in subcmd_modules_by_name:

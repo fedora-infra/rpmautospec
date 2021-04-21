@@ -5,8 +5,7 @@ import shlex
 import koji
 from koji.plugin import callback
 
-from rpmautospec import process_distgit, tag_package
-from rpmautospec.py2compat.tagging import PagureTaggingProxy
+from rpmautospec import process_distgit
 
 
 CONFIG_FILE = "/etc/kojid/plugins/rpmautospec.conf"
@@ -63,14 +62,6 @@ def process_distgit_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwarg
             message = "While attempting to read config file %s, an exception occurred:"
             _log.exception(message, CONFIG_FILE)
             return
-
-    if not pagure_proxy:
-        base_url = CONFIG.get("pagure", "url")
-        token = CONFIG.get("pagure", "token")
-        pagure_proxy = PagureTaggingProxy(base_url=base_url, auth_token=token, logger=_log)
-
-    _log.info("Tagging existing builds...")
-    tag_package.tag_package(srcdir, session, pagure_proxy=pagure_proxy)
 
     buildroot = kwargs.get("buildroot")
     if not buildroot:

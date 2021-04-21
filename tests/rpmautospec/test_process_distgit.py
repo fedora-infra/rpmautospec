@@ -77,6 +77,8 @@ class TestProcessDistgit:
         assert not process_distgit.is_autorel("NotRelease: %{autorel}")
         assert not process_distgit.is_autorel("release: 1%{?dist}")
 
+    # Expected to fail until we've implemented the new release number algorithm
+    @pytest.mark.xfail
     @pytest.mark.parametrize("autorel_case,autochangelog_case", autorel_autochangelog_cases)
     def test_process_distgit(self, autorel_case, autochangelog_case):
         """Test the process_distgit() function"""

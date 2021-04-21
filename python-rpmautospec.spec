@@ -1,7 +1,6 @@
 %global srcname rpmautospec
 
-# Up to EL7, the Koji hub plugin is run under Python 2.x and Python files in private directories
-# would be byte-compiled.
+# Up to EL7, Python files in private directories would be byte-compiled.
 %if ! 0%{?rhel} || 0%{?rhel} > 7
 %bcond_with epel_le_7
 %else
@@ -37,6 +36,9 @@ BuildRequires:  python%{python3_pkgversion}-pytest-cov
 BuildRequires:  git
 %endif
 
+Obsoletes:      koji-hub-plugin-rpmautospec < 0.1.5-2
+Conflicts:      koji-hub-plugin-rpmautospec < 0.1.5-2
+
 %global _description %{expand:
 A package and CLI tool to generate RPM release fields and changelogs.}
 
@@ -68,8 +70,8 @@ Requires: python3-koji
 Summary:  CLI tool for generating RPM releases and changelogs
 Requires: python3-%{srcname} = %{version}-%{release}
 # We add this require here and not in python3-rpmautospec because we do not want
-# it on the builders, the hub and builders plugins will work fine without it but
-# we need this in the chroot or when packagers run the CLI on their machines.
+# it on the builders, the builders plugins will work fine without it but we
+# need this in the chroot or when packagers run the CLI on their machines.
 Requires: rpm-build >= 4.9
 
 %description -n %{srcname}
@@ -93,25 +95,6 @@ A Koji plugin for generating RPM releases and changelogs.
 %{_prefix}/lib/koji-builder-plugins/*
 
 %config(noreplace) %{_sysconfdir}/kojid/plugins/rpmautospec.conf
-
-%package -n koji-hub-plugin-rpmautospec
-Summary: Koji plugin for tagging successful builds in dist-git
-%if ! %{with epel_le_7}
-Requires: python3-%{srcname} = %{version}-%{release}
-Requires: python3-koji
-%endif
-Requires: koji-hub-plugins
-
-%description -n koji-hub-plugin-rpmautospec
-A Koji plugin for tagging successful builds in their dist-git repository.
-
-%files -n koji-hub-plugin-rpmautospec
-%if %{with epel_le_7}
-%{python2_sitelib}/rpmautospec/
-%endif
-%{_prefix}/lib/koji-hub-plugins/*
-
-%config(noreplace) %{_sysconfdir}/koji-hub/plugins/rpmautospec.conf
 
 # Package the placeholder rpm-macros
 
@@ -138,37 +121,20 @@ sed -i /koji/d requirements.txt
 
 %install
 %py3_install
-for plugin_type in builder hub; do
-    mkdir -p  %{buildroot}%{_prefix}/lib/koji-${plugin_type}-plugins/
-    install -m 0644 koji_plugins/rpmautospec_${plugin_type}.py \
-        %{buildroot}%{_prefix}/lib/koji-${plugin_type}-plugins/
-done
+mkdir -p  %{buildroot}%{_prefix}/lib/koji-builder-plugins/
+install -m 0644 koji_plugins/rpmautospec_builder.py \
+    %{buildroot}%{_prefix}/lib/koji-builder-plugins/
 
 %if %{with epel_le_7}
-# the hub-plugin py2 tagging library
-# Install the py2compat files to the koji-hub-plugin
-mkdir -p %{buildroot}%{python2_sitelib}/rpmautospec/py2compat/
-touch %{buildroot}%{python2_sitelib}/rpmautospec/__init__.py \
-    %{buildroot}%{python2_sitelib}/rpmautospec/py2compat/__init__.py
-install -m 0644 rpmautospec/py2compat/tagging.py \
-    %{buildroot}%{python2_sitelib}/rpmautospec/py2compat/
-
 # EL <= 7: Byte-compile all the things
 %py_byte_compile %{python3} %{buildroot}%{python3_sitelib}
 %py_byte_compile %{python2} %{buildroot}%{python2_sitelib}
-%py_byte_compile %{python2} %{buildroot}%{_prefix}/lib/koji-hub-plugins/
-%else
-# EL > 7, Fedora
-%py_byte_compile %{python3} %{buildroot}%{_prefix}/lib/koji-hub-plugins/
 %endif
 %py_byte_compile %{python3} %{buildroot}%{_prefix}/lib/koji-builder-plugins/
 
-# configuration shared by the plugins
-for dest in kojid koji-hub; do
-    mkdir -p %{buildroot}%{_sysconfdir}/$dest/plugins/
-    install -m 0644 koji_plugins/rpmautospec.conf \
-        %{buildroot}%{_sysconfdir}/$dest/plugins/rpmautospec.conf
-done
+mkdir -p %{buildroot}%{_sysconfdir}/kojid/plugins/
+install -m 0644 koji_plugins/rpmautospec.conf \
+    %{buildroot}%{_sysconfdir}/kojid/plugins/rpmautospec.conf
 
 # RPM macros
 mkdir -p %{buildroot}%{rpmmacrodir}
@@ -182,6 +148,9 @@ install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 %endif
 
 %changelog
+* Thu Apr 22 2021 Nils Philippsen <nils@redhat.com>
+- remove the hub plugin
+
 * Thu Apr 15 2021 Nils Philippsen <nils@redhat.com> - 0.1.5-1
 - Update to 0.1.5
 - Have lowercase URLs, because Pagure d'oh

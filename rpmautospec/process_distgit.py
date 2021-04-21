@@ -10,7 +10,6 @@ import rpm
 from .changelog import produce_changelog
 from .misc import koji_init
 from .release import holistic_heuristic_algo
-from .tag_package import tag_package
 
 
 _log = logging.getLogger(__name__)
@@ -180,9 +179,6 @@ def process_distgit(srcdir, dist, session, actions=None):
                 _log.info("The spec file doesn't use automatic release or changelog.")
             else:
                 _log.info("Features used by the spec file: %s", ", ".join(features_used))
-
-    if "tag-package" in actions:
-        tag_package(srcdir, session)
 
     if "process-specfile" in actions and processing_necessary:
         process_specfile(srcdir, dist, session, has_autorel, has_autochangelog, changelog_lineno)

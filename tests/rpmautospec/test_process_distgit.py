@@ -16,9 +16,9 @@ __here__ = os.path.dirname(__file__)
 class TestProcessDistgit:
     """Test the rpmautospec.process_distgit module"""
 
-    autorel_autochangelog_cases = [
-        (autorel_case, autochangelog_case)
-        for autorel_case in ("unchanged", "with braces", "optional")
+    autorelease_autochangelog_cases = [
+        (autorelease_case, autochangelog_case)
+        for autorelease_case in ("unchanged", "with braces", "optional")
         for autochangelog_case in (
             "unchanged",
             "changelog case insensitive",
@@ -31,18 +31,18 @@ class TestProcessDistgit:
     ]
 
     @staticmethod
-    def fuzz_spec_file(spec_file_path, autorel_case, autochangelog_case):
+    def fuzz_spec_file(spec_file_path, autorelease_case, autochangelog_case):
         """Fuzz a spec file in ways which shouldn't change the outcome"""
 
         with open(spec_file_path, "r") as orig, open(spec_file_path + ".new", "w") as new:
             for line in orig:
-                if line.startswith("Release:") and autorel_case != "unchanged":
-                    if autorel_case == "with braces":
-                        print("Release:        %{autorel}", file=new)
-                    elif autorel_case == "optional":
-                        print("Release:        %{?autorel}", file=new)
+                if line.startswith("Release:") and autorelease_case != "unchanged":
+                    if autorelease_case == "with braces":
+                        print("Release:        %{autorelease}", file=new)
+                    elif autorelease_case == "optional":
+                        print("Release:        %{?autorelease}", file=new)
                     else:
-                        raise ValueError(f"Unknown autorel_case: {autorel_case}")
+                        raise ValueError(f"Unknown autorelease_case: {autorelease_case}")
                 elif line.strip() == "%changelog" and autochangelog_case != "unchanged":
                     if autochangelog_case == "changelog case insensitive":
                         print("%ChAnGeLoG", file=new)
@@ -67,20 +67,20 @@ class TestProcessDistgit:
 
         os.rename(spec_file_path + ".new", spec_file_path)
 
-    def test_is_autorel(self):
-        assert process_distgit.is_autorel("Release: %{autorel}")
-        assert process_distgit.is_autorel("Release: %autorel")
-        assert process_distgit.is_autorel("release: %{autorel}")
-        assert process_distgit.is_autorel(" release :  %{autorel}")
+    def test_is_autorelease(self):
+        assert process_distgit.is_autorelease("Release: %{autorelease}")
+        assert process_distgit.is_autorelease("Release: %autorelease")
+        assert process_distgit.is_autorelease("release: %{autorelease}")
+        assert process_distgit.is_autorelease(" release :  %{autorelease}")
 
-        assert not process_distgit.is_autorel("Release: %{autorel_special}")
-        assert not process_distgit.is_autorel("NotRelease: %{autorel}")
-        assert not process_distgit.is_autorel("release: 1%{?dist}")
+        assert not process_distgit.is_autorelease("Release: %{autorelease_special}")
+        assert not process_distgit.is_autorelease("NotRelease: %{autorelease}")
+        assert not process_distgit.is_autorelease("release: 1%{?dist}")
 
     # Expected to fail until we've implemented the new release number algorithm
     @pytest.mark.xfail
-    @pytest.mark.parametrize("autorel_case,autochangelog_case", autorel_autochangelog_cases)
-    def test_process_distgit(self, autorel_case, autochangelog_case):
+    @pytest.mark.parametrize("autorelease_case,autochangelog_case", autorelease_autochangelog_cases)
+    def test_process_distgit(self, autorelease_case, autochangelog_case):
         """Test the process_distgit() function"""
         with tempfile.TemporaryDirectory() as workdir:
             with tarfile.open(
@@ -99,8 +99,8 @@ class TestProcessDistgit:
                 unpacked_repo_dir, "dummy-test-package-gloster.spec",
             )
 
-            if autorel_case != "unchanged" or autochangelog_case != "unchanged":
-                self.fuzz_spec_file(unprocessed_spec_file_path, autorel_case, autochangelog_case)
+            if autorelease_case != "unchanged" or autochangelog_case != "unchanged":
+                self.fuzz_spec_file(unprocessed_spec_file_path, autorelease_case, autochangelog_case)
 
             koji_session = mock.MagicMock()
             koji_session.getPackageID.return_value = 30489
@@ -128,17 +128,17 @@ class TestProcessDistgit:
             )
 
             with tempfile.NamedTemporaryFile() as tmpspec:
-                if autorel_case != "unchanged" or autochangelog_case != "unchanged":
+                if autorelease_case != "unchanged" or autochangelog_case != "unchanged":
                     if autochangelog_case not in (
                         "changelog case insensitive",
                         "changelog trailing garbage",
                     ):
                         # "%changelog", "%ChAnGeLoG", ... stay verbatim, trick fuzz_spec_file() to
-                        # leave the rest of the cases as is, the %autorel macro is expanded.
+                        # leave the rest of the cases as is, the %autorelease macro is expanded.
                         autochangelog_case = "unchanged"
                     shutil.copy2(expected_spec_file_path, tmpspec.name)
                     expected_spec_file_path = tmpspec.name
-                    self.fuzz_spec_file(expected_spec_file_path, autorel_case, autochangelog_case)
+                    self.fuzz_spec_file(expected_spec_file_path, autorelease_case, autochangelog_case)
 
                 rpm_cmd = ["rpm", "--define", "dist .fc32", "--specfile"]
 

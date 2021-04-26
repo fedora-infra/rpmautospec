@@ -4,7 +4,7 @@ Opting into using `rpmautospec`
 To opt into using `rpmautospec` you need to use the two macros as explained
 here below:
 
-Use the ``%autorel`` macro
+Use the ``%autorelease`` macro
 --------------------------
 
 Basically, in the spec file you replace the manually set release, e.g.:
@@ -13,14 +13,14 @@ Basically, in the spec file you replace the manually set release, e.g.:
 
     Release:    7{%dist}
 
-with the ``%autorel`` macro, such as:
+with the ``%autorelease`` macro, such as:
 
 ::
 
-    Release:    %autorel
+    Release:    %autorelease
 
 There are different options you can associate with this macro which are
-documented in: :ref:`using-autorel`.
+documented in: :ref:`using-autorelease`.
 
 
 Use the ``%autochangelog`` macro

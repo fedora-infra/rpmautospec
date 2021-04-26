@@ -50,7 +50,7 @@ def process_distgit_cb(cb_type, *, srcdir, build_tag, session, taskinfo, **kwarg
         return
 
     if not process_distgit.needs_processing(srcdir):
-        _log.info("No %autorel/%autochangelog found, skipping.")
+        _log.info("No %autorelease/%autochangelog found, skipping.")
         return
 
     global CONFIG, pagure_proxy

@@ -12,9 +12,9 @@ import koji
 import rpm
 
 
-# The %autorel macro including parameters. This is imported into the main package to be used from
+# The %autorelease macro including parameters. This is imported into the main package to be used from
 # 3rd party code like fedpkg etc.
-AUTOREL_MACRO = "autorel(e:s:hp)"
+AUTORELEASE_MACRO = "autorelease(e:s:hp)"
 
 release_re = re.compile(r"^(?P<pkgrel>\d+)(?:(?P<middle>.*?)(?:\.(?P<minorbump>\d+))?)?$")
 disttag_re = re.compile(r"\.?(?P<distcode>[^\d\.]+)(?P<distver>\d+)")
@@ -80,7 +80,7 @@ def get_rpm_current_version(path: str, name: Optional[str] = None, with_epoch: b
     rpm_cmd = [
         "rpm",
         "--define",
-        f"{AUTOREL_MACRO} 1%{{?dist}}",
+        f"{AUTORELEASE_MACRO} 1%{{?dist}}",
         "--define",
         "autochangelog %nil",
         "--qf",

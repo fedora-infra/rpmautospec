@@ -19,7 +19,7 @@ cloned, a dedicated plugin is run to preprocess the spec file:
   the packager in the spec file, `rpmautospec` then computes the next best
   release number for the package.
 
-* It prepends a suitably defined ``%autorel`` macro to the top of the spec
+* It prepends a suitably defined ``%autorelease`` macro to the top of the spec
   file, freezing the computed value of the release number and thus allowing
   reproducible builds.
 

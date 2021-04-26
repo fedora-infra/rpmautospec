@@ -11,7 +11,7 @@ release and changelog fields in RPM spec files opting to use it.
 
    principle
    opting-in
-   autorel
+   autorelease
    autochangelog
    peculiarities
    install

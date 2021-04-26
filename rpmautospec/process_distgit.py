@@ -15,16 +15,16 @@ from .release import holistic_heuristic_algo
 _log = logging.getLogger(__name__)
 __here__ = os.path.dirname(__file__)
 
-autorel_macro_path = os.path.join(__here__, "etc", "autorel-macro.txt")
-autorel_template = """## START: Set by rpmautospec
-%define _autorel_normal_cadence {autorel_normal}%{{?_autorel_extraver}}%{{?_autorel_snapinfo}}%{{?dist}}
-%define _autorel_hotfix_cadence Sorry, the hotfix cadence isn't implemented yet.
-%define _autorel_prerel_cadence Sorry, the pre-release cadence isn't implemented yet.
-%define _autorel_prerel_hotfix_cadence Sorry, the hotfix, pre-release cadences aren't implemented yet.
+autorelease_macro_path = os.path.join(__here__, "etc", "autorelease-macro.txt")
+autorelease_template = """## START: Set by rpmautospec
+%define _autorelease_normal_cadence {autorelease_normal}%{{?_autorelease_extraver}}%{{?_autorelease_snapinfo}}%{{?dist}}
+%define _autorelease_hotfix_cadence Sorry, the hotfix cadence isn't implemented yet.
+%define _autorelease_prerel_cadence Sorry, the pre-release cadence isn't implemented yet.
+%define _autorelease_prerel_hotfix_cadence Sorry, the hotfix, pre-release cadences aren't implemented yet.
 ## END: Set by rpmautospec
 """  # noqa: E501
 
-autorel_re = re.compile(r"\s*(?i:Release)\s*:.*%(?:autorel(?:\s|$)|\{\??autorel\})")
+autorelease_re = re.compile(r"\s*(?i:Release)\s*:.*%(?:autorelease(?:\s|$)|\{\??autorelease\})")
 changelog_re = re.compile(r"^%changelog(?:\s.*)?$", re.IGNORECASE)
 autochangelog_re = re.compile(r"\s*%(?:autochangelog|\{\??autochangelog\})\s*")
 
@@ -46,7 +46,7 @@ def register_subcommand(subparsers):
         dest="actions",
         action="append_const",
         const="check",
-        help="Check if the spec file uses %%autorel or %%autochangelog macros at all.",
+        help="Check if the spec file uses %%autorelease or %%autochangelog macros at all.",
     )
 
     process_distgit_parser.add_argument(
@@ -68,11 +68,11 @@ def register_subcommand(subparsers):
     return subcmd_name
 
 
-def is_autorel(line):
-    return autorel_re.match(line)
+def is_autorelease(line):
+    return autorelease_re.match(line)
 
 
-def get_autorel(srcdir, dist, session):
+def get_autorelease(srcdir, dist, session):
     # Not setting latest_evr, next_epoch_version just goes with what's in the package and latest
     # builds.
     release = holistic_heuristic_algo(srcdir=srcdir, dist=dist, strip_dist=True)
@@ -88,20 +88,20 @@ def get_specfile_name(srcdir):
 
 
 def check_distgit(srcdir):
-    has_autorel = False
+    has_autorelease = False
     changelog_lineno = None
     has_autochangelog = None
 
     specfile_name = get_specfile_name(srcdir)
 
-    # Detect if %autorel, %autochangelog are in use
+    # Detect if %autorelease, %autochangelog are in use
     with open(specfile_name, "r") as specfile:
         # Process line by line to cope with large files
         for lineno, line in enumerate(iter(specfile), start=1):
             line = line.rstrip("\n")
 
-            if not has_autorel and is_autorel(line):
-                has_autorel = True
+            if not has_autorelease and is_autorelease(line):
+                has_autorelease = True
 
             if changelog_lineno is None:
                 if changelog_re.match(line):
@@ -113,15 +113,15 @@ def check_distgit(srcdir):
                     # Anything else than %autochangelog after %changelog -> hands off
                     has_autochangelog = False
 
-    return has_autorel, has_autochangelog, changelog_lineno
+    return has_autorelease, has_autochangelog, changelog_lineno
 
 
 def needs_processing(srcdir):
-    has_autorel, has_autochangelog, changelog_lineno = check_distgit(srcdir)
-    return has_autorel or has_autochangelog
+    has_autorelease, has_autochangelog, changelog_lineno = check_distgit(srcdir)
+    return has_autorelease or has_autochangelog
 
 
-def process_specfile(srcdir, dist, session, has_autorel, has_autochangelog, changelog_lineno):
+def process_specfile(srcdir, dist, session, has_autorelease, has_autochangelog, changelog_lineno):
     specfile_name = get_specfile_name(srcdir)
 
     if not dist:
@@ -130,14 +130,14 @@ def process_specfile(srcdir, dist, session, has_autorel, has_autochangelog, chan
     if dist.startswith("."):
         dist = dist[1:]
 
-    new_rel = get_autorel(srcdir, dist, session)
+    new_rel = get_autorelease(srcdir, dist, session)
     with open(specfile_name, "r") as specfile, tempfile.NamedTemporaryFile("w") as tmp_specfile:
         # Process the spec file into a temporary file...
-        if has_autorel:
-            # Write %autorel macro header
-            with open(autorel_macro_path, "r") as autorel_macro_file:
-                print(autorel_template.format(autorel_normal=new_rel), file=tmp_specfile)
-                for line in autorel_macro_file:
+        if has_autorelease:
+            # Write %autorelease macro header
+            with open(autorelease_macro_path, "r") as autorelease_macro_file:
+                print(autorelease_template.format(autorelease_normal=new_rel), file=tmp_specfile)
+                for line in autorelease_macro_file:
                     print(line, file=tmp_specfile, end="")
 
         for lineno, line in enumerate(specfile, start=1):
@@ -162,16 +162,16 @@ def process_distgit(srcdir, dist, session, actions=None):
     retval = True
 
     if "check" in actions or "process-specfile" in actions:
-        has_autorel, has_autochangelog, changelog_lineno = check_distgit(srcdir)
-        processing_necessary = has_autorel or has_autochangelog
+        has_autorelease, has_autochangelog, changelog_lineno = check_distgit(srcdir)
+        processing_necessary = has_autorelease or has_autochangelog
         if "process-specfile" not in actions:
             retval = processing_necessary
 
         # Only print output if explicitly requested
         if "check" in actions:
             features_used = []
-            if has_autorel:
-                features_used.append("%autorel")
+            if has_autorelease:
+                features_used.append("%autorelease")
             if has_autochangelog:
                 features_used.append("%autochangelog")
 
@@ -181,7 +181,7 @@ def process_distgit(srcdir, dist, session, actions=None):
                 _log.info("Features used by the spec file: %s", ", ".join(features_used))
 
     if "process-specfile" in actions and processing_necessary:
-        process_specfile(srcdir, dist, session, has_autorel, has_autochangelog, changelog_lineno)
+        process_specfile(srcdir, dist, session, has_autorelease, has_autochangelog, changelog_lineno)
 
     return retval
 

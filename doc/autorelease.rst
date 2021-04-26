@@ -1,6 +1,6 @@
-.. _using-autorel:
+.. _using-autorelease:
 
-Using the ``%autorel`` Macro
+Using the ``%autorelease`` Macro
 ============================
 
 Fedora's `Versioning Guidelines`_ define the different elements of which a
@@ -12,7 +12,7 @@ release field can consist. They are as follows:
 
 Each element in square brackets indicates an optional item.
 
-The ``%autorel`` macro accepts these parameters to allow packagers to specify
+The ``%autorelease`` macro accepts these parameters to allow packagers to specify
 the different portions of the release field:
 
 * ``-h <hotfix>``: Designates a hotfix release, i.e. enables bumping the
@@ -36,14 +36,14 @@ Some Examples:
 The Simple Case
 ^^^^^^^^^^^^^^^
 
-.. include:: examples/test-autorel.spec
+.. include:: examples/test-autorelease.spec
    :literal:
 
 Will generate the following NEVR:
 
 ::
 
-    test-autorel-1.0-1.fc31.x86_64
+    test-autorelease-1.0-1.fc31.x86_64
 
 
 .. _hotfix example:
@@ -51,14 +51,14 @@ Will generate the following NEVR:
 The Hotfix Case
 ^^^^^^^^^^^^^^^
 
-.. include:: examples/test-autorel-hotfix.spec
+.. include:: examples/test-autorelease-hotfix.spec
    :literal:
 
 Will generate the following NEVR:
 
 ::
 
-    test-autorel-hotfix-1.0-1.fc31.1.x86_64
+    test-autorelease-hotfix-1.0-1.fc31.1.x86_64
 
 
 .. _prerelease example:
@@ -66,14 +66,14 @@ Will generate the following NEVR:
 The Pre-Release Case
 ^^^^^^^^^^^^^^^^^^^^
 
-.. include:: examples/test-autorel-prerelease.spec
+.. include:: examples/test-autorelease-prerelease.spec
    :literal:
 
 Will generate the following NEVR:
 
 ::
 
-    test-autorel-prerelease-1.0-0.1.pre1.fc31.x86_64
+    test-autorelease-prerelease-1.0-0.1.pre1.fc31.x86_64
 
 
 .. _extraver case:
@@ -81,14 +81,14 @@ Will generate the following NEVR:
 The Extraver Case
 ^^^^^^^^^^^^^^^^^
 
-.. include:: examples/test-autorel-extraver.spec
+.. include:: examples/test-autorelease-extraver.spec
    :literal:
 
 Will generate the following NEVR:
 
 ::
 
-    test-autorel-extraver-1.0-1.pre1.fc31.x86_64
+    test-autorelease-extraver-1.0-1.pre1.fc31.x86_64
 
 
 .. _snapshot case:
@@ -96,14 +96,14 @@ Will generate the following NEVR:
 The Snapshot Case
 ^^^^^^^^^^^^^^^^^
 
-.. include:: examples/test-autorel-snapshot.spec
+.. include:: examples/test-autorelease-snapshot.spec
    :literal:
 
 Will generate the following NEVR:
 
 ::
 
-    test-autorel-snapshot-1.0-1.20200317git1234abcd.fc31.x86_64
+    test-autorelease-snapshot-1.0-1.20200317git1234abcd.fc31.x86_64
 
 
 .. _snapshot_and_extraver case:
@@ -111,14 +111,14 @@ Will generate the following NEVR:
 The Snapshot and Extraver case
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. include:: examples/test-autorel-extraver-snapshot.spec
+.. include:: examples/test-autorelease-extraver-snapshot.spec
    :literal:
 
 Will generate the following NEVR:
 
 ::
 
-    test-autorel-extraver-snapshot-1.0-1.pre1.20200317git1234abcd.fc31.x86_64
+    test-autorelease-extraver-snapshot-1.0-1.pre1.20200317git1234abcd.fc31.x86_64
 
 
 .. _Versioning Guidelines: https://docs.fedoraproject.org/en-US/packaging-guidelines/Versioning/#_more_complex_versioning

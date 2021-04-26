@@ -140,11 +140,11 @@ You may run into the following warnings/errors when doing a ``fedpkg build``:
 
 ::
 
-    warning: line 5: Possible unexpanded macro in: Release:        %autorel
-    warning: line 26: Possible unexpanded macro in: Requires:       libeconf(x86-64) = 0.3.3-%autorel
+    warning: line 5: Possible unexpanded macro in: Release:        %autorelease
+    warning: line 26: Possible unexpanded macro in: Requires:       libeconf(x86-64) = 0.3.3-%autorelease
     error: %changelog entries must start with *
 
-This is because the ``%autorel`` and ``%autochangelog`` RPM macros aren't
+This is because the ``%autorelease`` and ``%autochangelog`` RPM macros aren't
 defined in your system. To fix this, simply install the
 ``rpmautospec-rpm-macros`` package:
 
@@ -157,7 +157,7 @@ Release and Changelog Differ Between Local Build and Koji
 
 If you have installed the ``rpmautospec-rpm-macros`` package as described
 above and run ``fedpkg build``, you'll notice that the release is always
-``-1`` (or a variant, depending on the flags used with ``%autorel``) and that
+``-1`` (or a variant, depending on the flags used with ``%autorelease``) and that
 the changelog is just one entry without useful information, even though build
 in Koji would have a sequential release number and a full changelog.
 
@@ -169,9 +169,9 @@ If you want to see how the correct release and changelog would look like, you
 can call the ``rpmautospec`` CLI tool. Run ``rpmautospec --help`` for more
 information.
 
-Alternatively, you can manually override the value of the ``autorel`` macro
+Alternatively, you can manually override the value of the ``autorelease`` macro
 for ``rpmbuild`` or ``fedpkg``, e.g.::
 
-    fedpkg local --define "autorel(e:s:hp) 4%{?dist}"
+    fedpkg local --define "autorelease(e:s:hp) 4%{?dist}"
 
-    rpmbuild --define "autorel(e:s:hp) 4%{?dist}" -ba somepackage.spec
+    rpmbuild --define "autorelease(e:s:hp) 4%{?dist}" -ba somepackage.spec

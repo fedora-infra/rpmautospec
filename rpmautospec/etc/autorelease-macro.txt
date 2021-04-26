@@ -1,5 +1,5 @@
 ## START: Automatic release macro
-%define autorel(e:s:hp) %{lua:
+%define autorelease(e:s:hp) %{lua:
   has_extraver = rpm.expand("%{-e}") ~= ""
   has_snapinfo = rpm.expand("%{-s}") ~= ""
   is_prerelease = rpm.expand("%{-p}") ~= ""
@@ -7,16 +7,16 @@
 
   if has_extraver
   then
-    rpm.define("_autorel_extraver .%{-e*}")
+    rpm.define("_autorelease_extraver .%{-e*}")
   else
-    rpm.define("_autorel_extraver %{nil}")
+    rpm.define("_autorelease_extraver %{nil}")
   end
 
   if has_snapinfo
   then
-    rpm.define("_autorel_snapinfo .%{-s*}")
+    rpm.define("_autorelease_snapinfo .%{-s*}")
   else
-    rpm.define("_autorel_snapinfo %{nil}")
+    rpm.define("_autorelease_snapinfo %{nil}")
   end
 
   if is_prerelease
@@ -36,6 +36,6 @@
     end
   end
 
-  print(rpm.expand("%_autorel_" .. option))
+  print(rpm.expand("%_autorelease_" .. option))
 }
 ## END: Automatic release macro

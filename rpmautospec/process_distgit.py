@@ -9,7 +9,7 @@ import rpm
 
 from .changelog import produce_changelog
 from .misc import koji_init
-from .release import holistic_heuristic_algo
+from .release import calculate_release
 
 
 _log = logging.getLogger(__name__)
@@ -80,7 +80,7 @@ def is_autochangelog(line):
 def get_autorelease(srcdir, dist, session):
     # Not setting latest_evr, next_epoch_version just goes with what's in the package and latest
     # builds.
-    release = holistic_heuristic_algo(srcdir=srcdir, dist=dist, strip_dist=True)
+    release = calculate_release(srcdir=srcdir, strip_dist=True)
     return release
 
 

@@ -1,6 +1,9 @@
 import json
 import logging
 import os.path
+import tarfile
+import tempfile
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -77,3 +80,22 @@ class TestRelease:
 
         for msg in expected_messages:
             assert msg in caplog.messages
+
+    def test_calculate_release(self):
+        with tempfile.TemporaryDirectory() as workdir:
+            with tarfile.open(
+                os.path.join(
+                    __here__,
+                    os.path.pardir,
+                    "test-data",
+                    "repodata",
+                    "dummy-test-package-gloster-git.tar.gz",
+                )
+            ) as tar:
+                tar.extractall(path=workdir)
+
+            unpacked_repo_dir = (
+                Path(workdir) / "dummy-test-package-gloster-git" / "dummy-test-package-gloster"
+            )
+
+            assert release.calculate_release(unpacked_repo_dir) == 11

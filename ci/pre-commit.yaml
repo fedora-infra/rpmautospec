@@ -7,7 +7,7 @@
       package:
         name: python3-pip
         state: present
-    - name: install pre-comit
+    - name: install pre-commit
       command: pip install pre-commit --user
-    - name: run pre-comit
+    - name: run pre-commit
       command: chdir={{ansible_user_dir}}/{{zuul.project.src_dir}} pre-commit run --all

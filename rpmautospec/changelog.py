@@ -18,7 +18,8 @@ def register_subcommand(subparsers):
     subcmd_name = "generate-changelog"
 
     gen_changelog_parser = subparsers.add_parser(
-        subcmd_name, help="Generate changelog entries from git commit logs",
+        subcmd_name,
+        help="Generate changelog entries from git commit logs",
     )
 
     gen_changelog_parser.add_argument("worktree_path", help="Path to the dist-git worktree")
@@ -32,7 +33,7 @@ def git_get_log(
     toref: typing.Optional[str] = None,
     target: typing.Optional[str] = None,
 ) -> typing.List[str]:
-    """ Returns the list of the commit logs for the repo in ``path`` .
+    """Returns the list of the commit logs for the repo in ``path`` .
 
     This method runs the system's `git log --pretty=oneline --abbrev-commit`
     command.
@@ -78,7 +79,7 @@ def git_get_changed_files(path: str, commithash: str) -> typing.List[str]:
 
 
 def nevrd_to_evr(nevrd: str) -> str:
-    """ Converts a name:epoch-version-release.dist_tag to epoch_version_release
+    """Converts a name:epoch-version-release.dist_tag to epoch_version_release
     so it can be inserted in the changelog.
 
     If the nevrd provided does not have at least 2 "-" in it, otherwise
@@ -186,23 +187,25 @@ def produce_changelog(repopath, latest_rel=None):
             files_changed = git_get_changed_files(repocopy, commit)
             ignore = True
             for filename in files_changed:
-                if filename.endswith((
-                    ".automount",
-                    ".device",
-                    ".mount",
-                    ".patch",
-                    ".path",
-                    ".pc",
-                    ".preset",
-                    ".scope",
-                    ".service",
-                    ".slice",
-                    ".socket",
-                    ".spec",
-                    ".swap",
-                    ".target",
-                    ".timer",
-                )):
+                if filename.endswith(
+                    (
+                        ".automount",
+                        ".device",
+                        ".mount",
+                        ".patch",
+                        ".path",
+                        ".pc",
+                        ".preset",
+                        ".scope",
+                        ".service",
+                        ".slice",
+                        ".socket",
+                        ".spec",
+                        ".swap",
+                        ".target",
+                        ".timer",
+                    )
+                ):
                     ignore = False
 
             if not ignore:

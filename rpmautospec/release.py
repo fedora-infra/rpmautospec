@@ -23,7 +23,8 @@ def register_subcommand(subparsers):
     subcmd_name = "calculate-release"
 
     calc_release_parser = subparsers.add_parser(
-        subcmd_name, help="Calculate the next release tag for a package build",
+        subcmd_name,
+        help="Calculate the next release tag for a package build",
     )
 
     calc_release_parser.add_argument(

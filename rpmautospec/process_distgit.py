@@ -33,7 +33,8 @@ def register_subcommand(subparsers):
     subcmd_name = "process-distgit"
 
     process_distgit_parser = subparsers.add_parser(
-        subcmd_name, help="Modify the contents of the specfile according to the repo",
+        subcmd_name,
+        help="Modify the contents of the specfile according to the repo",
     )
 
     process_distgit_parser.add_argument("worktree_path", help="Path to the dist-git worktree")
@@ -124,7 +125,13 @@ def needs_processing(srcdir):
 
 
 def process_specfile(
-    srcdir, dist, session, has_autorelease, has_autochangelog, changelog_lineno, autochangelog_lineno
+    srcdir,
+    dist,
+    session,
+    has_autorelease,
+    has_autochangelog,
+    changelog_lineno,
+    autochangelog_lineno,
 ):
     specfile_name = get_specfile_name(srcdir)
 

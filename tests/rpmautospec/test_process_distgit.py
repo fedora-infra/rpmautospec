@@ -100,11 +100,14 @@ class TestProcessDistgit:
 
             unpacked_repo_dir = os.path.join(workdir, "dummy-test-package-gloster")
             unprocessed_spec_file_path = os.path.join(
-                unpacked_repo_dir, "dummy-test-package-gloster.spec",
+                unpacked_repo_dir,
+                "dummy-test-package-gloster.spec",
             )
 
             if autorelease_case != "unchanged" or autochangelog_case != "unchanged":
-                self.fuzz_spec_file(unprocessed_spec_file_path, autorelease_case, autochangelog_case)
+                self.fuzz_spec_file(
+                    unprocessed_spec_file_path, autorelease_case, autochangelog_case
+                )
 
             koji_session = mock.MagicMock()
             koji_session.getPackageID.return_value = 30489
@@ -142,7 +145,9 @@ class TestProcessDistgit:
                         autochangelog_case = "unchanged"
                     shutil.copy2(expected_spec_file_path, tmpspec.name)
                     expected_spec_file_path = tmpspec.name
-                    self.fuzz_spec_file(expected_spec_file_path, autorelease_case, autochangelog_case)
+                    self.fuzz_spec_file(
+                        expected_spec_file_path, autorelease_case, autochangelog_case
+                    )
 
                 rpm_cmd = ["rpm", "--define", "dist .fc32", "--specfile"]
 

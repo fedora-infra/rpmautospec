@@ -65,7 +65,7 @@ def parse_release_tag(tag: str) -> Tuple[Optional[int], Optional[str], Optional[
 
 
 def get_rpm_current_version(path: str, name: Optional[str] = None, with_epoch: bool = False) -> str:
-    """ Retrieve the current version set in the spec file named ``name``.spec
+    """Retrieve the current version set in the spec file named ``name``.spec
     at the given path.
     """
     if not name:
@@ -119,7 +119,7 @@ def get_package_builds(pkgname: str) -> List[dict]:
 
 
 def run_command(command: list, cwd: Optional[str] = None) -> bytes:
-    """ Run the specified command in a specific working directory if one
+    """Run the specified command in a specific working directory if one
     is specified.
     """
     output = None

@@ -23,7 +23,10 @@ class TestMisc:
             assert not any(rec.levelno >= logging.WARNING for rec in caplog.records)
         else:
             check_output.side_effect = subprocess.CalledProcessError(
-                returncode=139, cmd=["command"], output="Some command", stderr="And it failed!",
+                returncode=139,
+                cmd=["command"],
+                output="Some command",
+                stderr="And it failed!",
             )
             with pytest.raises(subprocess.CalledProcessError) as excinfo:
                 misc.run_command(["command"])

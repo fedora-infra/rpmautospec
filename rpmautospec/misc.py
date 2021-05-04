@@ -12,8 +12,8 @@ import koji
 import rpm
 
 
-# The %autorelease macro including parameters. This is imported into the main package to be used from
-# 3rd party code like fedpkg etc.
+# The %autorelease macro including parameters. This is imported into the main package to be used
+# from 3rd party code like fedpkg etc.
 AUTORELEASE_MACRO = "autorelease(e:s:hp)"
 
 release_re = re.compile(r"^(?P<pkgrel>\d+)(?:(?P<middle>.*?)(?:\.(?P<minorbump>\d+))?)?$")

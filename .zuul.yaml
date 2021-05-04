@@ -1,3 +1,4 @@
+---
 - job:
     name: pre-commit
     run: ci/pre-commit.yaml
@@ -18,4 +19,3 @@
               version_from_specfile: true
               src_name: rpmautospec
             nodeset: fedora-31-vm
-

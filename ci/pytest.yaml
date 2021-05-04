@@ -1,11 +1,18 @@
- - hosts: all
-   tasks:
+---
+- hosts: all
+  tasks:
     - name: List project directory on the test system
       command: ls -al {{ansible_user_dir}}/{{zuul.project.src_dir}}
     - name: install dependencies
       become: yes
       package:
-        name: ['python3-koji', 'python3-pytest', 'python3-pytest-cov', 'python3-rpm']
+        name:
+          - python3-koji
+          - python3-pytest
+          - python3-pytest-cov
+          - python3-rpm
         state: present
     - name: run pytest
-      command: chdir={{ansible_user_dir}}/{{zuul.project.src_dir}} python -m pytest
+      command:
+        chdir: '{{ansible_user_dir}}/{{zuul.project.src_dir}}'
+        cmd: python -m pytest

@@ -217,7 +217,7 @@ def process_distgit(srcdir, dist, session, actions=None):
 
 
 def main(args):
-    """ Main method. """
+    """Main method."""
 
     repopath = args.worktree_path.rstrip(os.path.sep)
     dist = args.dist

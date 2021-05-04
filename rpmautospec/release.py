@@ -243,7 +243,7 @@ def holistic_heuristic_algo(
 
 
 def main(args):
-    """ Main method. """
+    """Main method."""
     koji_init(args.koji_url)
 
     holistic_heuristic_algo(

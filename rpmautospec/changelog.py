@@ -72,7 +72,7 @@ def git_get_commit_info(path: str, commithash: str) -> typing.List[str]:
 
 
 def git_get_changed_files(path: str, commithash: str) -> typing.List[str]:
-    """ Returns the list of files changed in the specified commit. """
+    """Returns the list of files changed in the specified commit."""
     cmd = ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", commithash]
     _log.debug("git_get_changed_files: %s", cmd)
     return run_command(cmd, cwd=path).decode("UTF-8").strip().split("\n")
@@ -248,7 +248,7 @@ def produce_changelog(repopath, latest_rel=None):
 
 
 def main(args):
-    """ Main method. """
+    """Main method."""
 
     repopath = args.worktree_path.rstrip(os.path.sep)
     changelog = produce_changelog(repopath)

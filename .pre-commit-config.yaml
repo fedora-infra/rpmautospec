@@ -15,3 +15,17 @@ repos:
     rev: 19.10b0
     hooks:
       - id: black
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.26.1
+    hooks:
+      - id: yamllint
+        alias: yamllint-non-ansible
+        name: yamllint (non-Ansible)
+        files: '^[^(ci/)].*\.ya?ml$'
+      - id: yamllint
+        alias: yamllint-ansible
+        name: yamllint (Ansible)
+        files: '^ci/.*\.ya?ml$'
+        args:
+          - -c
+          - .yamllint-ansible.yml

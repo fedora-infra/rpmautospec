@@ -16,10 +16,12 @@ import rpm
 # The %autorelease macro including parameters. This is imported into the main package to be used
 # from 3rd party code like fedpkg etc.
 AUTORELEASE_MACRO = "autorelease(e:s:hp)"
+AUTORELEASE_SENTINEL = "__AUTORELEASE_SENTINEL__"
 
 release_re = re.compile(r"^(?P<pkgrel>\d+)(?:(?P<middle>.*?)(?:\.(?P<minorbump>\d+))?)?$")
 disttag_re = re.compile(r"\.?(?P<distcode>[^\d\.]+)(?P<distver>\d+)")
 evr_re = re.compile(r"^(?:(?P<epoch>\d+):)?(?P<version>[^-:]+)(?:-(?P<release>[^-:]+))?$")
+autochangelog_re = re.compile(r"\s*%(?:autochangelog|\{\??autochangelog\})\s*")
 
 rpmvercmp_key = cmp_to_key(
     lambda b1, b2: rpm.labelCompare(
@@ -185,3 +187,53 @@ def run_command(command: list, cwd: Optional[str] = None) -> bytes:
         raise
 
     return output
+
+
+def specfile_uses_rpmautospec(
+    specfile: str, check_autorelease: bool = True, check_autochangelog: bool = True
+) -> bool:
+    """Check whether or not an RPM spec file uses rpmautospec features."""
+
+    autorelease = check_autorelease_presence(specfile)
+    autochangelog = check_autochangelog_presence(specfile)
+
+    if check_autorelease and check_autochangelog:
+        return autorelease or autochangelog
+    elif check_autorelease:
+        return autorelease
+    elif check_autochangelog:
+        return autochangelog
+    else:
+        raise ValueError("One of check_autorelease and check_autochangelog must be set")
+
+
+def check_autorelease_presence(filename: str) -> bool:
+    """
+    Use the rpm package to detect the presence of an
+    autorelease macro and return true if found.
+    """
+    cmd = (
+        "rpm",
+        "--define",
+        "{} {}".format(AUTORELEASE_MACRO, AUTORELEASE_SENTINEL),
+        "-q",
+        "--queryformat",
+        "%{release}\n",
+        "--specfile",
+        filename,
+    )
+    popen = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    release = popen.communicate()[0].decode(errors="replace").split("\n")[0]
+    return release == AUTORELEASE_SENTINEL
+
+
+def check_autochangelog_presence(filename: str) -> bool:
+    """
+    Search for the autochangelog macro and return true if found.
+    """
+    with open(filename, "r") as specfile:
+        for _, line in enumerate(iter(specfile), start=1):
+            line = line.rstrip("\n")
+            if autochangelog_re.match(line):
+                return True
+        return False

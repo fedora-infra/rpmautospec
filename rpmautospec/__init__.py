@@ -1,1 +1,1 @@
-from .misc import AUTORELEASE_MACRO  # noqa: F401
+from .misc import specfile_uses_rpmautospec  # noqa: F401

@@ -8,6 +8,7 @@
       package:
         name:
           - python3-koji
+          - python3-pygit2
           - python3-pytest
           - python3-pytest-cov
           - python3-rpm

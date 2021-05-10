@@ -1,23 +1,17 @@
 import logging
-import re
-import shutil
 from pathlib import Path
-from subprocess import CalledProcessError
 from tempfile import TemporaryDirectory
-from typing import Union
+from typing import Optional, Union
 
-from .misc import checkout_git_commit, get_rpm_current_version, query_current_git_commit_hash
+import pygit2
+
+from .misc import get_rpm_current_version
 
 
 log = logging.getLogger(__name__)
 
 
 class PkgHistoryProcessor:
-
-    pathspec_unknown_re = re.compile(
-        r"error: pathspec '[^']+' did not match any file\(s\) known to git"
-    )
-
     def __init__(self, spec_or_path: Union[str, Path]):
         if isinstance(spec_or_path, str):
             spec_or_path = Path(spec_or_path)
@@ -44,36 +38,57 @@ class PkgHistoryProcessor:
         if not self.specfile.exists():
             raise RuntimeError(f"Spec file '{self.specfile}' doesn't exist in '{self.path}'.")
 
-    def calculate_release_number(self) -> int:
-        # Count the number of commits between version changes to create the release
-        releaseCount = 0
+        try:
+            if hasattr(pygit2, "GIT_REPOSITORY_OPEN_NO_SEARCH"):
+                kwargs = {"flags": pygit2.GIT_REPOSITORY_OPEN_NO_SEARCH}
+            else:
+                # pygit2 < 1.4.0
+                kwargs = {}
+            # pygit2 < 1.2.0 can't cope with pathlib.Path objects
+            self.repo = pygit2.Repository(str(self.path), **kwargs)
+        except pygit2.GitError:
+            self.repo = None
 
+    def _get_rpm_version_for_commit(self, commit):
         with TemporaryDirectory(prefix="rpmautospec-") as workdir:
-            repocopy = f"{workdir}/{self.name}"
-            shutil.copytree(self.path, repocopy)
+            try:
+                specblob = commit.tree[self.specfile.name]
+            except KeyError:
+                # no spec file
+                return None
 
-            # capture the hash of the current commit version
-            head = query_current_git_commit_hash(repocopy)
-            log.info("calculate_release head: %s", head)
+            specpath = Path(workdir) / self.specfile.name
+            with specpath.open("wb") as specfile:
+                specfile.write(specblob.data)
 
-            latest_version = current_version = get_rpm_current_version(repocopy, with_epoch=True)
+            return get_rpm_current_version(workdir, self.name, with_epoch=True)
 
-            # in loop/recursively:
-            while latest_version == current_version:
-                try:
-                    releaseCount += 1
-                    # while it's the same, go back a commit
-                    commit = checkout_git_commit(repocopy, head + "~" + str(releaseCount))
-                    log.info("Checking commit %s ...", commit)
-                    current_version = get_rpm_current_version(repocopy, with_epoch=True)
-                    log.info("... -> %s", current_version)
-                except CalledProcessError as e:
-                    stderr = e.stderr.decode("UTF-8", errors="replace").strip()
-                    match = self.pathspec_unknown_re.match(stderr)
-                    if match:
-                        break
+    def calculate_release_number(self, commit: Optional[pygit2.Commit] = None) -> Optional[int]:
+        if not self.repo:
+            # no git repo -> no history
+            return 1
 
-            release = releaseCount
+        if not commit:
+            commit = self.repo[self.repo.head.target]
 
-        log.info("calculate_release release: %s", release)
+        version = get_rpm_current_version(str(self.path), with_epoch=True)
+
+        release = 1
+
+        while True:
+            log.info(f"checking commit {commit.hex}, version {version} - release {release}")
+            if not commit.parents:
+                break
+            assert len(commit.parents) == 1
+
+            parent = commit.parents[0]
+            parent_version = self._get_rpm_version_for_commit(parent)
+            log.info(f"  comparing against parent commit {parent.hex}, version {parent_version}")
+
+            if parent_version != version:
+                break
+
+            release += 1
+            commit = parent
+
         return release

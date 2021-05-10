@@ -10,6 +10,7 @@ This project hosts the ``rpmautospec`` python package and script, which has thes
 Dependencies:
 
 * python3
+* python3-pygit2
 
 General
 -------

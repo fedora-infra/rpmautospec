@@ -31,6 +31,7 @@ BuildRequires:  python2-devel
 %if ! %{with epel_le_7}
 BuildRequires:  koji
 BuildRequires:  python3-koji
+BuildRequires:  python3-pygit2
 BuildRequires:  python%{python3_pkgversion}-pytest
 BuildRequires:  python%{python3_pkgversion}-pytest-cov
 BuildRequires:  git
@@ -54,6 +55,7 @@ Requires: koji
 Requires: git-core
 Requires: python3-rpm
 Requires: python3-koji
+Requires: python3-pygit2
 
 %description -n python3-%{srcname} %_description
 
@@ -148,6 +150,9 @@ install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 %endif
 
 %changelog
+* Wed May 12 2021 Nils Philippsen <nils@redhat.com>
+- depend on python3-pygit2
+
 * Thu Apr 22 2021 Nils Philippsen <nils@redhat.com>
 - remove the hub plugin
 

@@ -76,7 +76,7 @@ def is_autochangelog(line):
 def get_autorelease(srcdir, dist, session):
     # Not setting latest_evr, next_epoch_version just goes with what's in the package and latest
     # builds.
-    release = calculate_release(srcdir=srcdir, strip_dist=True)
+    release = calculate_release(srcdir=srcdir)
     return release
 
 

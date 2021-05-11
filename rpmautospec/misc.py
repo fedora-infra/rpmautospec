@@ -43,9 +43,13 @@ def parse_evr(evr_str: str) -> Tuple[int, str, Optional[str]]:
     return epoch, match.group("version"), match.group("release")
 
 
-def get_rpm_current_version(path: str, name: Optional[str] = None, with_epoch: bool = False) -> str:
+def get_rpm_current_version(
+    path: str, name: Optional[str] = None, with_epoch: bool = False
+) -> Optional[str]:
     """Retrieve the current version set in the spec file named ``name``.spec
     at the given path.
+
+    Returns None if an error is encountered.
     """
     path = Path(path)
 
@@ -76,11 +80,16 @@ def get_rpm_current_version(path: str, name: Optional[str] = None, with_epoch: b
         f"{name}.spec",
     ]
 
-    output = None
     try:
-        output = run_command(rpm_cmd, cwd=path).decode("UTF-8").split("\n")[0].strip()
+        output = (
+            subprocess.check_output(rpm_cmd, cwd=path, stderr=subprocess.PIPE)
+            .decode("UTF-8")
+            .split("\n")[0]
+            .strip()
+        )
     except Exception:
-        pass
+        return None
+
     return output
 
 

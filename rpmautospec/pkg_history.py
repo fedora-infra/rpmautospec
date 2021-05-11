@@ -1,4 +1,5 @@
 import logging
+from functools import lru_cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional, Union
@@ -49,6 +50,7 @@ class PkgHistoryProcessor:
         except pygit2.GitError:
             self.repo = None
 
+    @lru_cache(maxsize=None)
     def _get_rpm_version_for_commit(self, commit):
         with TemporaryDirectory(prefix="rpmautospec-") as workdir:
             try:

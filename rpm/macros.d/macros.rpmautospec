@@ -1,4 +1,4 @@
-%autorelease(e:s:hp) %{?-p:0.}1%{?-e:.%{-e*}}%{?-s:.%{-s*}}%{?dist}%{?-h:.1}
+%autorelease(e:s:p) %{?-p:0.}1%{?-e:.%{-e*}}%{?-s:.%{-s*}}%{?dist}
 %autochangelog %{lua:
     locale = os.setlocale(nil)
     os.setlocale("C.utf8")

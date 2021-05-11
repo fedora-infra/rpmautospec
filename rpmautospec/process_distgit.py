@@ -15,12 +15,8 @@ from .release import calculate_release
 _log = logging.getLogger(__name__)
 __here__ = os.path.dirname(__file__)
 
-autorelease_macro_path = os.path.join(__here__, "etc", "autorelease-macro.txt")
 autorelease_template = """## START: Set by rpmautospec
-%define _autorelease_normal_cadence {autorelease_normal}%{{?_autorelease_extraver}}%{{?_autorelease_snapinfo}}%{{?dist}}
-%define _autorelease_hotfix_cadence Sorry, the hotfix cadence isn't implemented yet.
-%define _autorelease_prerel_cadence Sorry, the pre-release cadence isn't implemented yet.
-%define _autorelease_prerel_hotfix_cadence Sorry, the hotfix, pre-release cadences aren't implemented yet.
+%define autorelease(e:s:p) %{{?-p:0.}}{autorelease_number}%{{?-e:.%{{-e*}}}}%{{?-s:.%{{-s*}}}}%{{?dist}}
 ## END: Set by rpmautospec
 """  # noqa: E501
 
@@ -141,15 +137,15 @@ def process_specfile(
     if dist.startswith("."):
         dist = dist[1:]
 
-    new_rel = get_autorelease(srcdir, dist, session)
+    autorelease_number = get_autorelease(srcdir, dist, session)
     with open(specfile_name, "r") as specfile, tempfile.NamedTemporaryFile("w") as tmp_specfile:
         # Process the spec file into a temporary file...
         if has_autorelease:
             # Write %autorelease macro header
-            with open(autorelease_macro_path, "r") as autorelease_macro_file:
-                print(autorelease_template.format(autorelease_normal=new_rel), file=tmp_specfile)
-                for line in autorelease_macro_file:
-                    print(line, file=tmp_specfile, end="")
+            print(
+                autorelease_template.format(autorelease_number=autorelease_number),
+                file=tmp_specfile,
+            )
 
         for lineno, line in enumerate(specfile, start=1):
             if changelog_lineno:
@@ -163,11 +159,17 @@ def process_specfile(
             print(line, file=tmp_specfile, end="")
 
         if has_autochangelog:
-            print("\n".join(produce_changelog(srcdir, latest_rel=new_rel)), file=tmp_specfile)
+            print(
+                "\n".join(produce_changelog(srcdir, latest_rel=autorelease_number)),
+                file=tmp_specfile,
+            )
         elif changelog_lineno is None:
             print("No changelog found, auto creating")
             print("\n%changelog\n", file=tmp_specfile, end="")
-            print("\n".join(produce_changelog(srcdir, latest_rel=new_rel)), file=tmp_specfile)
+            print(
+                "\n".join(produce_changelog(srcdir, latest_rel=autorelease_number)),
+                file=tmp_specfile,
+            )
 
         tmp_specfile.flush()
 

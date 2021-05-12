@@ -198,6 +198,33 @@ class TestPkgHistoryProcessor:
         else:
             assert processor._get_rpm_version_for_commit(head_commit) == "1.0"
 
+    @pytest.mark.parametrize("testcase", ("without commit", "with commit", "all results"))
+    def test_run(self, testcase, repo, processor):
+        def noop_visitor(commit, children_must_continue):
+            current_result, parent_results = yield len(commit.parents) > 0
+            yield current_result
+
+        all_results = "all results" in testcase
+
+        head_commit = repo[repo.head.target]
+
+        if testcase == "with commit":
+            args = [head_commit]
+        else:
+            args = []
+
+        res = processor.run(*args, visitors=[noop_visitor], all_results=all_results)
+
+        assert isinstance(res, dict)
+        if all_results:
+            assert all(isinstance(key, pygit2.Commit) for key in res)
+            # only verify outcome for head commit below
+            res = res[head_commit]
+        else:
+            assert all(isinstance(key, str) for key in res)
+
+        assert res["commit-id"] == head_commit.id
+
     @pytest.mark.parametrize(
         "testcase",
         (

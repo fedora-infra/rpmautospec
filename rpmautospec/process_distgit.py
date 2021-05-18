@@ -5,7 +5,6 @@ import re
 import shutil
 import tempfile
 
-import rpm
 
 from .changelog import produce_changelog
 from .misc import koji_init
@@ -73,7 +72,7 @@ def is_autochangelog(line):
     return autochangelog_re.match(line)
 
 
-def get_autorelease(srcdir, dist, session):
+def get_autorelease(srcdir):
     # Not setting latest_evr, next_epoch_version just goes with what's in the package and latest
     # builds.
     release = calculate_release(srcdir=srcdir)
@@ -122,22 +121,14 @@ def needs_processing(srcdir):
 
 def process_specfile(
     srcdir,
-    dist,
-    session,
-    has_autorelease,
-    has_autochangelog,
-    changelog_lineno,
-    autochangelog_lineno,
+    has_autorelease=None,
+    has_autochangelog=None,
+    changelog_lineno=None,
+    autochangelog_lineno=None,
 ):
     specfile_name = get_specfile_name(srcdir)
 
-    if not dist:
-        dist = rpm.expandMacro("%dist")
-
-    if dist.startswith("."):
-        dist = dist[1:]
-
-    autorelease_number = get_autorelease(srcdir, dist, session)
+    autorelease_number = get_autorelease(srcdir)
     with open(specfile_name, "r") as specfile, tempfile.NamedTemporaryFile("w") as tmp_specfile:
         # Process the spec file into a temporary file...
         if has_autorelease:
@@ -208,7 +199,6 @@ def process_distgit(srcdir, dist, session, actions=None):
         process_specfile(
             srcdir,
             dist,
-            session,
             has_autorelease,
             has_autochangelog,
             changelog_lineno,

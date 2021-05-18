@@ -66,6 +66,43 @@ class PkgHistoryProcessor:
 
             return get_rpm_current_version(workdir, self.name, with_epoch=True)
 
+    def release_number_visitor(self, commit: pygit2.Commit, children_must_continue: bool):
+        """Visit a commit to determine its release number.
+
+        The coroutine returned first determines if the parent chain(s) must be
+        followed, i.e. if one parent has the same package epoch-version,
+        suspends execution and yields that to the caller (usually the walk()
+        method), who later sends the partial results for this commit (to be
+        modified) and full results of parents back (as dictionaries), resuming
+        execution to process these and finally yield back the results for this
+        commit.
+        """
+        epoch_version = self._get_rpm_version_for_commit(commit)
+
+        must_continue = not epoch_version or epoch_version in (
+            self._get_rpm_version_for_commit(p) for p in commit.parents
+        )
+
+        # Suspend execution, yield whether caller should continue, and get back the (partial) result
+        # for this commit and parent results as dictionaries on resume.
+        commit_result, parent_results = yield must_continue
+
+        commit_result["epoch-version"] = epoch_version
+
+        # Find the maximum applicable parent release number and increment by one.
+        commit_result["release-number"] = (
+            max(
+                (
+                    res["release-number"] if res and epoch_version == res["epoch-version"] else 0
+                    for res in parent_results
+                ),
+                default=0,
+            )
+            + 1
+        )
+
+        yield commit_result
+
     def run(
         self,
         head: Optional[Union[str, pygit2.Commit]] = None,
@@ -202,33 +239,3 @@ class PkgHistoryProcessor:
             return visited_results
         else:
             return visited_results[head]
-
-    def calculate_release_number(self, commit: Optional[pygit2.Commit] = None) -> Optional[int]:
-        if not self.repo:
-            # no git repo -> no history
-            return 1
-
-        if not commit:
-            commit = self.repo[self.repo.head.target]
-
-        version = get_rpm_current_version(str(self.path), with_epoch=True)
-
-        release = 1
-
-        while True:
-            log.info(f"checking commit {commit.hex}, version {version} - release {release}")
-            if not commit.parents:
-                break
-            assert len(commit.parents) == 1
-
-            parent = commit.parents[0]
-            parent_version = self._get_rpm_version_for_commit(parent)
-            log.info(f"  comparing against parent commit {parent.hex}, version {parent_version}")
-
-            if parent_version != version:
-                break
-
-            release += 1
-            commit = parent
-
-        return release

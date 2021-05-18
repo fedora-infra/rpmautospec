@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 import logging
 from pathlib import Path
 from typing import Union
@@ -26,8 +25,8 @@ def register_subcommand(subparsers):
 
 def calculate_release(srcdir: Union[str, Path]) -> int:
     processor = PkgHistoryProcessor(srcdir)
-    release_number = processor.calculate_release_number()
-    return release_number
+    result = processor.run(visitors=(processor.release_number_visitor,))
+    return result["release-number"]
 
 
 def main(args):

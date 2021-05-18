@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 import stat
@@ -200,10 +199,6 @@ class TestPkgHistoryProcessor:
 
     @pytest.mark.parametrize("testcase", ("without commit", "with commit", "all results"))
     def test_run(self, testcase, repo, processor):
-        def noop_visitor(commit, children_must_continue):
-            current_result, parent_results = yield len(commit.parents) > 0
-            yield current_result
-
         all_results = "all results" in testcase
 
         head_commit = repo[repo.head.target]
@@ -213,7 +208,11 @@ class TestPkgHistoryProcessor:
         else:
             args = []
 
-        res = processor.run(*args, visitors=[noop_visitor], all_results=all_results)
+        res = processor.run(
+            *args,
+            visitors=[processor.release_number_visitor],
+            all_results=all_results,
+        )
 
         assert isinstance(res, dict)
         if all_results:
@@ -224,53 +223,4 @@ class TestPkgHistoryProcessor:
             assert all(isinstance(key, str) for key in res)
 
         assert res["commit-id"] == head_commit.id
-
-    @pytest.mark.parametrize(
-        "testcase",
-        (
-            "normal",
-            "no git repo",
-            "no commit specified",
-            "root commit",
-            "bump version",
-        ),
-    )
-    def test_calculate_release_number(self, testcase, specfile, repo, processor, caplog):
-        commit = repo[repo.head.target]
-        if testcase not in ("no git repo", "root commit", "bump version"):
-            expected_release_number = 2
-        else:
-            expected_release_number = 1
-
-        if testcase == "no git repo":
-            rmtree(specfile.parent / ".git")
-            processor = PkgHistoryProcessor(specfile)
-        elif testcase == "no commit specified":
-            commit = None
-        elif testcase == "root commit":
-            commit = commit.parents[0]
-        elif testcase == "bump version":
-            with specfile.open("r") as sf:
-                contents = sf.read()
-
-            with specfile.open("w") as sf:
-                sf.write(self.version_re.sub("Version: 2.0", contents))
-
-            index = repo.index
-            index.add(specfile.name)
-            index.write()
-
-            tree = index.write_tree()
-
-            parent, ref = repo.resolve_refish(repo.head.name)
-            repo.create_commit(
-                ref.name,
-                repo.default_signature,
-                repo.default_signature,
-                "Update to 2.0",
-                tree,
-                [parent.oid],
-            )
-
-        with caplog.at_level(logging.DEBUG):
-            assert processor.calculate_release_number(commit) == expected_release_number
+        assert res["release-number"] == 2

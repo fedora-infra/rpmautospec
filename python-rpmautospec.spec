@@ -52,10 +52,11 @@ Summary:        %{summary}
 %{?python_provide:%python_provide python3-%{srcname}}
 
 Requires: koji
-Requires: git-core
-Requires: python3-rpm
 Requires: python3-koji
 Requires: python3-pygit2
+Requires: rpm
+# for "rpm --specfile"
+Requires: rpm-build >= 4.9
 
 %description -n python3-%{srcname} %_description
 
@@ -71,10 +72,6 @@ Requires: python3-pygit2
 %package -n %{srcname}
 Summary:  CLI tool for generating RPM releases and changelogs
 Requires: python3-%{srcname} = %{version}-%{release}
-# We add this require here and not in python3-rpmautospec because we do not want
-# it on the builders, the builders plugins will work fine without it but we
-# need this in the chroot or when packagers run the CLI on their machines.
-Requires: rpm-build >= 4.9
 
 %description -n %{srcname}
 CLI tool for generating RPM releases and changelogs
@@ -150,6 +147,9 @@ install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 %endif
 
 %changelog
+* Wed May 19 2021 Nils Philippsen <nils@redhat.com>
+- remove git-core, fix RPM related dependencies
+
 * Wed May 12 2021 Nils Philippsen <nils@redhat.com>
 - depend on python3-pygit2
 

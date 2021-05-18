@@ -1,14 +1,10 @@
-from functools import cmp_to_key
-import logging
 import re
 import subprocess
 from pathlib import Path
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import koji
-import rpm
 
 
 # The %autorelease macro including parameters. This is imported into the main package to be used
@@ -16,31 +12,9 @@ import rpm
 AUTORELEASE_MACRO = "autorelease(e:s:hp)"
 AUTORELEASE_SENTINEL = "__AUTORELEASE_SENTINEL__"
 
-evr_re = re.compile(r"^(?:(?P<epoch>\d+):)?(?P<version>[^-:]+)(?:-(?P<release>[^-:]+))?$")
 autochangelog_re = re.compile(r"\s*%(?:autochangelog|\{\??autochangelog\})\s*")
 
-rpmvercmp_key = cmp_to_key(
-    lambda b1, b2: rpm.labelCompare(
-        (str(b1["epoch"]), b1["version"], b1["release"]),
-        (str(b2["epoch"]), b2["version"], b2["release"]),
-    ),
-)
-
 _kojiclient = None
-
-_log = logging.getLogger(__name__)
-
-
-def parse_evr(evr_str: str) -> Tuple[int, str, Optional[str]]:
-    match = evr_re.match(evr_str)
-
-    if not match:
-        raise ValueError(evr_str)
-
-    epoch = match.group("epoch") or 0
-    epoch = int(epoch)
-
-    return epoch, match.group("version"), match.group("release")
 
 
 def get_rpm_current_version(
@@ -100,22 +74,6 @@ def koji_init(koji_url_or_session: Union[str, koji.ClientSession]) -> koji.Clien
     else:
         _kojiclient = koji_url_or_session
     return _kojiclient
-
-
-def run_command(command: list, cwd: Optional[str] = None) -> bytes:
-    """Run the specified command in a specific working directory if one
-    is specified.
-    """
-    output = None
-    try:
-        output = subprocess.check_output(command, cwd=cwd, stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError as e:
-        _log.error("Command `%s` return code: `%s`", " ".join(command), e.returncode)
-        _log.error("stdout:\n-------\n%s", e.stdout)
-        _log.error("stderr:\n-------\n%s", e.stderr)
-        raise
-
-    return output
 
 
 def specfile_uses_rpmautospec(

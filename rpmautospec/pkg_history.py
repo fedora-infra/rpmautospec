@@ -1,8 +1,11 @@
+import datetime as dt
 import logging
 from collections import defaultdict
+from fnmatch import fnmatchcase
 from functools import lru_cache, reduce
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from textwrap import TextWrapper
 from typing import Any, Dict, Optional, Sequence, Union
 
 import pygit2
@@ -14,6 +17,15 @@ log = logging.getLogger(__name__)
 
 
 class PkgHistoryProcessor:
+
+    changelog_ignore_patterns = [
+        ".gitignore",
+        # no need to ignore "changelog" explicitly
+        "gating.yaml",
+        "sources",
+        "tests/*",
+    ]
+
     def __init__(self, spec_or_path: Union[str, Path]):
         if isinstance(spec_or_path, str):
             spec_or_path = Path(spec_or_path)
@@ -100,6 +112,138 @@ class PkgHistoryProcessor:
             )
             + 1
         )
+
+        yield commit_result
+
+    @staticmethod
+    def _files_changed_in_diff(diff: pygit2.Diff):
+        files = set()
+        for delta in diff.deltas:
+            if delta.old_file:
+                files.add(delta.old_file.path)
+            if delta.new_file:
+                files.add(delta.new_file.path)
+        return files
+
+    def changelog_visitor(self, commit: pygit2.Commit, children_must_continue: bool):
+        """Visit a commit to generate changelog entries for it and its parents.
+
+        It first determines if parent chain(s) must be followed, i.e. if the
+        changelog file was modified in this commit or all its children and yields that to the
+        caller, who later sends the partial results for this commit (to be
+        modified) and full results of parents back (as dictionaries), which
+        get processed and the results for this commit yielded again.
+        """
+        # Check if the spec file exists, if not, there will be no changelog.
+        specfile_present = f"{self.name}.spec" in commit.tree
+
+        # Find out if the changelog is different from every parent (or present, in the case of the
+        # root commit).
+        try:
+            changelog_blob = commit.tree["changelog"]
+        except KeyError:
+            changelog_blob = None
+
+        # With root commits, changelog present means it was changed
+        changelog_changed = False if commit.parents else bool(changelog_blob)
+        for parent in commit.parents:
+            try:
+                par_changelog_blob = parent.tree["changelog"]
+            except KeyError:
+                par_changelog_blob = None
+            if changelog_blob == par_changelog_blob:
+                changelog_changed = False
+
+        # Establish which parent to follow (if any, and if we can).
+        parent_to_follow = None
+        merge_unresolvable = False
+        if len(commit.parents) < 2:
+            if commit.parents:
+                parent_to_follow = commit.parents[0]
+        else:
+            for parent in commit.parents:
+                if commit.tree == parent.tree:
+                    # Merge done with strategy "ours" or equivalent, i.e. (at least) one parent has
+                    # the same content. Follow this parent
+                    parent_to_follow = parent
+                    break
+            else:
+                # Didn't break out of loop => no parent with same tree found. If the changelog
+                # is different from all parents, it was updated in the merge commit and we don't
+                # care. If it didn't change, we don't know how to continue and need to flag that.
+                merge_unresolvable = not changelog_changed
+
+        commit_result, parent_results = yield (
+            not (changelog_changed or merge_unresolvable)
+            and specfile_present
+            and children_must_continue
+        )
+
+        changelog_entry = {
+            "commit-id": commit.id,
+        }
+
+        changelog_author = f"{commit.author.name} <{commit.author.email}>"
+        changelog_date = dt.datetime.utcfromtimestamp(commit.commit_time).strftime("%a %b %d %Y")
+        changelog_evr = f"{commit_result['epoch-version']}-{commit_result['release-number']}"
+        changelog_header = f"* {changelog_date} {changelog_author} {changelog_evr}"
+
+        if not specfile_present:
+            # no spec file => start fresh
+            commit_result["changelog"] = ()
+        elif merge_unresolvable:
+            changelog_entry["data"] = f"{changelog_header}\n- RPMAUTOSPEC: unresolvable merge"
+            changelog_entry["error"] = "unresolvable merge"
+            previous_changelog = ()
+            commit_result["changelog"] = (changelog_entry,)
+        elif changelog_changed:
+            if changelog_blob:
+                # Don't decode, we'll paste as is.
+                changelog_entry["data"] = changelog_blob.data
+            else:
+                # Changelog removed. Oops.
+                changelog_entry[
+                    "data"
+                ] = f"{changelog_header}\n- RPMAUTOSPEC: changelog file removed"
+                changelog_entry["error"] = "changelog file removed"
+            commit_result["changelog"] = (changelog_entry,)
+        else:
+            # Pull previous changelog entries from parent result (if any).
+            if len(commit.parents) == 1:
+                previous_changelog = parent_results[0].get("changelog", ())
+            else:
+                previous_changelog = ()
+                for candidate in parent_results:
+                    if candidate["commit-id"] == parent_to_follow:
+                        previous_changelog = candidate.get("changelog", ())
+                        break
+
+            # Check if this commit should be considered for the RPM changelog.
+            if parent_to_follow:
+                diff = parent_to_follow.tree.diff_to_tree(commit.tree)
+            else:
+                diff = commit.tree.diff_to_tree(swap=True)
+            changed_files = self._files_changed_in_diff(diff)
+            # Skip if no files changed (i.e. commit solely for changelog/build) or if any files are
+            # not to be ignored.
+            skip_for_changelog = changed_files and all(
+                any(fnmatchcase(f, pat) for pat in self.changelog_ignore_patterns)
+                for f in changed_files
+            )
+
+            if not skip_for_changelog:
+                commit_subject = commit.message.split("\n")[0].strip()
+                if commit_subject.startswith("-"):
+                    commit_subject = commit_subject[1:].lstrip()
+                if not commit_subject:
+                    commit_subject = "RPMAUTOSPEC: empty commit log subject after stripping"
+                    changelog_entry["error"] = "empty commit log subject"
+                wrapper = TextWrapper(width=75, subsequent_indent="  ")
+                wrapped_msg = wrapper.fill(f"- {commit_subject}")
+                changelog_entry["data"] = f"{changelog_header}\n{wrapped_msg}"
+                commit_result["changelog"] = (changelog_entry,) + previous_changelog
+            else:
+                commit_result["changelog"] = previous_changelog
 
         yield commit_result
 

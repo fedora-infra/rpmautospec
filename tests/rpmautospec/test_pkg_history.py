@@ -210,7 +210,7 @@ class TestPkgHistoryProcessor:
 
         res = processor.run(
             *args,
-            visitors=[processor.release_number_visitor],
+            visitors=[processor.release_number_visitor, processor.changelog_visitor],
             all_results=all_results,
         )
 
@@ -224,3 +224,15 @@ class TestPkgHistoryProcessor:
 
         assert res["commit-id"] == head_commit.id
         assert res["release-number"] == 2
+
+        changelog = res["changelog"]
+        top_entry = changelog[0]
+
+        assert top_entry["commit-id"] == head_commit.id
+        for snippet in (
+            "Jane Doe <jane.doe@example.com>",
+            "- Did nothing!",
+        ):
+            assert snippet in top_entry["data"]
+
+        assert all("error" not in entry for entry in changelog)

@@ -69,10 +69,10 @@ def calculate_release(srcdir: Union[str, Path]) -> int:
 
         release = releaseCount
 
-    _log.info("calculate_release release: %s", release)
     return release
 
 
 def main(args):
     """Main method."""
-    calculate_release(srcdir=args.srcdir)
+    release = calculate_release(srcdir=args.srcdir)
+    _log.info("calculate_release release: %s", release)

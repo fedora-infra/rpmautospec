@@ -3,7 +3,6 @@ import logging
 import re
 import subprocess
 from pathlib import Path
-from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -18,8 +17,6 @@ import rpm
 AUTORELEASE_MACRO = "autorelease(e:s:hp)"
 AUTORELEASE_SENTINEL = "__AUTORELEASE_SENTINEL__"
 
-release_re = re.compile(r"^(?P<pkgrel>\d+)(?:(?P<middle>.*?)(?:\.(?P<minorbump>\d+))?)?$")
-disttag_re = re.compile(r"\.?(?P<distcode>[^\d\.]+)(?P<distver>\d+)")
 evr_re = re.compile(r"^(?:(?P<epoch>\d+):)?(?P<version>[^-:]+)(?:-(?P<release>[^-:]+))?$")
 autochangelog_re = re.compile(r"\s*%(?:autochangelog|\{\??autochangelog\})\s*")
 
@@ -45,26 +42,6 @@ def parse_evr(evr_str: str) -> Tuple[int, str, Optional[str]]:
     epoch = int(epoch)
 
     return epoch, match.group("version"), match.group("release")
-
-
-def parse_epoch_version(epoch_version_str: str) -> Tuple[int, str]:
-    e, v, r = parse_evr(epoch_version_str)
-    if r is not None:
-        raise ValueError(epoch_version_str)
-    return e, v
-
-
-def parse_release_tag(tag: str) -> Tuple[Optional[int], Optional[str], Optional[str]]:
-    pkgrel = middle = minorbump = None
-    match = release_re.match(tag)
-    if match:
-        pkgrel = int(match.group("pkgrel"))
-        middle = match.group("middle")
-        try:
-            minorbump = int(match.group("minorbump"))
-        except TypeError:
-            pass
-    return pkgrel, middle, minorbump
 
 
 def get_rpm_current_version(path: str, name: Optional[str] = None, with_epoch: bool = False) -> str:
@@ -115,18 +92,6 @@ def koji_init(koji_url_or_session: Union[str, koji.ClientSession]) -> koji.Clien
     else:
         _kojiclient = koji_url_or_session
     return _kojiclient
-
-
-def get_package_builds(pkgname: str) -> List[dict]:
-    assert _kojiclient
-
-    pkgid = _kojiclient.getPackageID(pkgname)
-    if not pkgid:
-        raise ValueError(f"Package {pkgname!r} not found!")
-
-    # Don't add queryOpts={"order": "-nvr"} or similar, this sorts alphanumerically and and this is
-    # not how EVRs should be sorted.
-    return _kojiclient.listBuilds(pkgid, type="rpm")
 
 
 def query_current_git_commit_hash(

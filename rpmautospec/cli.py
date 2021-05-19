@@ -74,7 +74,9 @@ def get_cli_args(args: typing.List[str]) -> argparse.Namespace:
 
     # parsers for sub-commands
 
-    subparsers = parser.add_subparsers(dest="subcommand", required=True)
+    # ArgumentParser.add_subparsers() only accepts the `required` argument from Python 3.7 on.
+    subparsers = parser.add_subparsers(dest="subcommand")
+    subparsers.required = True
 
     for subcmd_module in (changelog, release, process_distgit):
         subcmd_name = subcmd_module.register_subcommand(subparsers)

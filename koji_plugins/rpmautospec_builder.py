@@ -9,8 +9,8 @@ from rpmautospec import process_distgit
 CONFIG_FILE = "/etc/kojid/plugins/rpmautospec.conf"
 CONFIG = None
 
-_log = logging.getLogger(__name__)
-_log.setLevel(logging.DEBUG)
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
 
 pagure_proxy = None
 
@@ -23,7 +23,7 @@ def process_distgit_cb(cb_type, *, srcdir, taskinfo, **kwargs):
         return
 
     if not process_distgit.needs_processing(srcdir):
-        _log.info("No %autorelease/%autochangelog found, skipping.")
+        log.info("No %autorelease/%autochangelog found, skipping.")
         return
 
     global CONFIG, pagure_proxy
@@ -33,7 +33,7 @@ def process_distgit_cb(cb_type, *, srcdir, taskinfo, **kwargs):
             CONFIG = koji.read_config_files([(CONFIG_FILE, True)])
         except Exception:
             message = "While attempting to read config file %s, an exception occurred:"
-            _log.exception(message, CONFIG_FILE)
+            log.exception(message, CONFIG_FILE)
             return
 
     process_distgit.process_specfile(srcdir=srcdir)

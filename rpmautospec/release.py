@@ -5,7 +5,7 @@ from typing import Union
 from .pkg_history import PkgHistoryProcessor
 
 
-_log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 def register_subcommand(subparsers):
@@ -32,4 +32,4 @@ def calculate_release(srcdir: Union[str, Path]) -> int:
 def main(args):
     """Main method."""
     release = calculate_release(srcdir=args.srcdir)
-    _log.info("calculate_release release: %s", release)
+    log.info("calculate_release release: %s", release)

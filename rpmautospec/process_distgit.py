@@ -11,7 +11,7 @@ from .misc import koji_init
 from .release import calculate_release
 
 
-_log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 __here__ = os.path.dirname(__file__)
 
 autorelease_template = """## START: Set by rpmautospec
@@ -191,9 +191,9 @@ def process_distgit(srcdir, dist, session, actions=None):
                 features_used.append("%autochangelog")
 
             if not features_used:
-                _log.info("The spec file doesn't use automatic release or changelog.")
+                log.info("The spec file doesn't use automatic release or changelog.")
             else:
-                _log.info("Features used by the spec file: %s", ", ".join(features_used))
+                log.info("Features used by the spec file: %s", ", ".join(features_used))
 
     if "process-specfile" in actions and processing_necessary:
         process_specfile(

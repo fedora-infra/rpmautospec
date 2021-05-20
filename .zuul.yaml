@@ -2,11 +2,11 @@
 - job:
     name: pre-commit
     run: ci/pre-commit.yaml
-    nodeset: fedora-31-vm
+    nodeset: fedora-34-vm
 - job:
     name: pytest
     run: ci/pytest.yaml
-    nodeset: fedora-31-vm
+    nodeset: fedora-34-vm
 - project:
     check:
       jobs:
@@ -14,8 +14,8 @@
         - pytest
         - rpm-mock-build:
             vars:
-              mock_config: fedora-31-x86_64
+              mock_config: fedora-34-x86_64
               build_from_source: true
               version_from_specfile: true
               src_name: rpmautospec
-            nodeset: fedora-31-vm
+            nodeset: fedora-34-vm

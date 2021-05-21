@@ -17,19 +17,22 @@ def register_subcommand(subparsers):
     )
 
     calc_release_parser.add_argument(
-        "srcdir", help="Clone of the dist-git repository to use for input"
+        "spec_or_path",
+        default=".",
+        nargs="?",
+        help="Path to package worktree or the spec file within",
     )
 
     return subcmd_name
 
 
-def calculate_release(srcdir: Union[str, Path]) -> int:
-    processor = PkgHistoryProcessor(srcdir)
+def calculate_release(spec_or_path: Union[str, Path]) -> int:
+    processor = PkgHistoryProcessor(spec_or_path)
     result = processor.run(visitors=(processor.release_number_visitor,))
     return result["release-number"]
 
 
 def main(args):
     """Main method."""
-    release = calculate_release(srcdir=args.srcdir)
+    release = calculate_release(args.spec_or_path)
     log.info("calculate_release release: %s", release)

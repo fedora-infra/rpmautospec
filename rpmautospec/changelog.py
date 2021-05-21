@@ -15,7 +15,12 @@ def register_subcommand(subparsers):
         help="Generate changelog entries from git commit logs",
     )
 
-    gen_changelog_parser.add_argument("worktree_path", help="Path to the dist-git worktree")
+    gen_changelog_parser.add_argument(
+        "spec_or_path",
+        default=".",
+        nargs="?",
+        help="Path to package worktree or the spec file within",
+    )
 
     return subcmd_name
 
@@ -51,5 +56,5 @@ def produce_changelog(spec_or_repo):
 
 def main(args):
     """Main method."""
-    changelog = produce_changelog(args.worktree_path)
+    changelog = produce_changelog(args.spec_or_path)
     log.info(changelog)

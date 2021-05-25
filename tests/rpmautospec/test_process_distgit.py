@@ -3,7 +3,6 @@ import shutil
 from subprocess import check_output
 import tarfile
 import tempfile
-from unittest import mock
 
 import pytest
 
@@ -71,18 +70,6 @@ class TestProcessDistgit:
 
         os.rename(spec_file_path + ".new", spec_file_path)
 
-    def test_is_autorelease(self):
-        assert process_distgit.is_autorelease("Release: %{autorelease}")
-        assert process_distgit.is_autorelease("Release: %autorelease")
-        assert process_distgit.is_autorelease("release: %{autorelease}")
-        assert process_distgit.is_autorelease(" release :  %{autorelease}")
-
-        assert not process_distgit.is_autorelease("Release: %{autorelease_special}")
-        assert not process_distgit.is_autorelease("NotRelease: %{autorelease}")
-        assert not process_distgit.is_autorelease("release: 1%{?dist}")
-
-    # Expected to fail until we've implemented the new release number algorithm
-    @pytest.mark.xfail
     @pytest.mark.parametrize("autorelease_case,autochangelog_case", autorelease_autochangelog_cases)
     def test_process_distgit(self, autorelease_case, autochangelog_case):
         """Test the process_distgit() function"""
@@ -109,22 +96,7 @@ class TestProcessDistgit:
                     unprocessed_spec_file_path, autorelease_case, autochangelog_case
                 )
 
-            koji_session = mock.MagicMock()
-            koji_session.getPackageID.return_value = 30489
-            name = "dummy-test-package-gloster"
-            builds = [
-                {
-                    "epoch": None,
-                    "nvr": f"{name}-0-{x}.f32",
-                    "name": name,
-                    "release": f"{x}.fc32",
-                    "version": "0",
-                }
-                for x in range(2, 7)
-            ]
-            koji_session.listBuilds.return_value = builds
-
-            process_distgit.process_distgit(unpacked_repo_dir, "fc32", koji_session)
+            process_distgit.process_distgit(unpacked_repo_dir)
 
             expected_spec_file_path = os.path.join(
                 __here__,
@@ -135,6 +107,7 @@ class TestProcessDistgit:
             )
 
             with tempfile.NamedTemporaryFile() as tmpspec:
+                shutil.copy2(expected_spec_file_path, tmpspec.name)
                 if autorelease_case != "unchanged" or autochangelog_case != "unchanged":
                     if autochangelog_case not in (
                         "changelog case insensitive",
@@ -143,7 +116,6 @@ class TestProcessDistgit:
                         # "%changelog", "%ChAnGeLoG", ... stay verbatim, trick fuzz_spec_file() to
                         # leave the rest of the cases as is, the %autorelease macro is expanded.
                         autochangelog_case = "unchanged"
-                    shutil.copy2(expected_spec_file_path, tmpspec.name)
                     expected_spec_file_path = tmpspec.name
                     self.fuzz_spec_file(
                         expected_spec_file_path, autorelease_case, autochangelog_case

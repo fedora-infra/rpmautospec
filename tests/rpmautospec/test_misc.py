@@ -1,5 +1,7 @@
 import logging
 import os
+from tempfile import NamedTemporaryFile
+from typing import TextIO
 
 import pytest
 
@@ -10,6 +12,68 @@ __here__ = os.path.dirname(__file__)
 
 class TestMisc:
     """Test the rpmautospec.misc module"""
+
+    @staticmethod
+    def _generate_spec_with_features(
+        specfile: TextIO,
+        *,
+        with_autorelease=True,
+        autorelease_flags="",
+        with_changelog=True,
+        with_autochangelog=True,
+    ):
+        contents = [
+            "Line 1",
+            "Line 2",
+            f"Release: %autorelease {autorelease_flags}" if with_autorelease else "Release: 1",
+            "Line 4",
+            "Line 5",
+        ]
+        if with_changelog:
+            contents.append("%changelog")
+        if with_autochangelog:
+            contents.append("%autochangelog")
+        else:
+            contents.extend([
+                "* Thu Jan 01 1970 Some Name <email@example.com>",
+                "- some entry"
+            ])
+
+        print("\n".join(contents), file=specfile)
+        specfile.flush()
+
+    @pytest.mark.parametrize(
+        "with_autorelease,autorelease_flags,with_changelog,with_autochangelog",
+        (
+            pytest.param(True, "", True, True, id="all features"),
+            pytest.param(True, "-o 200", True, True, id="with autorelease offset"),
+            pytest.param(False, "", False, False, id="nothing")
+        )
+    )
+    def test_check_specfile_features(
+        self, with_autorelease, autorelease_flags, with_changelog, with_autochangelog,
+    ):
+        with NamedTemporaryFile(mode="w+") as specfile:
+            self._generate_spec_with_features(
+                specfile,
+                with_autorelease=with_autorelease,
+                autorelease_flags=autorelease_flags,
+                with_changelog=with_changelog,
+                with_autochangelog=with_autochangelog,
+            )
+
+            features = misc.check_specfile_features(specfile.name)
+
+            assert features.has_autorelease == with_autorelease
+            if with_changelog:
+                assert features.changelog_lineno == 6
+            else:
+                assert features.changelog_lineno is None
+            assert features.has_autochangelog == with_autochangelog
+            if with_autochangelog:
+                assert features.autochangelog_lineno == 7
+            else:
+                assert features.autochangelog_lineno is None
 
     def test_specfile_uses_rpmautospec_no_macros(self, caplog):
         """Test no macros on specfile_uses_rpmautospec()"""

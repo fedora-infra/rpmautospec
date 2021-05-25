@@ -1,14 +1,12 @@
-from glob import glob
 import logging
 import os
-import re
 import shutil
 import tempfile
+from pathlib import Path
+from typing import Union
 
-
-from .changelog import produce_changelog
-from .misc import koji_init
-from .release import calculate_release
+from .misc import check_specfile_features
+from .pkg_history import PkgHistoryProcessor
 
 
 log = logging.getLogger(__name__)
@@ -23,10 +21,6 @@ autorelease_template = """## START: Set by rpmautospec
 ## END: Set by rpmautospec
 """  # noqa: E501
 
-autorelease_re = re.compile(r"\s*(?i:Release)\s*:.*%(?:autorelease(?:\s|$)|\{\??autorelease\})")
-changelog_re = re.compile(r"^%changelog(?:\s.*)?$", re.IGNORECASE)
-autochangelog_re = re.compile(r"\s*%(?:autochangelog|\{\??autochangelog\})\s*")
-
 
 def register_subcommand(subparsers):
     subcmd_name = "process-distgit"
@@ -36,106 +30,44 @@ def register_subcommand(subparsers):
         help="Modify the contents of the specfile according to the repo",
     )
 
-    process_distgit_parser.add_argument("worktree_path", help="Path to the dist-git worktree")
     process_distgit_parser.add_argument(
-        "dist", nargs="?", help="The dist tag (taken from the %%dist RPM macro if not specified)"
-    )
-
-    process_distgit_parser.add_argument(
-        "--check",
-        dest="actions",
-        action="append_const",
-        const="check",
-        help="Check if the spec file uses %%autorelease or %%autochangelog macros at all.",
-    )
-
-    process_distgit_parser.add_argument(
-        "--tag-package",
-        dest="actions",
-        action="append_const",
-        const="tag-package",
-        help="Tag existing builds in the specified package repository.",
-    )
-
-    process_distgit_parser.add_argument(
-        "--process-specfile",
-        dest="action",
-        action="append_const",
-        const="process-specfile",
-        help="Generate next release and changelog values and write them into the spec file.",
+        "spec_or_path",
+        help="Path to package worktree or the spec file within",
     )
 
     return subcmd_name
 
 
-def is_autorelease(line):
-    return autorelease_re.match(line)
+def process_distgit(spec_or_path: Union[Path, str]) -> bool:
+    """Process an RPM spec file in a distgit repository.
 
+    :param spec_or_path: the spec file or path of the repository
+    :return: whether or not the spec file needed processing
+    """
+    processor = PkgHistoryProcessor(spec_or_path)
 
-def is_autochangelog(line):
-    return autochangelog_re.match(line)
+    features = check_specfile_features(processor.specfile)
+    processing_necessary = (
+        features.has_autorelease or features.has_autochangelog or not features.changelog_lineno
+    )
+    if not processing_necessary:
+        return False
 
+    needs_autochangelog = (
+        features.changelog_lineno is None and features.autochangelog_lineno is None
+        or features.has_autochangelog
+    )
 
-def get_autorelease(srcdir):
-    # Not setting latest_evr, next_epoch_version just goes with what's in the package and latest
-    # builds.
-    release = calculate_release(srcdir=srcdir)
-    return release
+    visitors = [processor.release_number_visitor]
+    if needs_autochangelog:
+        visitors.append(processor.changelog_visitor)
+    result = processor.run(visitors=visitors)
 
+    autorelease_number = result["release-number"]
 
-def get_specfile_name(srcdir):
-    specfile_names = glob(f"{srcdir}/*.spec")
-    if len(specfile_names) != 1:
-        raise RuntimeError(f"Didn't find exactly one spec file in {srcdir}.")
-
-    return specfile_names[0]
-
-
-def check_distgit(srcdir):
-    has_autorelease = False
-    changelog_lineno = None
-    has_autochangelog = None
-    autochangelog_lineno = None
-
-    specfile_name = get_specfile_name(srcdir)
-
-    # Detect if %autorelease, %autochangelog are in use
-    with open(specfile_name, "r") as specfile:
-        # Process line by line to cope with large files
-        for lineno, line in enumerate(iter(specfile), start=1):
-            line = line.rstrip("\n")
-
-            if not has_autorelease and is_autorelease(line):
-                has_autorelease = True
-
-            if changelog_lineno is None:
-                if changelog_re.match(line):
-                    changelog_lineno = lineno
-            if has_autochangelog is None and is_autochangelog(line):
-                has_autochangelog = True
-                autochangelog_lineno = lineno
-
-    return has_autorelease, has_autochangelog, changelog_lineno, autochangelog_lineno
-
-
-def needs_processing(srcdir):
-    has_autorelease, has_autochangelog, changelog_lineno, _ = check_distgit(srcdir)
-    return has_autorelease or has_autochangelog or not changelog_lineno
-
-
-def process_specfile(
-    srcdir,
-    has_autorelease=None,
-    has_autochangelog=None,
-    changelog_lineno=None,
-    autochangelog_lineno=None,
-):
-    specfile_name = get_specfile_name(srcdir)
-
-    autorelease_number = get_autorelease(srcdir)
-    with open(specfile_name, "r") as specfile, tempfile.NamedTemporaryFile("w") as tmp_specfile:
+    with processor.specfile.open("r") as specfile, tempfile.NamedTemporaryFile("w") as tmp_specfile:
         # Process the spec file into a temporary file...
-        if has_autorelease:
+        if features.has_autorelease:
             # Write %autorelease macro header
             print(
                 autorelease_template.format(autorelease_number=autorelease_number),
@@ -143,83 +75,32 @@ def process_specfile(
             )
 
         for lineno, line in enumerate(specfile, start=1):
-            if changelog_lineno:
-                if has_autochangelog and lineno > changelog_lineno:
+            if features.changelog_lineno:
+                if features.has_autochangelog and lineno > features.changelog_lineno:
                     break
 
             else:
-                if has_autochangelog and lineno == autochangelog_lineno:
+                if features.has_autochangelog and lineno == features.autochangelog_lineno:
                     print("%changelog\n", file=tmp_specfile, end="")
                     break
             print(line, file=tmp_specfile, end="")
 
-        if has_autochangelog:
-            print(
-                "\n".join(produce_changelog(srcdir, latest_rel=autorelease_number)),
-                file=tmp_specfile,
-            )
-        elif changelog_lineno is None:
-            print("No changelog found, auto creating")
+        if not features.has_autochangelog and features.changelog_lineno is None:
             print("\n%changelog\n", file=tmp_specfile, end="")
+
+        if needs_autochangelog:
             print(
-                "\n".join(produce_changelog(srcdir, latest_rel=autorelease_number)),
+                "\n\n".join(entry["data"] for entry in result["changelog"]),
                 file=tmp_specfile,
             )
 
         tmp_specfile.flush()
 
         # ...and copy it back (potentially across device boundaries)
-        shutil.copy2(tmp_specfile.name, specfile_name)
-
-
-def process_distgit(srcdir, dist, session, actions=None):
-    if not actions:
-        actions = ["process-specfile"]
-
-    retval = True
-
-    if "check" in actions or "process-specfile" in actions:
-        has_autorelease, has_autochangelog, changelog_lineno, autochangelog_lineno = check_distgit(
-            srcdir
-        )
-        processing_necessary = has_autorelease or has_autochangelog or not changelog_lineno
-        if "process-specfile" not in actions:
-            retval = processing_necessary
-
-        # Only print output if explicitly requested
-        if "check" in actions:
-            features_used = []
-            if has_autorelease:
-                features_used.append("%autorelease")
-            if has_autochangelog:
-                features_used.append("%autochangelog")
-
-            if not features_used:
-                log.info("The spec file doesn't use automatic release or changelog.")
-            else:
-                log.info("Features used by the spec file: %s", ", ".join(features_used))
-
-    if "process-specfile" in actions and processing_necessary:
-        process_specfile(
-            srcdir,
-            dist,
-            has_autorelease,
-            has_autochangelog,
-            changelog_lineno,
-            autochangelog_lineno,
-        )
-
-    return retval
+        shutil.copy2(tmp_specfile.name, processor.specfile)
 
 
 def main(args):
     """Main method."""
-
-    repopath = args.worktree_path.rstrip(os.path.sep)
-    dist = args.dist
-    kojiclient = koji_init(args.koji_url)
-
-    if process_distgit(repopath, dist, kojiclient, actions=args.actions):
-        return 0
-    else:
-        return 1
+    spec_or_path = args.spec_or_path.rstrip(os.path.sep)
+    process_distgit(spec_or_path)

@@ -1,11 +1,13 @@
-%define autorelease 7%{?dist}
+## START: Set by rpmautospec
+%define autorelease(e:s:p) %{?-p:0.}11%{?-e:.%{-e*}}%{?-s:.%{-s*}}%{?dist}
+## END: Set by rpmautospec
 
 # Our dummy-test-packages are named after canary varieties, meet Gloster, Rubino and Crested
 # Source: https://www.omlet.co.uk/guide/finches_and_canaries/canary/canary_varieties
 Name:           dummy-test-package-gloster
 
 Version:        0
-Release:        %{autorelease}
+Release:        %autorelease
 Summary:        Dummy Test Package called Gloster
 License:        MIT
 URL:            http://fedoraproject.org/wiki/DummyTestPackages
@@ -34,27 +36,32 @@ cp -p uuid %{buildroot}%{_datadir}/%{name}
 %{_datadir}/%{name}
 
 %changelog
-* Fri Mar 27 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0-7
-- Undo vandalism
+* Mon Apr 26 2021 Stephen Coady <scoady@redhat.com> 0-11
+- use autorelease instead of autorel
+
+* Fri Mar 27 2020 Pierre-Yves Chibon <pingou@pingoured.fr> 0-10
 - Change license to MIT
 
-* Fri Mar 27 2020 King ISØ-8859 <kingiso8859@example.com> - 0-7
+* Fri Mar 27 2020 Pierre-Yves Chibon <pingou@pingoured.fr> 0-9
+- Undo vandalism
+
+* Fri Mar 27 2020 King ISØ-8859 <kingiso8859@example.com> 0-8
 - Honour the tradition of antiquated encodings!
 
-* Fri Mar 27 2020 Nils Philippsen <nils@redhat.com> - 0-6
+* Fri Mar 27 2020 Nils Philippsen <nils@redhat.com> 0-7
 - Convert to automatic release and changelog
 
-* Tue Jan 21 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0-5
-- rebuilt
+* Fri Mar 27 2020 packagerbot <admin@fedoraproject.org> 0-6
+- Bump release
 
-* Thu Jan 16 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0-4
-- rebuilt
+* Thu Jan 16 2020 Pierre-Yves Chibon <pingou@pingoured.fr> 0-5
+- Bump release
 
-* Fri Jan 10 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0-3
-- rebuilt
+* Fri Jan 10 2020 Pierre-Yves Chibon <pingou@pingoured.fr> 0-4
+- Bump release
 
-* Fri Jan 10 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0-2
-- rebuilt
+* Fri Jan 10 2020 Pierre-Yves Chibon <pingou@pingoured.fr> 0-3
+- Bump release
 
-* Thu Dec 19 2019 Pierre-Yves Chibon <pingou@pingoured.fr> - 0-1
-- Initial packaging work
+* Thu Jan 09 2020 Pierre-Yves Chibon <pingou@pingoured.fr> 0-1
+- Initial import post review

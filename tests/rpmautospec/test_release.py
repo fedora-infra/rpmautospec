@@ -94,8 +94,6 @@ class TestRelease:
             ) as tar:
                 tar.extractall(path=workdir)
 
-            unpacked_repo_dir = (
-                Path(workdir) / "dummy-test-package-gloster-git" / "dummy-test-package-gloster"
-            )
+            unpacked_repo_dir = Path(workdir) / "dummy-test-package-gloster"
 
             assert release.calculate_release(unpacked_repo_dir) == 11

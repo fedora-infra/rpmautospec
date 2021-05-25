@@ -199,7 +199,7 @@ class PkgHistoryProcessor:
         elif changelog_changed:
             if changelog_blob:
                 # Don't decode, we'll paste as is.
-                changelog_entry["data"] = changelog_blob.data
+                changelog_entry["data"] = changelog_blob.data.decode("utf-8", errors="replace")
             else:
                 # Changelog removed. Oops.
                 changelog_entry[

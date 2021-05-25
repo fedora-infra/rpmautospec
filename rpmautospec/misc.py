@@ -9,7 +9,7 @@ import koji
 
 # The %autorelease macro including parameters. This is imported into the main package to be used
 # from 3rd party code like fedpkg etc.
-AUTORELEASE_MACRO = "autorelease(e:s:hp)"
+AUTORELEASE_MACRO = "autorelease(e:s:po:)"
 AUTORELEASE_SENTINEL = "__AUTORELEASE_SENTINEL__"
 
 autochangelog_re = re.compile(r"\s*%(?:autochangelog|\{\??autochangelog\})\s*")

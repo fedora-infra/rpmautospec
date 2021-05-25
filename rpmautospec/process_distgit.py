@@ -15,7 +15,11 @@ log = logging.getLogger(__name__)
 __here__ = os.path.dirname(__file__)
 
 autorelease_template = """## START: Set by rpmautospec
-%define autorelease(e:s:p) %{{?-p:0.}}{autorelease_number}%{{?-e:.%{{-e*}}}}%{{?-s:.%{{-s*}}}}%{{?dist}}
+%define autorelease(e:s:po:) %{{?-p:0.}}%{{lua:
+    release_number = {autorelease_number:d};
+    offset = tonumber(rpm.expand("%{{?-o*}}%{{!?-o:0}}"));
+    print(release_number + offset);
+}}%{{?-e:.%{{-e*}}}}%{{?-s:.%{{-s*}}}}%{{?dist}}
 ## END: Set by rpmautospec
 """  # noqa: E501
 

@@ -4,14 +4,24 @@
     run: ci/pre-commit.yaml
     nodeset: fedora-34-vm
 - job:
-    name: pytest
+    name: pytest-f34
     run: ci/pytest.yaml
     nodeset: fedora-34-vm
+- job:
+    name: pytest-f33
+    run: ci/pytest.yaml
+    nodeset: fedora-33-vm
+- job:
+    name: pytest-f32
+    run: ci/pytest.yaml
+    nodeset: fedora-32-vm
 - project:
     check:
       jobs:
         - pre-commit
-        - pytest
+        - pytest-f34
+        - pytest-f33
+        - pytest-f32
         - rpm-mock-build:
             vars:
               mock_config: fedora-34-x86_64

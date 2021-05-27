@@ -93,8 +93,6 @@ A Koji plugin for generating RPM releases and changelogs.
 %files -n koji-builder-plugin-rpmautospec
 %{_prefix}/lib/koji-builder-plugins/*
 
-%config(noreplace) %{_sysconfdir}/kojid/plugins/rpmautospec.conf
-
 # Package the placeholder rpm-macros
 
 %package -n rpmautospec-rpm-macros
@@ -131,10 +129,6 @@ install -m 0644 koji_plugins/rpmautospec_builder.py \
 %endif
 %py_byte_compile %{python3} %{buildroot}%{_prefix}/lib/koji-builder-plugins/
 
-mkdir -p %{buildroot}%{_sysconfdir}/kojid/plugins/
-install -m 0644 koji_plugins/rpmautospec.conf \
-    %{buildroot}%{_sysconfdir}/kojid/plugins/rpmautospec.conf
-
 # RPM macros
 mkdir -p %{buildroot}%{rpmmacrodir}
 install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
@@ -147,6 +141,9 @@ install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 %endif
 
 %changelog
+* Thu May 27 2021 Nils Philippsen <nils@redhat.com>
+- don't ship obsolete Koji configuration snippet
+
 * Wed May 19 2021 Nils Philippsen <nils@redhat.com>
 - remove git-core, fix RPM related dependencies
 

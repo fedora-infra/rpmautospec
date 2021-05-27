@@ -6,5 +6,5 @@ include *.rst
 recursive-include rpm *
 recursive-include rpmautospec *.py *.txt
 recursive-include koji_plugins *.py *.conf
-recursive-include tests *.py *.tar.gz *.spec.expected *.json
+recursive-include tests *.py *.tar.gz *.spec.expected *.spec
 recursive-excludes *.pyc

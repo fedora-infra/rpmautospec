@@ -1,34 +1,24 @@
-The Principle of `rpmautospec`
-==============================
+The Principle of automatic releases and changelog in `rpmautospec`
+==================================================================
 
 The goal of `rpmautospec` it to relieve packagers from the burden of manually
-updating the ``Release`` and ``%changelog`` fields in RPM spec files.
+updating the ``Release`` field and ``%changelog`` section in RPM spec files.
 
 The way it works in Koji is that just after the git repository has been
 cloned, a dedicated plugin is run to preprocess the spec file:
 
-* The plugin checks if the packager has opted in, and if not, stops right
+* The plugin checks if the packager uses any of the rpmautospec features, and if not, stops right
   here. All following steps are only run if the packager has opted in.
 
-* The plugin consults available information about the latest NEVRs built for
-  this package and tags them in the git repository.
-
-* The plugin then installs and calls ``rpmautospec`` in the chroot.
-
-* Using the list tags of built NEVRs as well as the information provided by
-  the packager in the spec file, `rpmautospec` then computes the next best
-  release number for the package.
+* It crawls the git history to count the number of commits since the last time the package version
+  was bumped and to generate the changelog from the contents of the ``changelog`` file (if present)
+  and the commit logs of all later commits.
 
 * It prepends a suitably defined ``%autorelease`` macro to the top of the spec
   file, freezing the computed value of the release number and thus allowing
   reproducible builds.
 
-* Then `rpmautospec` generates the changelog of the package from the contents
-  of the ``changelog`` file, if present, and the git commit logs after it was
-  changed last.
-
-* Finally, `rpmautospec` replaces the ``%autochangelog`` macro with the
-  generated changelog.
+* Finally, it replaces the ``%autochangelog`` macro with the generated changelog.
 
 At this point, the spec file has the release macro defined at its top and
 a changelog defined at its bottom, it is a fully functional spec file that

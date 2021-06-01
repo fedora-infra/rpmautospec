@@ -5,7 +5,7 @@ To opt into using `rpmautospec` you need to use the two macros as explained
 here below:
 
 Use the ``%autorelease`` macro
---------------------------
+------------------------------
 
 Basically, in the spec file you replace the manually set release, e.g.:
 
@@ -45,19 +45,17 @@ history of the package.
 For existing packages
 ^^^^^^^^^^^^^^^^^^^^^
 
-For existing packages that likely already have a ``%changelog`` defined, you
-will have to copy it to a file ``changelog`` that you must add to your git
-repository.
-You can then remove the content of the ``%changelog`` section of your spec
-file and simply have it be:
+Existing packages will already have a ``%changelog`` section with content, you can copy that into a
+file ``changelog`` that needs to be added to the git repository of the package.  You can then remove
+the content of the ``%changelog`` section of your spec file and simply have it be:
 
 ::
 
     %changelog
     %autochangelog
 
-Once these two changes are done, you commit them in a *single commit* for
-both files.
+Once these two changes are done, commit them in a *single commit* for both
+files.
 
 From now on, the changelog will be automatically generated from the commit
 history of your git repository up until the most recent commit found that

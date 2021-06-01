@@ -18,7 +18,7 @@
 # -- Project information -----------------------------------------------------
 
 project = "rpmautospec"
-copyright = "2020, Fedora Infrastructure"
+copyright = "2020–2021, Fedora Infrastructure"
 author = "Fedora Infrastructure"
 
 

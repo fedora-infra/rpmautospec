@@ -16,8 +16,8 @@ These two sources of information are:
   ``changelog`` and the latest commit made to the package.
 
 
-Some Examples:
---------------
+Examples
+--------
 
 .. _only commits example:
 

@@ -144,15 +144,18 @@ class PkgHistoryProcessor:
         except KeyError:
             changelog_blob = None
 
-        # With root commits, changelog present means it was changed
-        changelog_changed = False if commit.parents else bool(changelog_blob)
-        for parent in commit.parents:
-            try:
-                par_changelog_blob = parent.tree["changelog"]
-            except KeyError:
-                par_changelog_blob = None
-            if changelog_blob == par_changelog_blob:
-                changelog_changed = False
+        if commit.parents:
+            changelog_changed = True
+            for parent in commit.parents:
+                try:
+                    par_changelog_blob = parent.tree["changelog"]
+                except KeyError:
+                    par_changelog_blob = None
+                if changelog_blob == par_changelog_blob:
+                    changelog_changed = False
+        else:
+            # With root commits, changelog present means it was changed
+            changelog_changed = bool(changelog_blob)
 
         # Establish which parent to follow (if any, and if we can).
         parent_to_follow = None
@@ -198,7 +201,6 @@ class PkgHistoryProcessor:
             commit_result["changelog"] = (changelog_entry,)
         elif changelog_changed:
             if changelog_blob:
-                # Don't decode, we'll paste as is.
                 changelog_entry["data"] = changelog_blob.data.decode("utf-8", errors="replace")
             else:
                 # Changelog removed. Oops.

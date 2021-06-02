@@ -15,7 +15,7 @@ from rpmautospec.pkg_history import PkgHistoryProcessor
 SPEC_FILE_TEXT = """Summary: Boo
 Name: boo
 Version: 1.0
-Release: %autorel
+Release: %autorelease
 License: CC0
 
 %description
@@ -170,7 +170,7 @@ class TestPkgHistoryProcessor:
             assert processor.repo
 
     @pytest.mark.parametrize("testcase", ("normal", "no spec file"))
-    def test__get_rpm_version_for_commit(self, testcase, specfile, repo, processor):
+    def test__get_rpmverflags_for_commit(self, testcase, specfile, repo, processor):
         head_commit = repo[repo.head.target]
 
         if testcase == "no spec file":
@@ -193,9 +193,9 @@ class TestPkgHistoryProcessor:
                 )
             ]
 
-            assert processor._get_rpm_version_for_commit(head_commit) is None
+            assert processor._get_rpmverflags_for_commit(head_commit) is None
         else:
-            assert processor._get_rpm_version_for_commit(head_commit) == "1.0"
+            assert processor._get_rpmverflags_for_commit(head_commit)["epoch-version"] == "1.0"
 
     @pytest.mark.parametrize("testcase", ("without commit", "with commit", "all results"))
     def test_run(self, testcase, repo, processor):

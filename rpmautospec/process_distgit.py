@@ -54,7 +54,8 @@ def process_distgit(spec_or_path: Union[Path, str]) -> bool:
         return False
 
     needs_autochangelog = (
-        features.changelog_lineno is None and features.autochangelog_lineno is None
+        features.changelog_lineno is None
+        and features.autochangelog_lineno is None
         or features.has_autochangelog
     )
 

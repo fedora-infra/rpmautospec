@@ -1,5 +1,7 @@
 import datetime as dt
 import logging
+import re
+import subprocess
 from collections import defaultdict
 from fnmatch import fnmatchcase
 from functools import lru_cache, reduce
@@ -10,7 +12,7 @@ from typing import Any, Dict, Optional, Sequence, Union
 
 import pygit2
 
-from .misc import get_rpm_current_version
+from .misc import AUTORELEASE_MACRO
 
 
 log = logging.getLogger(__name__)
@@ -25,6 +27,10 @@ class PkgHistoryProcessor:
         "sources",
         "tests/*",
     ]
+
+    autorelease_flags_re = re.compile(
+        r"^E(?P<extraver>[^_]*)_S(?P<snapinfo>[^_]*)_P(?P<prerelease>[01])_B(?P<base>\d*)$"
+    )
 
     def __init__(self, spec_or_path: Union[str, Path]):
         if isinstance(spec_or_path, str):
@@ -63,8 +69,80 @@ class PkgHistoryProcessor:
         except pygit2.GitError:
             self.repo = None
 
+    @classmethod
+    def _get_rpmverflags(cls, path: str, name: Optional[str] = None) -> Optional[str]:
+        """Retrieve the epoch/version and %autorelease flags set in spec file.
+
+        Returns None if an error is encountered.
+        """
+        path = Path(path)
+
+        if not name:
+            name = path.name
+
+        specfile = path / f"{name}.spec"
+
+        if not specfile.exists():
+            return None
+
+        query = "%|epoch?{%{epoch}:}:{}|%{version}\n%{release}\n"
+
+        autorelease_definition = (
+            AUTORELEASE_MACRO + " E%{?-e*}_S%{?-s*}_P%{?-p:1}%{!?-p:0}_B%{?-b*}"
+        )
+
+        rpm_cmd = [
+            "rpm",
+            "--define",
+            "_invalid_encoding_terminates_build 0",
+            "--define",
+            autorelease_definition,
+            "--define",
+            "autochangelog %nil",
+            "--qf",
+            query,
+            "--specfile",
+            f"{name}.spec",
+        ]
+
+        try:
+            output = (
+                subprocess.check_output(rpm_cmd, cwd=path, stderr=subprocess.PIPE)
+                .decode("UTF-8")
+                .strip()
+            )
+        except Exception:
+            return None
+
+        split_output = output.split("\n")
+        epoch_version = split_output[0]
+        info = split_output[1]
+
+        match = cls.autorelease_flags_re.match(info)
+        if match:
+            extraver = match.group("extraver") or None
+            snapinfo = match.group("snapinfo") or None
+            prerelease = match.group("prerelease") == "1"
+            base = match.group("base")
+            if base:
+                base = int(base)
+            else:
+                base = 1
+        else:
+            extraver = snapinfo = prerelease = base = None
+
+        result = {
+            "epoch-version": epoch_version,
+            "extraver": extraver,
+            "snapinfo": snapinfo,
+            "prerelease": prerelease,
+            "base": base,
+        }
+
+        return result
+
     @lru_cache(maxsize=None)
-    def _get_rpm_version_for_commit(self, commit):
+    def _get_rpmverflags_for_commit(self, commit):
         with TemporaryDirectory(prefix="rpmautospec-") as workdir:
             try:
                 specblob = commit.tree[self.specfile.name]
@@ -76,7 +154,7 @@ class PkgHistoryProcessor:
             with specpath.open("wb") as specfile:
                 specfile.write(specblob.data)
 
-            return get_rpm_current_version(workdir, self.name, with_epoch=True)
+            return self._get_rpmverflags(workdir, self.name)
 
     def release_number_visitor(self, commit: pygit2.Commit, children_must_continue: bool):
         """Visit a commit to determine its release number.
@@ -89,11 +167,29 @@ class PkgHistoryProcessor:
         execution to process these and finally yield back the results for this
         commit.
         """
-        epoch_version = self._get_rpm_version_for_commit(commit)
+        verflags = self._get_rpmverflags_for_commit(commit)
 
-        must_continue = not epoch_version or epoch_version in (
-            self._get_rpm_version_for_commit(p) for p in commit.parents
-        )
+        if verflags:
+            epoch_version = verflags["epoch-version"]
+            prerelease = verflags["prerelease"]
+            base = verflags["base"]
+            if base is None:
+                base = 1
+            tag_string = "".join(f".{t}" for t in (verflags["extraver"], verflags["snapinfo"]) if t)
+        else:
+            epoch_version = prerelease = None
+            base = 1
+            tag_string = ""
+
+        if not epoch_version:
+            must_continue = True
+        else:
+            epoch_versions_to_check = []
+            for p in commit.parents:
+                verflags = self._get_rpmverflags_for_commit(p)
+                if verflags:
+                    epoch_versions_to_check.append(verflags["epoch-version"])
+            must_continue = epoch_version in epoch_versions_to_check
 
         # Suspend execution, yield whether caller should continue, and get back the (partial) result
         # for this commit and parent results as dictionaries on resume.
@@ -102,7 +198,7 @@ class PkgHistoryProcessor:
         commit_result["epoch-version"] = epoch_version
 
         # Find the maximum applicable parent release number and increment by one.
-        commit_result["release-number"] = (
+        commit_result["release-number"] = release_number = (
             max(
                 (
                     res["release-number"] if res and epoch_version == res["epoch-version"] else 0
@@ -112,6 +208,10 @@ class PkgHistoryProcessor:
             )
             + 1
         )
+
+        prerel_str = "0." if prerelease else ""
+        release_number_with_base = release_number + base - 1
+        commit_result["release-complete"] = f"{prerel_str}{release_number_with_base}{tag_string}"
 
         yield commit_result
 
@@ -188,7 +288,8 @@ class PkgHistoryProcessor:
 
         changelog_author = f"{commit.author.name} <{commit.author.email}>"
         changelog_date = dt.datetime.utcfromtimestamp(commit.commit_time).strftime("%a %b %d %Y")
-        changelog_evr = f"{commit_result['epoch-version']}-{commit_result['release-number']}"
+        changelog_evr = f"{commit_result['epoch-version']}-{commit_result['release-complete']}"
+
         changelog_header = f"* {changelog_date} {changelog_author} {changelog_evr}"
 
         if not specfile_present:

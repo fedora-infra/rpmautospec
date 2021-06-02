@@ -1,8 +1,6 @@
 import re
-import subprocess
 from collections import namedtuple
 from pathlib import Path
-from typing import Optional
 from typing import Union
 
 
@@ -12,56 +10,6 @@ AUTORELEASE_MACRO = "autorelease(e:s:pb:)"
 autorelease_re = re.compile(r"\s*(?i:Release)\s*:.*%(?:autorelease(?:\s|$)|\{\??autorelease\})")
 changelog_re = re.compile(r"^%changelog(?:\s.*)?$", re.IGNORECASE)
 autochangelog_re = re.compile(r"\s*%(?:autochangelog|\{\??autochangelog\})\s*")
-
-
-def get_rpm_current_version(
-    path: str, name: Optional[str] = None, with_epoch: bool = False
-) -> Optional[str]:
-    """Retrieve the current version set in the spec file named ``name``.spec
-    at the given path.
-
-    Returns None if an error is encountered.
-    """
-    path = Path(path)
-
-    if not name:
-        name = path.name
-
-    specfile = path / f"{name}.spec"
-
-    if not specfile.exists():
-        return None
-
-    query = "%{version}"
-    if with_epoch:
-        query = "%|epoch?{%{epoch}:}:{}|" + query
-    query += r"\n"
-
-    rpm_cmd = [
-        "rpm",
-        "--define",
-        "_invalid_encoding_terminates_build 0",
-        "--define",
-        f"{AUTORELEASE_MACRO} 1%{{?dist}}",
-        "--define",
-        "autochangelog %nil",
-        "--qf",
-        query,
-        "--specfile",
-        f"{name}.spec",
-    ]
-
-    try:
-        output = (
-            subprocess.check_output(rpm_cmd, cwd=path, stderr=subprocess.PIPE)
-            .decode("UTF-8")
-            .split("\n")[0]
-            .strip()
-        )
-    except Exception:
-        return None
-
-    return output
 
 
 SpecfileFeatures = namedtuple(

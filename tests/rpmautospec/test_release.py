@@ -32,13 +32,13 @@ class TestRelease:
 
             unpacked_repo_dir = Path(workdir) / "dummy-test-package-gloster"
 
-            expected_release_number = 11
+            expected_release = "11"
 
             if method_to_test == "calculate_release":
-                assert release.calculate_release(unpacked_repo_dir) == expected_release_number
+                assert release.calculate_release(unpacked_repo_dir) == expected_release
             else:
                 with caplog.at_level(logging.INFO):
                     args = Mock()
                     args.spec_or_path = unpacked_repo_dir
                     release.main(args)
-                assert f"calculate_release release: {expected_release_number}" in caplog.text
+                assert f"calculate_release release: {expected_release}" in caplog.text

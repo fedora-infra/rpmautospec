@@ -29,7 +29,7 @@ def register_subcommand(subparsers):
 def calculate_release(spec_or_path: Union[str, Path]) -> int:
     processor = PkgHistoryProcessor(spec_or_path)
     result = processor.run(visitors=(processor.release_number_visitor,))
-    return result["release-number"]
+    return result["release-complete"]
 
 
 def main(args):

@@ -7,8 +7,7 @@ from typing import Union
 
 
 # the %autorelease macro including parameters
-AUTORELEASE_MACRO = "autorelease(e:s:hp)"
-AUTORELEASE_MACRO = "autorelease(e:s:po:)"
+AUTORELEASE_MACRO = "autorelease(e:s:pb:)"
 
 autorelease_re = re.compile(r"\s*(?i:Release)\s*:.*%(?:autorelease(?:\s|$)|\{\??autorelease\})")
 changelog_re = re.compile(r"^%changelog(?:\s.*)?$", re.IGNORECASE)

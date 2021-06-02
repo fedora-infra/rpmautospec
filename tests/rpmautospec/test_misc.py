@@ -46,7 +46,7 @@ class TestMisc:
         "with_autorelease,autorelease_flags,with_changelog,with_autochangelog",
         (
             pytest.param(True, "", True, True, id="all features"),
-            pytest.param(True, "-o 200", True, True, id="with autorelease offset"),
+            pytest.param(True, "-b 200", True, True, id="with non standard base release number"),
             pytest.param(False, "", False, False, id="nothing")
         )
     )

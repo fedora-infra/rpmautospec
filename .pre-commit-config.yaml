@@ -17,6 +17,7 @@ repos:
       - id: black
         args:
           - --diff
+          - --check
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.26.1
     hooks:

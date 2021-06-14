@@ -350,16 +350,10 @@ class PkgHistoryProcessor:
 
         yield commit_result
 
-    def run(
-        self,
-        head: Optional[Union[str, pygit2.Commit]] = None,
-        *,
-        visitors: Sequence = (),
-        all_results: bool = False,
-    ) -> Union[Dict[str, Any], Dict[pygit2.Commit, Dict[str, Any]]]:
-        if not head:
-            head = self.repo[self.repo.head.target]
-
+    def _run_on_history(
+        self, head: pygit2.Commit, *, visitors: Sequence = ()
+    ) -> Dict[pygit2.Commit, Dict[str, Any]]:
+        """Process historical commits with visitors and gather results."""
         # maps visited commits to their (in-flight) visitors and if they must
         # continue
         commit_coroutines = {}
@@ -456,6 +450,7 @@ class PkgHistoryProcessor:
         ###########################################################################################
 
         visited_results = {}
+
         while branches:
             branch = branches.pop(0)
             while branch:
@@ -481,6 +476,23 @@ class PkgHistoryProcessor:
                     commit_coroutines[commit],
                     {"commit-id": commit.id},
                 )
+
+        return visited_results
+
+    def run(
+        self,
+        head: Optional[Union[str, pygit2.Commit]] = None,
+        *,
+        visitors: Sequence = (),
+        all_results: bool = False,
+    ) -> Union[Dict[str, Any], Dict[pygit2.Commit, Dict[str, Any]]]:
+        """Process a package repository."""
+        if not head:
+            head = self.repo[self.repo.head.target]
+        elif isinstance(head, str):
+            head = self.repo[head]
+
+        visited_results = self._run_on_history(head, visitors=visitors)
 
         if all_results:
             return visited_results

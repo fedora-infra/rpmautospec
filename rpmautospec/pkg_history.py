@@ -486,15 +486,92 @@ class PkgHistoryProcessor:
         visitors: Sequence = (),
         all_results: bool = False,
     ) -> Union[Dict[str, Any], Dict[pygit2.Commit, Dict[str, Any]]]:
-        """Process a package repository."""
+        """Process a package repository including a changed worktree."""
+        # whether or not the worktree differs and this needs to be reflected in the result(s)
+        reflect_worktree = False
+
         if not head:
             head = self.repo[self.repo.head.target]
+            diff_to_head = self.repo.diff(head)
+            reflect_worktree = diff_to_head.stats.files_changed > 0
         elif isinstance(head, str):
             head = self.repo[head]
 
         visited_results = self._run_on_history(head, visitors=visitors)
+        head_result = visited_results[head]
+
+        if reflect_worktree:
+            worktree_result = {}
+
+            verflags = self._get_rpmverflags(self.path, name=self.name)
+            if not verflags:
+                # assume same as head commit, not ideal but hey
+                verflags = self._get_rpmverflags_for_commit(self.repo[self.repo.head.target])
+                if not verflags:
+                    # cringe, head was unparseable, too
+                    verflags = {
+                        "epoch-version": None,
+                        "prerelease": False,
+                        "extraver": None,
+                        "snapinfo": None,
+                        "base": 1,
+                    }
+
+            # Mimic the bottom half of release_visitor
+            worktree_result["epoch-version"] = epoch_version = verflags["epoch-version"]
+            if epoch_version == head_result["epoch-version"]:
+                release_number = head_result["release-number"] + 1
+            else:
+                release_number = 1
+            worktree_result["release-number"] = release_number
+
+            prerel_str = "0." if verflags["prerelease"] else ""
+            tag_string = "".join(f".{t}" for t in (verflags["extraver"], verflags["snapinfo"]) if t)
+            base = verflags["base"]
+            if base is None:
+                base = 1
+            release_number_with_base = release_number + base - 1
+            worktree_result[
+                "release-complete"
+            ] = release_complete = f"{prerel_str}{release_number_with_base}{tag_string}"
+
+            # Mimic the bottom half of the changelog visitor for a generic entry
+            if not self.specfile.exists():
+                changelog = ()
+            else:
+                previous_changelog = head_result.get("changelog", ())
+                changed_files = self._files_changed_in_diff(diff_to_head)
+                skip_for_changelog = all(
+                    any(fnmatchcase(f, path) for path in self.changelog_ignore_patterns)
+                    for f in changed_files
+                )
+
+                if not skip_for_changelog:
+                    try:
+                        signature = self.repo.default_signature
+                        changelog_author = f"{signature.name} <{signature.email}>"
+                    except KeyError:
+                        changelog_author = "Unknown User <please-configure-git-user@example.com>"
+                    changelog_date = dt.datetime.utcnow().strftime("%a %b %d %Y")
+                    changelog_evr = f"{epoch_version}-{release_complete}"
+
+                    changelog_header = f"* {changelog_date} {changelog_author} {changelog_evr}"
+                    changelog_item = "- Uncommitted changes"
+
+                    changelog_entry = {
+                        "commit-id": None,
+                        "data": f"{changelog_header}\n{changelog_item}",
+                    }
+                    changelog = (changelog_entry,) + previous_changelog
+                else:
+                    changelog = previous_changelog
+
+            worktree_result["changelog"] = changelog
+            visited_results[None] = worktree_result
 
         if all_results:
             return visited_results
+        elif reflect_worktree:
+            return worktree_result
         else:
-            return visited_results[head]
+            return head_result

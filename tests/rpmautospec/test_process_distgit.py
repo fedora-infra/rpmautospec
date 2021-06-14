@@ -1,6 +1,8 @@
+import difflib
 import os
+import re
 import shutil
-from subprocess import check_output
+from subprocess import run, check_output
 import tarfile
 import tempfile
 
@@ -30,8 +32,16 @@ class TestProcessDistgit:
         )
     ]
 
+    relnum_re = re.compile("^(?P<relnum>[0-9]+)(?P<rest>.*)$")
+
+    @classmethod
+    def relnum_split(cls, release):
+        match = cls.relnum_re.match(release)
+        # let this fail if the regex doesn't match
+        return int(match.group("relnum")), match.group("rest")
+
     @staticmethod
-    def fuzz_spec_file(spec_file_path, autorelease_case, autochangelog_case):
+    def fuzz_spec_file(spec_file_path, autorelease_case, autochangelog_case, run_git_amend):
         """Fuzz a spec file in ways which shouldn't change the outcome"""
 
         with open(spec_file_path, "r") as orig, open(spec_file_path + ".new", "w") as new:
@@ -70,8 +80,45 @@ class TestProcessDistgit:
 
         os.rename(spec_file_path + ".new", spec_file_path)
 
-    @pytest.mark.parametrize("autorelease_case,autochangelog_case", autorelease_autochangelog_cases)
-    def test_process_distgit(self, autorelease_case, autochangelog_case):
+        if run_git_amend:
+            # Ensure worktree doesn't differ
+            workdir = os.path.dirname(spec_file_path)
+            commit_timestamp = check_output(
+                ["git", "log", "-1", "--pretty=format:%cI"],
+                cwd=workdir,
+                encoding="ascii",
+            ).strip()
+            env = os.environ.copy()
+            # Set name and email explicitly so CI doesn't trip over them being unset.
+            env.update(
+                {
+                    "GIT_COMMITTER_NAME": "Test User",
+                    "GIT_COMMITTER_EMAIL": "<test@example.com>",
+                    "GIT_COMMITTER_DATE": commit_timestamp,
+                }
+            )
+            run(
+                ["git", "commit", "--all", "--allow-empty", "--amend", "--no-edit"],
+                cwd=workdir,
+                env=env,
+            )
+
+    @pytest.mark.parametrize("dirty_worktree", (False, True))
+    @pytest.mark.parametrize("autorelease_case", ("unchanged", "with braces", "optional"))
+    @pytest.mark.parametrize(
+        "autochangelog_case",
+        (
+            "unchanged",
+            "changelog case insensitive",
+            "changelog trailing garbage",
+            "line in between",
+            "trailing line",
+            "with braces",
+            "missing",
+            "optional",
+        ),
+    )
+    def test_process_distgit(self, dirty_worktree, autorelease_case, autochangelog_case):
         """Test the process_distgit() function"""
         with tempfile.TemporaryDirectory() as workdir:
             with tarfile.open(
@@ -86,14 +133,17 @@ class TestProcessDistgit:
                 tar.extractall(path=workdir)
 
             unpacked_repo_dir = os.path.join(workdir, "dummy-test-package-gloster")
-            unprocessed_spec_file_path = os.path.join(
+            test_spec_file_path = os.path.join(
                 unpacked_repo_dir,
                 "dummy-test-package-gloster.spec",
             )
 
             if autorelease_case != "unchanged" or autochangelog_case != "unchanged":
                 self.fuzz_spec_file(
-                    unprocessed_spec_file_path, autorelease_case, autochangelog_case
+                    test_spec_file_path,
+                    autorelease_case,
+                    autochangelog_case,
+                    run_git_amend=not dirty_worktree,
                 )
 
             process_distgit.process_distgit(unpacked_repo_dir)
@@ -115,23 +165,55 @@ class TestProcessDistgit:
                     ):
                         # "%changelog", "%ChAnGeLoG", ... stay verbatim, trick fuzz_spec_file() to
                         # leave the rest of the cases as is, the %autorelease macro is expanded.
-                        autochangelog_case = "unchanged"
+                        fuzz_autochangelog_case = "unchanged"
+                    else:
+                        fuzz_autochangelog_case = autochangelog_case
                     expected_spec_file_path = tmpspec.name
                     self.fuzz_spec_file(
-                        expected_spec_file_path, autorelease_case, autochangelog_case
+                        expected_spec_file_path,
+                        autorelease_case,
+                        fuzz_autochangelog_case,
+                        run_git_amend=False,
                     )
 
                 rpm_cmd = ["rpm", "--define", "dist .fc32", "--specfile"]
 
-                unprocessed_cmd = rpm_cmd + [unprocessed_spec_file_path]
+                test_cmd = rpm_cmd + [test_spec_file_path]
                 expected_cmd = rpm_cmd + [expected_spec_file_path]
 
                 q_release = ["--qf", "%{release}\n"]
-                assert check_output(unprocessed_cmd + q_release) == check_output(
-                    expected_cmd + q_release
-                )
+                test_output = check_output(test_cmd + q_release, encoding="utf-8").strip()
+                test_relnum, test_rest = self.relnum_split(test_output)
+                expected_output = check_output(expected_cmd + q_release, encoding="utf-8").strip()
+                expected_relnum, expected_rest = self.relnum_split(expected_output)
+
+                if dirty_worktree and (
+                    autorelease_case != "unchanged" or autochangelog_case != "unchanged"
+                ):
+                    assert test_relnum == expected_relnum + 1
+                else:
+                    assert test_relnum == expected_relnum
+
+                assert test_rest == expected_rest
 
                 q_changelog = ["--changelog"]
-                assert check_output(unprocessed_cmd + q_changelog) == check_output(
-                    expected_cmd + q_changelog
-                )
+                test_output = check_output(test_cmd + q_changelog, encoding="utf-8")
+                expected_output = check_output(expected_cmd + q_changelog, encoding="utf-8")
+
+                if dirty_worktree and (
+                    autorelease_case != "unchanged" or autochangelog_case != "unchanged"
+                ):
+                    diff = list(
+                        difflib.ndiff(expected_output.splitlines(), test_output.splitlines())
+                    )
+                    # verify entry for uncommitted changes
+                    assert all(line.startswith("+ ") for line in diff[:3])
+                    assert diff[0].endswith(f"-{expected_relnum + 1}")
+                    assert diff[1] == "+ - Uncommitted changes"
+                    assert diff[2] == "+ "
+
+                    # verify the rest is the expected changelog
+                    assert all(line.startswith("  ") for line in diff[3:])
+                    assert expected_output.splitlines() == [line[2:] for line in diff[3:]]
+                else:
+                    assert test_output == expected_output

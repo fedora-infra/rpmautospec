@@ -34,10 +34,7 @@ class TestMisc:
         if with_autochangelog:
             contents.append("%autochangelog")
         else:
-            contents.extend([
-                "* Thu Jan 01 1970 Some Name <email@example.com>",
-                "- some entry"
-            ])
+            contents.extend(["* Thu Jan 01 1970 Some Name <email@example.com>", "- some entry"])
 
         print("\n".join(contents), file=specfile)
         specfile.flush()
@@ -47,11 +44,15 @@ class TestMisc:
         (
             pytest.param(True, "", True, True, id="all features"),
             pytest.param(True, "-b 200", True, True, id="with non standard base release number"),
-            pytest.param(False, "", False, False, id="nothing")
-        )
+            pytest.param(False, "", False, False, id="nothing"),
+        ),
     )
     def test_check_specfile_features(
-        self, with_autorelease, autorelease_flags, with_changelog, with_autochangelog,
+        self,
+        with_autorelease,
+        autorelease_flags,
+        with_changelog,
+        with_autochangelog,
     ):
         with NamedTemporaryFile(mode="w+") as specfile:
             self._generate_spec_with_features(

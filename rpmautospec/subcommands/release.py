@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from typing import Union
 
-from .pkg_history import PkgHistoryProcessor
+from ..pkg_history import PkgHistoryProcessor
 
 
 log = logging.getLogger(__name__)

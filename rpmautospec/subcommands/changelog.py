@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, Optional, Union
 
-from .pkg_history import PkgHistoryProcessor
+from ..pkg_history import PkgHistoryProcessor
 
 
 log = logging.getLogger(__name__)

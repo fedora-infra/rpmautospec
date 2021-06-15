@@ -8,14 +8,14 @@ import tempfile
 
 import pytest
 
-from rpmautospec import process_distgit
+from rpmautospec.subcommands import process_distgit
 
 
 __here__ = os.path.dirname(__file__)
 
 
 class TestProcessDistgit:
-    """Test the rpmautospec.process_distgit module"""
+    """Test the rpmautospec.subcommands.process_distgit module"""
 
     autorelease_autochangelog_cases = [
         (autorelease_case, autochangelog_case)
@@ -128,6 +128,7 @@ class TestProcessDistgit:
                 os.path.join(
                     __here__,
                     os.path.pardir,
+                    os.path.pardir,
                     "test-data",
                     "repodata",
                     "dummy-test-package-gloster-git.tar.gz",
@@ -166,6 +167,7 @@ class TestProcessDistgit:
 
             expected_spec_file_path = os.path.join(
                 __here__,
+                os.path.pardir,
                 os.path.pardir,
                 "test-data",
                 "repodata",

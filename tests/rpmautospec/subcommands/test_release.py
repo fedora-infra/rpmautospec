@@ -7,14 +7,14 @@ from unittest.mock import Mock
 
 import pytest
 
-from rpmautospec import release
+from rpmautospec.subcommands import release
 
 
 __here__ = os.path.dirname(__file__)
 
 
 class TestRelease:
-    """Test the rpmautospec.release module"""
+    """Test the rpmautospec.subcommands.release module"""
 
     @pytest.mark.parametrize("method_to_test", ("calculate_release", "main"))
     def test_calculate_release(self, method_to_test, caplog):
@@ -22,6 +22,7 @@ class TestRelease:
             with tarfile.open(
                 os.path.join(
                     __here__,
+                    os.path.pardir,
                     os.path.pardir,
                     "test-data",
                     "repodata",

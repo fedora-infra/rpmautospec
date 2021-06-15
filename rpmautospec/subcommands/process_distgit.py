@@ -5,8 +5,8 @@ import tempfile
 from pathlib import Path
 from typing import Union
 
-from .misc import check_specfile_features
-from .pkg_history import PkgHistoryProcessor
+from ..misc import check_specfile_features
+from ..pkg_history import PkgHistoryProcessor
 
 
 log = logging.getLogger(__name__)

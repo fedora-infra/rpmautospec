@@ -103,6 +103,7 @@ class TestProcessDistgit:
                 env=env,
             )
 
+    @pytest.mark.parametrize("overwrite_specfile", (False, True))
     @pytest.mark.parametrize("dirty_worktree", (False, True))
     @pytest.mark.parametrize("autorelease_case", ("unchanged", "with braces", "optional"))
     @pytest.mark.parametrize(
@@ -118,7 +119,9 @@ class TestProcessDistgit:
             "optional",
         ),
     )
-    def test_process_distgit(self, dirty_worktree, autorelease_case, autochangelog_case):
+    def test_process_distgit(
+        self, overwrite_specfile, dirty_worktree, autorelease_case, autochangelog_case
+    ):
         """Test the process_distgit() function"""
         with tempfile.TemporaryDirectory() as workdir:
             with tarfile.open(
@@ -146,7 +149,20 @@ class TestProcessDistgit:
                     run_git_amend=not dirty_worktree,
                 )
 
-            process_distgit.process_distgit(unpacked_repo_dir)
+            if overwrite_specfile:
+                target_spec_file_path = None
+            else:
+                target_spec_file_path = os.path.join(workdir, "test-this-specfile-please.spec")
+
+            orig_test_spec_file_stat = os.stat(test_spec_file_path)
+            process_distgit.process_distgit(unpacked_repo_dir, target_spec_file_path)
+            if not overwrite_specfile:
+                test_spec_file_stat = os.stat(test_spec_file_path)
+                # we can't compare stat_results directly because st_atime has changed
+                for attr in ("mode", "ino", "dev", "uid", "gid", "size", "mtime", "ctime"):
+                    assert getattr(test_spec_file_stat, "st_" + attr) == getattr(
+                        orig_test_spec_file_stat, "st_" + attr
+                    )
 
             expected_spec_file_path = os.path.join(
                 __here__,
@@ -178,7 +194,10 @@ class TestProcessDistgit:
 
                 rpm_cmd = ["rpm", "--define", "dist .fc32", "--specfile"]
 
-                test_cmd = rpm_cmd + [test_spec_file_path]
+                if target_spec_file_path:
+                    test_cmd = rpm_cmd + [target_spec_file_path]
+                else:
+                    test_cmd = rpm_cmd + [test_spec_file_path]
                 expected_cmd = rpm_cmd + [expected_spec_file_path]
 
                 q_release = ["--qf", "%{release}\n"]

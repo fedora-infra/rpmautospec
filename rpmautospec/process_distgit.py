@@ -35,16 +35,26 @@ def register_subcommand(subparsers):
         help="Path to package worktree or the spec file within",
     )
 
+    process_distgit_parser.add_argument(
+        "target",
+        help="Path where to write processed spec file",
+    )
+
     return subcmd_name
 
 
-def process_distgit(spec_or_path: Union[Path, str]) -> bool:
+def process_distgit(spec_or_path: Union[Path, str], target: Union[Path, str] = None) -> bool:
     """Process an RPM spec file in a distgit repository.
 
     :param spec_or_path: the spec file or path of the repository
     :return: whether or not the spec file needed processing
     """
     processor = PkgHistoryProcessor(spec_or_path)
+
+    if target is None:
+        target = processor.specfile
+    elif isinstance(target, Path):
+        target = Path(target)
 
     features = check_specfile_features(processor.specfile)
     processing_necessary = (
@@ -98,10 +108,10 @@ def process_distgit(spec_or_path: Union[Path, str]) -> bool:
         tmp_specfile.flush()
 
         # ...and copy it back (potentially across device boundaries)
-        shutil.copy2(tmp_specfile.name, processor.specfile)
+        shutil.copy2(tmp_specfile.name, target)
 
 
 def main(args):
     """Main method."""
     spec_or_path = args.spec_or_path.rstrip(os.path.sep)
-    process_distgit(spec_or_path)
+    process_distgit(spec_or_path, args.target)

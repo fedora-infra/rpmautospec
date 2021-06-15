@@ -16,5 +16,5 @@ def process_distgit_cb(cb_type, *, srcdir, taskinfo, **kwargs):
         # i.e. maven and image builds don't have spec-files
         return
 
-    if not process_distgit(srcdir):
+    if not process_distgit(srcdir, enable_caching=False):
         log.info("No %autorelease/%autochangelog features used, skipping.")

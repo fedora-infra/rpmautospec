@@ -43,10 +43,15 @@ def register_subcommand(subparsers):
     return subcmd_name
 
 
-def process_distgit(spec_or_path: Union[Path, str], target: Union[Path, str] = None) -> bool:
+def process_distgit(
+    spec_or_path: Union[Path, str], target: Union[Path, str] = None, *, enable_caching: bool = True
+) -> bool:
     """Process an RPM spec file in a distgit repository.
 
     :param spec_or_path: the spec file or path of the repository
+    :param enable_caching: whether or not spec file feature test results
+                           should be cached (disable in long-running
+                           processes)
     :return: whether or not the spec file needed processing
     """
     processor = PkgHistoryProcessor(spec_or_path)
@@ -56,7 +61,10 @@ def process_distgit(spec_or_path: Union[Path, str], target: Union[Path, str] = N
     elif isinstance(target, Path):
         target = Path(target)
 
-    features = check_specfile_features(processor.specfile)
+    if enable_caching:
+        features = check_specfile_features(processor.specfile)
+    else:
+        features = check_specfile_features.__wrapped__(processor.specfile)
     processing_necessary = (
         features.has_autorelease or features.has_autochangelog or not features.changelog_lineno
     )

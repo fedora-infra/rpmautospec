@@ -1,5 +1,6 @@
 import re
 from collections import namedtuple
+from functools import lru_cache
 from pathlib import Path
 from typing import Union
 
@@ -18,6 +19,7 @@ SpecfileFeatures = namedtuple(
 )
 
 
+@lru_cache(maxsize=None)
 def check_specfile_features(specpath: Union[Path, str]) -> SpecfileFeatures:
     if not isinstance(specpath, Path):
         specpath = Path(specpath)

@@ -2,7 +2,7 @@ import logging
 
 from koji.plugin import callback
 
-from rpmautospec.subcommands.process_distgit import process_distgit
+from rpmautospec import process_distgit
 
 
 log = logging.getLogger(__name__)

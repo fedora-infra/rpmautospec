@@ -12,11 +12,11 @@ with open(os.path.join(HERE, "test_requirements.txt"), "r") as f:
 
 setup(
     name="rpmautospec",
-    version="0.2.2",
+    version="0.2.3",
     description="Package and CLI tool for generating RPM releases and changelogs",
     # Possible options are at https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 3 - Beta",
         "Intended Audience :: Developers",
         "Intended Audience :: System Administrators",
         "License :: OSI Approved :: MIT License",

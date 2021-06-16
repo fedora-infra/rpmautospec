@@ -48,12 +48,27 @@ def register_subcommand(subparsers):
 def calculate_release(
     spec_or_path: Union[str, Path], *, complete_release: bool = True
 ) -> Union[str, int]:
+    """Calculate release value (or number) of a package.
+
+    :param spec_or_path: The spec file or directory it is located in.
+    :param complete_release: Whether to return the complete release (without
+                             dist tag) or just the number.
+    :return: the release value or number
+    """
     processor = PkgHistoryProcessor(spec_or_path)
     result = processor.run(visitors=(processor.release_number_visitor,))
     return result["release-complete" if complete_release else "release-number"]
 
 
 def calculate_release_number(spec_or_path: Union[str, Path]) -> int:
+    """Calculate release number of a package.
+
+    This number can be passed into the %autorelease macro as
+    %_rpmautospec_release_number.
+
+    :param spec_or_path: The spec file or directory it is located in.
+    :return: the release number
+    """
     return calculate_release(spec_or_path, complete_release=False)
 
 

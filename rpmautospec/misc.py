@@ -52,7 +52,13 @@ def check_specfile_features(specpath: Union[Path, str]) -> SpecfileFeatures:
 def specfile_uses_rpmautospec(
     specpath: Union[Path, str], check_autorelease: bool = True, check_autochangelog: bool = True
 ) -> bool:
-    """Check whether or not an RPM spec file uses rpmautospec features."""
+    """Check whether or not an RPM spec file uses rpmautospec features.
+
+    :param specpath: Path to the RPM spec file
+    :param check_autorelease: Whether to check for use of %autorelease
+    :param check_autochangelog: Whether to check for use of %autochangelog
+    :return: Whether the spec file uses the specified features
+    """
     if not check_autorelease and not check_autochangelog:
         raise ValueError("One of check_autorelease and check_autochangelog must be set")
 

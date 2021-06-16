@@ -53,6 +53,10 @@ def calculate_release(
     return result["release-complete" if complete_release else "release-number"]
 
 
+def calculate_release_number(spec_or_path: Union[str, Path]) -> int:
+    return calculate_release(spec_or_path, complete_release=False)
+
+
 def main(args):
     """Main method."""
     release = calculate_release(args.spec_or_path, complete_release=args.complete_release)

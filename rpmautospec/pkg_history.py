@@ -2,6 +2,7 @@ import datetime as dt
 import logging
 import re
 import subprocess
+import sys
 from collections import defaultdict
 from fnmatch import fnmatchcase
 from functools import lru_cache, reduce
@@ -91,6 +92,8 @@ class PkgHistoryProcessor:
             AUTORELEASE_MACRO + " E%{?-e*}_S%{?-s*}_P%{?-p:1}%{!?-p:0}_B%{?-b*}"
         )
 
+        python_version = str(sys.version_info[0]) + "." + str(sys.version_info[1])
+
         rpm_cmd = [
             "rpm",
             "--define",
@@ -99,6 +102,10 @@ class PkgHistoryProcessor:
             autorelease_definition,
             "--define",
             "autochangelog %nil",
+            "--define",
+            f"__python /usr/bin/python{python_version}",
+            "--define",
+            f"python_sitelib /usr/lib/python{python_version}/site-packages",
             "--qf",
             query,
             "--specfile",

@@ -41,12 +41,13 @@ In Fedora, there are two ways to do scratch builds today:
 
   ::
 
-      rpmautospec process-distgit /path/to/distgit/clone
+      rpmautospec process-distgit /path/to/distgit/clone /path/to/target
 
   .. warning::
-      This is a tool we use for testing and debugging. It changes the spec
-      file and you need to undo these changes before running the tool again or
-      committing other changes in it to git, etc.
+      This is a tool we use for testing and debugging. You can provide a target file (which will be
+      created if it doesn't exist) to prevent changes to your spec file. If no target is provided,
+      it changes the spec file and you will need to undo these changes before
+      running the tool again or committing other changes in it to git, etc.
 
 
 ``fedpkg`` Output
@@ -83,6 +84,11 @@ in Koji, it would have a sequential release number and a full changelog.
 This is because ``fedpkg build`` uses the placeholder RPM macros from
 ``rpmautospec-rpm-macros`` to keep tools such as ``rpmbuild`` or ``fedpkg
 local`` working.
+
+This may cause an issue as fedpkg will check if a build with release number 1 already exists.
+To avoid this, you can run ``fedpkg build --skip-nvr-check``. However,
+changes have been submitted upstream which make this step unecessary, but at the
+time of writing (24/06/20) are not available as a Fedora package.
 
 If you want to see how the correct release and changelog would look like, you
 can call the ``rpmautospec`` CLI tool. Run ``rpmautospec --help`` for more

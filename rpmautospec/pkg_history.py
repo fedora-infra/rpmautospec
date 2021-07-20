@@ -236,7 +236,7 @@ class PkgHistoryProcessor:
         """Visit a commit to generate changelog entries for it and its parents.
 
         It first determines if parent chain(s) must be followed, i.e. if the
-        changelog file was modified in this commit or all its children and yields that to the
+        changelog file was modified in this commit and yields that to the
         caller, who later sends the partial results for this commit (to be
         modified) and full results of parents back (as dictionaries), which
         get processed and the results for this commit yielded again.

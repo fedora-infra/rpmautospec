@@ -382,7 +382,7 @@ class PkgHistoryProcessor:
         ##########################################################################################
         # To process, first walk the tree from the head commit downward, following all branches.
         # Check visitors whether they need parent results to do their work, i.e. the history needs
-        # to be followed further.
+        # to be processed further, or just traversed.
         ##########################################################################################
 
         # While new branch heads are encountered...
@@ -390,6 +390,8 @@ class PkgHistoryProcessor:
             commit = branch_heads.pop(0)
             branch = []
             branches.append(branch)
+
+            keep_processing = True
 
             while True:
                 if commit in commit_coroutines:
@@ -422,22 +424,28 @@ class PkgHistoryProcessor:
                         for vindex, v in enumerate(visitors)
                     ]
 
+                    keep_processing = keep_processing and any(children_visitors_must_continue)
+
                 branch.append(commit)
 
-                # Create visitor coroutines for the commit from the functions passed into this
-                # method. Pass the ordered list of "is there a child whose coroutine of the same
-                # visitor wants to continue" into it.
-                commit_coroutines[commit] = coroutines = [
-                    v(commit, children_visitors_must_continue[vi]) for vi, v in enumerate(visitors)
-                ]
+                if keep_processing:
+                    # Create visitor coroutines for the commit from the functions passed into this
+                    # method. Pass the ordered list of "is there a child whose coroutine of the same
+                    # visitor wants to continue" into it.
+                    commit_coroutines[commit] = coroutines = [
+                        v(commit, children_visitors_must_continue[vi])
+                        for vi, v in enumerate(visitors)
+                    ]
 
-                # Consult all visitors for the commit on whether we should continue and store the
-                # results.
-                commit_coroutines_must_continue[commit] = coroutines_must_continue = [
-                    next(c) for c in coroutines
-                ]
+                    # Consult all visitors for the commit on whether we should continue and store
+                    # the results.
+                    commit_coroutines_must_continue[commit] = [next(c) for c in coroutines]
+                else:
+                    # Only traverse this commit.
+                    commit_coroutines[commit] = coroutines = None
+                    commit_coroutines_must_continue[commit] = [False for v in visitors]
 
-                if not any(coroutines_must_continue) or not commit.parents:
+                if not commit.parents:
                     break
 
                 if len(commit.parents) > 1:
@@ -464,8 +472,12 @@ class PkgHistoryProcessor:
                 # Take one commit from the tail end of the branch and process.
                 commit = branch.pop()
 
+                if commit_coroutines[commit] is None:
+                    # Only traverse, don't process commit.
+                    continue
+
                 if not all(
-                    p in visited_results or p not in commit_coroutines for p in commit.parents
+                    p in visited_results or commit_coroutines[p] is None for p in commit.parents
                 ):
                     # put the unprocessed commit back
                     branch.append(commit)

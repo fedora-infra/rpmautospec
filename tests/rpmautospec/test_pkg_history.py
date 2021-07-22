@@ -1,10 +1,8 @@
 import os
 import re
 import stat
-from pathlib import Path
 from shutil import rmtree
 from unittest.mock import patch
-from tempfile import TemporaryDirectory
 
 import pygit2
 import pytest
@@ -27,21 +25,25 @@ Boo
 
 
 @pytest.fixture
-def specfile():
-    with TemporaryDirectory() as tmpdir:
-        tmpdir = Path(tmpdir)
-        repodir = tmpdir / "test"
-        repodir.mkdir()
-        specfile = repodir / "test.spec"
-        specfile.write_text(SPEC_FILE_TEXT)
+def repodir(tmp_path):
+    repodir = tmp_path / "test"
+    repodir.mkdir()
 
-        yield specfile
+    yield repodir
 
 
 @pytest.fixture
-def repo(specfile):
+def specfile(repodir):
+    specfile = repodir / "test.spec"
+    specfile.write_text(SPEC_FILE_TEXT)
+
+    yield specfile
+
+
+@pytest.fixture
+def repo(repodir, specfile):
     # pygit2 < 1.2.0 can't cope with pathlib.Path objects
-    repopath = str(specfile.parent)
+    repopath = str(repodir)
 
     pygit2.init_repository(repopath, initial_head="rawhide")
     if hasattr(pygit2, "GIT_REPOSITORY_OPEN_NO_SEARCH"):

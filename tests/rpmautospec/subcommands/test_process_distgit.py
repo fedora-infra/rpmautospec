@@ -104,6 +104,7 @@ class TestProcessDistgit:
             )
 
     @pytest.mark.parametrize("overwrite_specfile", (False, True))
+    @pytest.mark.parametrize("branch", ("rawhide", "epel8"))
     @pytest.mark.parametrize("dirty_worktree", (False, True))
     @pytest.mark.parametrize("autorelease_case", ("unchanged", "with braces", "optional"))
     @pytest.mark.parametrize(
@@ -120,10 +121,23 @@ class TestProcessDistgit:
         ),
     )
     def test_process_distgit(
-        self, overwrite_specfile, dirty_worktree, autorelease_case, autochangelog_case
+        self,
+        tmp_path,
+        overwrite_specfile,
+        branch,
+        dirty_worktree,
+        autorelease_case,
+        autochangelog_case,
     ):
         """Test the process_distgit() function"""
-        with tempfile.TemporaryDirectory() as workdir:
+        if branch != "rawhide" and (
+            autorelease_case != "unchanged" or autochangelog_case != "unchanged"
+        ):
+            # Fuzzing makes the tests fail when applied to a merge commit
+            pytest.xfail("invalid parameter combination")
+
+        workdir = str(tmp_path)
+        if True:
             with tarfile.open(
                 os.path.join(
                     __here__,
@@ -141,6 +155,11 @@ class TestProcessDistgit:
                 unpacked_repo_dir,
                 "dummy-test-package-gloster.spec",
             )
+
+            cwd = os.getcwd()
+            os.chdir(unpacked_repo_dir)
+            run(["git", "checkout", branch])
+            os.chdir(cwd)
 
             if autorelease_case != "unchanged" or autochangelog_case != "unchanged":
                 self.fuzz_spec_file(
@@ -211,9 +230,12 @@ class TestProcessDistgit:
                 if dirty_worktree and (
                     autorelease_case != "unchanged" or autochangelog_case != "unchanged"
                 ):
-                    assert test_relnum == expected_relnum + 1
-                else:
-                    assert test_relnum == expected_relnum
+                    expected_relnum += 1
+
+                if branch == "epel8":
+                    expected_relnum += 1
+
+                assert test_relnum == expected_relnum
 
                 assert test_rest == expected_rest
 
@@ -229,7 +251,7 @@ class TestProcessDistgit:
                     )
                     # verify entry for uncommitted changes
                     assert all(line.startswith("+ ") for line in diff[:3])
-                    assert diff[0].endswith(f"-{expected_relnum + 1}")
+                    assert diff[0].endswith(f"-{expected_relnum}")
                     assert diff[1] == "+ - Uncommitted changes"
                     assert diff[2] == "+ "
 

@@ -299,6 +299,8 @@ class PkgHistoryProcessor:
 
         changelog_header = f"* {changelog_date} {changelog_author} {changelog_evr}"
 
+        skip_for_changelog = False
+
         if not specfile_present:
             # no spec file => start fresh
             commit_result["changelog"] = ()
@@ -324,22 +326,24 @@ class PkgHistoryProcessor:
             else:
                 previous_changelog = ()
                 for candidate in parent_results:
-                    if candidate["commit-id"] == parent_to_follow:
+                    if candidate["commit-id"] == parent_to_follow.id:
                         previous_changelog = candidate.get("changelog", ())
+                        skip_for_changelog = True
                         break
 
-            # Check if this commit should be considered for the RPM changelog.
-            if parent_to_follow:
-                diff = parent_to_follow.tree.diff_to_tree(commit.tree)
-            else:
-                diff = commit.tree.diff_to_tree(swap=True)
-            changed_files = self._files_changed_in_diff(diff)
-            # Skip if no files changed (i.e. commit solely for changelog/build) or if any files are
-            # not to be ignored.
-            skip_for_changelog = changed_files and all(
-                any(fnmatchcase(f, pat) for pat in self.changelog_ignore_patterns)
-                for f in changed_files
-            )
+            if not skip_for_changelog:
+                # Check if this commit should be considered for the RPM changelog.
+                if parent_to_follow:
+                    diff = parent_to_follow.tree.diff_to_tree(commit.tree)
+                else:
+                    diff = commit.tree.diff_to_tree(swap=True)
+                changed_files = self._files_changed_in_diff(diff)
+                # Skip if no files changed (i.e. commit solely for changelog/build) or if any files
+                # are not to be ignored.
+                skip_for_changelog = changed_files and all(
+                    any(fnmatchcase(f, pat) for pat in self.changelog_ignore_patterns)
+                    for f in changed_files
+                )
 
             if not skip_for_changelog:
                 commit_subject = commit.message.split("\n")[0].strip()

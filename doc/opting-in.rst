@@ -55,7 +55,8 @@ the content of the ``%changelog`` section of your spec file and simply have it b
     %autochangelog
 
 Once these two changes are done, commit them in a *single commit* for both
-files.
+files. If the same commit contains other changes that would require
+a changelog entry, add it to the top of the ``changelog`` file.
 
 From now on, the changelog will be automatically generated from the commit
 history of your git repository up until the most recent commit found that

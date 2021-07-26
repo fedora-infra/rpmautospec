@@ -363,7 +363,7 @@ class PkgHistoryProcessor:
                 )
 
             if not skip_for_changelog:
-                commit_subject = commit.message.split("\n")[0].strip()
+                commit_subject = commit.message.split("\n", 1)[0].strip()
                 if commit_subject.startswith("-"):
                     commit_subject = commit_subject[1:].lstrip()
                 if not commit_subject:
@@ -424,7 +424,7 @@ class PkgHistoryProcessor:
                     break
 
                 if log.isEnabledFor(logging.DEBUG):
-                    log.debug("commit %s: %s", commit.short_id, commit.message.split("\n")[0])
+                    log.debug("commit %s: %s", commit.short_id, commit.message.split("\n", 1)[0])
 
                 if commit == head:
                     children_visitors_must_continue = [True for v in visitors]
@@ -523,7 +523,7 @@ class PkgHistoryProcessor:
                 commit = branch.pop()
 
                 if log.isEnabledFor(logging.DEBUG):
-                    log.debug("commit %s: %s", commit.short_id, commit.message.split("\n")[0])
+                    log.debug("commit %s: %s", commit.short_id, commit.message.split("\n", 1)[0])
 
                 if commit_coroutines[commit] is None:
                     # Only traverse, don't process commit.

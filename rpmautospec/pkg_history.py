@@ -283,11 +283,19 @@ class PkgHistoryProcessor:
                 # care. If it didn't change, we don't know how to continue and need to flag that.
                 merge_unresolvable = not changelog_changed
 
-        commit_result, parent_results = yield (
+        child_must_continue = (
             not (changelog_changed or merge_unresolvable)
             and specfile_present
             and children_must_continue
         )
+
+        log.debug("\tchangelog changed: %s", changelog_changed)
+        log.debug("\tmerge unresolvable: %s", merge_unresolvable)
+        log.debug("\tspec file present: %s", specfile_present)
+        log.debug("\tchildren must continue: %s", children_must_continue)
+        log.debug("\tchild must continue: %s", child_must_continue)
+
+        commit_result, parent_results = yield child_must_continue
 
         changelog_entry = {
             "commit-id": commit.id,
@@ -303,17 +311,21 @@ class PkgHistoryProcessor:
 
         if not specfile_present:
             # no spec file => start fresh
+            log.debug("\tno spec file present")
             commit_result["changelog"] = ()
         elif merge_unresolvable:
+            log.debug("\tunresolvable merge")
             changelog_entry["data"] = f"{changelog_header}\n- RPMAUTOSPEC: unresolvable merge"
             changelog_entry["error"] = "unresolvable merge"
             previous_changelog = ()
             commit_result["changelog"] = (changelog_entry,)
         elif changelog_changed:
+            log.debug("\tchangelog file changed")
             if changelog_blob:
                 changelog_entry["data"] = changelog_blob.data.decode("utf-8", errors="replace")
             else:
                 # Changelog removed. Oops.
+                log.debug("\tchangelog file removed")
                 changelog_entry[
                     "data"
                 ] = f"{changelog_header}\n- RPMAUTOSPEC: changelog file removed"
@@ -322,8 +334,13 @@ class PkgHistoryProcessor:
         else:
             # Pull previous changelog entries from parent result (if any).
             if len(commit.parents) == 1:
+                log.debug("\tone parent: %s", commit.parents[0].short_id)
                 previous_changelog = parent_results[0].get("changelog", ())
             else:
+                if parent_to_follow:
+                    log.debug("\tmultiple parents, follow: %s", parent_to_follow.short_id)
+                else:
+                    log.debug("\tno parent to follow")
                 previous_changelog = ()
                 for candidate in parent_results:
                     if candidate["commit-id"] == parent_to_follow.id:
@@ -389,6 +406,10 @@ class PkgHistoryProcessor:
         # to be processed further, or just traversed.
         ##########################################################################################
 
+        log.debug("===========================================================")
+        log.debug("Extracting linear history snippets from branched history...")
+        log.debug("===========================================================")
+
         # While new branch heads are encountered...
         while branch_heads:
             commit = branch_heads.pop(0)
@@ -399,9 +420,11 @@ class PkgHistoryProcessor:
 
             while True:
                 if commit in commit_coroutines:
+                    log.debug("%s: coroutines exist, skipping", commit.short_id)
                     break
 
-                log.debug("%s: %s", commit.short_id, commit.message.split("\n")[0])
+                if log.isEnabledFor(logging.DEBUG):
+                    log.debug("commit %s: %s", commit.short_id, commit.message.split("\n")[0])
 
                 if commit == head:
                     children_visitors_must_continue = [True for v in visitors]
@@ -414,6 +437,18 @@ class PkgHistoryProcessor:
                         if not branch:
                             # don't keep empty branches on the stack
                             branches.pop()
+                        if log.isEnabledFor(logging.DEBUG):
+                            log.debug(
+                                "\tunencountered children, putting remainder of snippet aside"
+                            )
+                            log.debug(
+                                "\tmissing children: %s",
+                                [
+                                    child.short_id
+                                    for child in this_children
+                                    if child not in commit_coroutines
+                                ],
+                            )
                         break
 
                     # For all visitor coroutines, determine if any of the children must continue.
@@ -450,6 +485,7 @@ class PkgHistoryProcessor:
                     commit_coroutines_must_continue[commit] = [False for v in visitors]
 
                 if not commit.parents:
+                    log.debug("\tno parents, bailing out")
                     break
 
                 if len(commit.parents) > 1:
@@ -457,9 +493,13 @@ class PkgHistoryProcessor:
                     branch_parents = commit.parents[1:]
                     new_branches = [p for p in branch_parents if p not in commit_coroutines]
                     branch_heads.extend(new_branches)
+                    if log.isEnabledFor(logging.DEBUG):
+                        log.debug("\tnew branch heads %s", [x.short_id for x in new_branches])
+                        log.debug("\tbranch heads: %s", [x.short_id for x in branch_heads])
 
                 # follow (first) parent
                 commit = commit.parents[0]
+                log.debug("\tparent to follow: %s", commit.short_id)
 
         ###########################################################################################
         # Now, `branches` contains disjunct lists of commits in new -> old order. Process these in
@@ -468,21 +508,40 @@ class PkgHistoryProcessor:
         # run out of branches with commits.
         ###########################################################################################
 
+        log.debug("=====================================")
+        log.debug("Processing linear history snippets...")
+        log.debug("=====================================")
+
         visited_results = {}
 
         while branches:
             branch = branches.pop(0)
+            if branch:
+                log.debug("Processing snippet %s", branch[0].short_id)
             while branch:
                 # Take one commit from the tail end of the branch and process.
                 commit = branch.pop()
 
+                if log.isEnabledFor(logging.DEBUG):
+                    log.debug("commit %s: %s", commit.short_id, commit.message.split("\n")[0])
+
                 if commit_coroutines[commit] is None:
                     # Only traverse, don't process commit.
+                    log.debug("\tonly traverse")
                     continue
 
+                for p in commit.parents:
+                    if log.isEnabledFor(logging.DEBUG):
+                        log.debug(
+                            "\t%s: p in visited results: %s", p.short_id, p in visited_results
+                        )
+                        log.debug(
+                            "\tcommit_coroutines[p] is None: %s", commit_coroutines[p] is None
+                        )
                 if not all(
                     p in visited_results or commit_coroutines[p] is None for p in commit.parents
                 ):
+                    log.debug("\tputting back")
                     # put the unprocessed commit back
                     branch.append(commit)
                     # put the unprocessed remainder back

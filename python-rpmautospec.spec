@@ -11,7 +11,7 @@
 %endif
 
 Name:           python-rpmautospec
-Version:        0.2.3
+Version:        0.2.4
 Release:        1%{?dist}
 Summary:        Package and CLI tool to generate release fields and changelogs
 
@@ -141,6 +141,9 @@ install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 %endif
 
 %changelog
+* Thu Aug 05 2021 Nils Philippsen <nils@redhat.com> - 0.2.4-1
+- Update to 0.2.4
+
 * Wed Jun 16 2021 Nils Philippsen <nils@redhat.com> - 0.2.3-1
 - Update to 0.2.3
 

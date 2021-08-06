@@ -15,9 +15,9 @@ Dependencies:
 General
 -------
 
-The script ``rpmautospec.py`` allows testing the various algorithms for automatic release and
-changelog generation. It accepts normal CLI options, run ``python rpmautospec.py --help`` for more
-information.
+The script ``run-rpmautospec.py`` allows testing the various algorithms for automatic release and
+changelog generation. It accepts normal CLI options, run ``python run-rpmautospec.py --help`` for
+more information.
 
 Generating a Changelog
 ----------------------
@@ -34,7 +34,7 @@ This is how you can use it:
 
 ::
 
-  python rpmautospec.py generate-changelog guake
+  python run-rpmautospec.py generate-changelog guake
 
 
 Calculating the Next Value for the Release Field
@@ -44,13 +44,13 @@ Calculate the value for the RPM release field by running the script this way:
 
 ::
 
-  python rpmautospec.py calculate-release <pkgname>
+  python run-rpmautospec.py calculate-release <pkgname>
 
 E.g.:
 
 ::
 
-  python rpmautospec.py calculate-release bash
+  python run-rpmautospec.py calculate-release bash
 
 
 ---

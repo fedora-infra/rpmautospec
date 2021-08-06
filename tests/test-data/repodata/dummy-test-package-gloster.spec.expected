@@ -1,4 +1,5 @@
 ## START: Set by rpmautospec
+## (rpmautospec version 0.2.5)
 %define autorelease(e:s:pb:) %{?-p:0.}%{lua:
     release_number = 11;
     base_release_number = tonumber(rpm.expand("%{?-b*}%{!?-b:1}"));

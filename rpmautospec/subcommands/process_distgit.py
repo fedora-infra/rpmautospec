@@ -7,12 +7,14 @@ from typing import Union
 
 from ..misc import check_specfile_features
 from ..pkg_history import PkgHistoryProcessor
+from ..version import __version__
 
 
 log = logging.getLogger(__name__)
 __here__ = os.path.dirname(__file__)
 
 autorelease_template = """## START: Set by rpmautospec
+## (rpmautospec version {version})
 %define autorelease(e:s:pb:) %{{?-p:0.}}%{{lua:
     release_number = {autorelease_number:d};
     base_release_number = tonumber(rpm.expand("%{{?-b*}}%{{!?-b:1}}"));
@@ -88,7 +90,9 @@ def process_distgit(
         if features.has_autorelease:
             # Write %autorelease macro header
             print(
-                autorelease_template.format(autorelease_number=autorelease_number),
+                autorelease_template.format(
+                    autorelease_number=autorelease_number, version=__version__
+                ),
                 file=tmp_specfile,
             )
 

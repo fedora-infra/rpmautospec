@@ -37,49 +37,20 @@ This is how you can use it:
   python rpmautospec.py generate-changelog guake
 
 
-Note: You can also generate a good basic changelog using::
-
-  git log --after=2018-01-28 --pretty=oneline \
-    --format='%w(1000)**%h**%n* %cd %an <%ae>%n%w(60,0,2)- %s%n' \
-    --date="format:%a %b %d %Y"
-
-
 Calculating the Next Value for the Release Field
 ------------------------------------------------
 
-Calculate the next value for the RPM release field (i.e. to be used for the next build) by running
-the script this way:
+Calculate the value for the RPM release field by running the script this way:
 
 ::
 
-  python rpmautospec.py calculate-release [--algorithm ...] <pkgname> <disttag> [<evr>]
+  python rpmautospec.py calculate-release <pkgname>
 
 E.g.:
 
 ::
 
-  python rpmautospec.py calculate-release bash fc31
-
-::
-
-  python rpmautospec.py --algorithm holistic_heuristic gimp fc30
-
-
-Tagging Dist-Git Repositories with Build NEVRs
-----------------------------------------------
-
-To tag a dist-git repository with <name>-[<epoch>:]<version>-<release> for existing builds, run the
-script like this:
-
-::
-
-  python rpmautospec.py tag-project <path-to-project-repository>
-
-E.g.:
-
-::
-
-  python rpmautospec.py tag-project /home/fedora-packages/python-arrow
+  python rpmautospec.py calculate-release bash
 
 
 ---

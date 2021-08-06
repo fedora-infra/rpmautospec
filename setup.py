@@ -1,18 +1,22 @@
-import os.path
+from pathlib import Path
 
 from setuptools import setup
 
 
-HERE = os.path.dirname(__file__)
-with open(os.path.join(HERE, "requirements.txt"), "r") as f:
+HERE = Path(__file__).parent
+with (HERE / "requirements.txt").open("r") as f:
     INSTALL_REQUIRES = [x.strip() for x in f.readlines()]
-with open(os.path.join(HERE, "test_requirements.txt"), "r") as f:
+with (HERE / "test_requirements.txt").open("r") as f:
     TESTS_REQUIRE = [x.strip() for x in f.readlines()]
+with (HERE / "rpmautospec" / "version.py").open("r") as f:
+    version = {}
+    exec(f.read(), version)
+    VERSION = version["__version__"]
 
 
 setup(
     name="rpmautospec",
-    version="0.2.4",
+    version=VERSION,
     description="Package and CLI tool for generating RPM releases and changelogs",
     # Possible options are at https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[

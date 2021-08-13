@@ -6,6 +6,7 @@ import typing
 from .subcommands import changelog, process_distgit, release
 
 
+all_subcmds = (changelog, process_distgit, release)
 subcmd_modules_by_name = {}
 
 
@@ -75,12 +76,10 @@ def get_cli_args(args: typing.List[str]) -> argparse.Namespace:
     # parsers for sub-commands
 
     # ArgumentParser.add_subparsers() only accepts the `required` argument from Python 3.7 on.
-    subparsers = parser.add_subparsers(
-        dest="subcommand", metavar="{generate-changelog,calculate-release}"
-    )
+    subparsers = parser.add_subparsers(dest="subcommand")
     subparsers.required = True
 
-    for subcmd_module in (changelog, release, process_distgit):
+    for subcmd_module in all_subcmds:
         subcmd_name = subcmd_module.register_subcommand(subparsers)
 
         if subcmd_name in subcmd_modules_by_name:

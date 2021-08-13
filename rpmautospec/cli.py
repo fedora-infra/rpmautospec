@@ -3,10 +3,10 @@ import logging
 import sys
 import typing
 
-from .subcommands import changelog, process_distgit, release
+from .subcommands import changelog, convert, process_distgit, release
 
 
-all_subcmds = (changelog, process_distgit, release)
+all_subcmds = (changelog, convert, process_distgit, release)
 subcmd_modules_by_name = {}
 
 

@@ -65,8 +65,7 @@ class PkgHistoryProcessor:
             else:
                 # pygit2 < 1.4.0
                 kwargs = {}
-            # pygit2 < 1.2.0 can't cope with pathlib.Path objects
-            self.repo = pygit2.Repository(str(self.path), **kwargs)
+            self.repo = pygit2.Repository(self.path, **kwargs)
         except pygit2.GitError:
             self.repo = None
 

@@ -8,16 +8,13 @@ release field consists. They are as follows:
 
 ::
 
-    <pkgrel>[.<extraver>][.<snapinfo>]%{?dist}[.<minorbump>]
+    <pkgrel>%{?dist}[.<minorbump>]
 
-Each element in square brackets indicates an optional item.
+Square brackets indicate an optional item.
 
 The ``%autorelease`` macro accepts these parameters to allow packagers to specify
 the different portions of the release field:
 
-* ``-p``: Designates a pre-release, i.e. ``pkgrel`` will be prefixed with ``0.``.
-* ``-e <extraver>``: Allows specifying the ``extraver`` portion of the release.
-* ``-s <snapinfo>``: Allows specifying the ``snapinfo`` portion of the release.
 * ``-b <baserelease>``: Allows specifying a custom base release number (i.e. other than 1).
 
 
@@ -61,6 +58,34 @@ Will generate the following NEVR:
 
     test-autorelease-baserelease-1.0-100.fc34.x86_64
 
+
+.. _traditional_versioning:
+
+Traditional versioning with part of the upstream version information in the release field
+=========================================================================================
+
+Additional parameters are available to support an older form of package versioning.
+This form is recommended for packages with complex versioning requirements
+when support for RHEL7 and other systems with old rpm versions is required.
+See `Traditional Versioning`_ in the Packaging Guidelines for details.
+
+The release field is extended::
+
+    <pkgrel>[.<extraver>][.<snapinfo>]%{?dist}[.<minorbump>]
+
+Square brackets indicate an optional item.
+
+The ``%autorelease`` macro accepts these parameters to allow packagers to specify
+those added fields:
+
+* ``-p``: Designates a pre-release, i.e. ``pkgrel`` will be prefixed with ``0.``.
+* ``-e <extraver>``: Allows specifying the ``extraver`` portion of the release.
+* ``-s <snapinfo>``: Allows specifying the ``snapinfo`` portion of the release.
+
+In the modern versioning, those fields are embedded in the package `Version` instead.
+
+Examples
+--------
 
 .. _prerelease example:
 
@@ -122,4 +147,5 @@ Will generate the following NEVR:
     test-autorelease-extraver-snapshot-1.0-1.pre1.20200317git1234abcd.fc34.x86_64
 
 
-.. _Versioning Guidelines: https://docs.fedoraproject.org/en-US/packaging-guidelines/Versioning/#_more_complex_versioning
+.. _Versioning Guidelines: https://docs.fedoraproject.org/en-US/packaging-guidelines/Versioning/#_simple_versioning
+.. _Traditional Versioning: https://docs.fedoraproject.org/en-US/packaging-guidelines/Versioning/#_traditional_versioning_with_part_of_the_upstream_version_information_in_the_release_field

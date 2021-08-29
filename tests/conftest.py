@@ -5,15 +5,32 @@ import pytest
 SPEC_FILE_TEXT = """Summary: Boo
 Name: boo
 Version: 1.0
-Release: %autorelease
+{release}
 License: CC0
 
 %description
 Boo
 
-%changelog
-%autochangelog
+{changelog}
 """
+
+
+@pytest.fixture
+def changelog(request):
+    """
+    This fixture exists to be substituted into the *specfile* fixture
+    indirectly, or else provide a default of %autochangelog.
+    """
+    return getattr(request, "param", "%changelog\n%autochangelog")
+
+
+@pytest.fixture
+def release(request):
+    """
+    This fixture exists to be substituted into the *specfile* fixture
+    indirectly, or else provide a default of %autorelease.
+    """
+    return getattr(request, "param", "Release: %autorelease")
 
 
 @pytest.fixture
@@ -25,9 +42,17 @@ def repopath(tmp_path):
 
 
 @pytest.fixture
-def specfile(repopath):
+def specfile(repopath, release, changelog):
+    """
+    Generate a spec file within *repopath*.
+
+    The Release tag will be replaced by the *release* fixture, if defined, or
+    else will be filled by %autorelease. The changelog will be replaced by the
+    *changelog* fixture, if defined, or else will be filled by %autochangelog.
+    """
+
     specfile = repopath / "test.spec"
-    specfile.write_text(SPEC_FILE_TEXT)
+    specfile.write_text(SPEC_FILE_TEXT.format(release=release, changelog=changelog))
 
     yield specfile
 

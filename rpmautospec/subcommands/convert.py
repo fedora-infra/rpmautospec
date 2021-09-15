@@ -85,7 +85,7 @@ class PkgConverter:
             f.writelines(self.spec_lines)
         if self.changelog_lines is not None:
             with (self.path / "changelog").open("w", encoding="utf-8") as f:
-                f.writelines(self.changelog_lines)
+                f.write("\n".join(self.changelog_lines) + "\n")
 
     def convert_to_autorelease(self):
         release_re = re.compile(r"^(?P<tag>Release\s*:\s*)", re.IGNORECASE)
@@ -128,7 +128,10 @@ class PkgConverter:
         if autochangelog_re.match(self.spec_lines[lineno]):
             log.warning(f"{str(self.specfile)!r} is already using %autochangelog")
             return
-        self.changelog_lines = self.spec_lines[lineno:]
+        self.changelog_lines = [line.rstrip() for line in self.spec_lines[lineno:]]
+        while self.changelog_lines and not self.changelog_lines[-1]:
+            self.changelog_lines.pop()
+
         self.spec_lines[lineno:] = ["%autochangelog\n"]
         log.debug("Split %d lines to 'changelog' file", len(self.changelog_lines))
 

@@ -184,11 +184,13 @@ def test_autorelease_invalid(specfile, expected):
     "changelog",
     [
         "%changelog\n- log line",
-        "%ChAnGeLoG\n- log line",
+        "%ChAnGeLoG\n- log line      ",  # trailing whitespace here
+        "%changelog\n- log line\n\n\n",  # trailing newlines here
     ],
     ids=[
         "regular",
-        "case",
+        "case+whitespace",
+        "regular+newlines",
     ],
     indirect=True,
 )

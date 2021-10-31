@@ -1,7 +1,7 @@
 The Principle of automatic releases and changelog in `rpmautospec`
 ==================================================================
 
-The goal of `rpmautospec` it to relieve packagers from the burden of manually
+The goal of `rpmautospec` is to relieve packagers from the burden of manually
 updating the ``Release`` field and ``%changelog`` section in RPM spec files.
 
 The way it works in Koji is that just after the git repository has been

@@ -2,6 +2,7 @@ Installing `rpmautospec`
 ========================
 
 `rpmautospec` consists of these components:
+
 - a Python library (which includes a small CLI tool)
 - a plugin for Koji builders
 

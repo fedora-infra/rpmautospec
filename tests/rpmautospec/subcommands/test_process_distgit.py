@@ -14,6 +14,32 @@ from rpmautospec.subcommands import process_distgit
 __here__ = os.path.dirname(__file__)
 
 
+def _generate_branch_autorelease_autochangelog_case_combinations():
+    """Pre-generate valid combinations to avoid cluttering pytest output.
+
+    Only run fuzzing tests on the Rawhide branch because merge
+    commits (which it doesn't have) make them fail."""
+    valid_combinations = [
+        (branch, autorelease_case, autochangelog_case)
+        for branch in ("rawhide", "epel8")
+        for autorelease_case in ("unchanged", "with braces", "optional")
+        for autochangelog_case in (
+            "unchanged",
+            "changelog case insensitive",
+            "changelog trailing garbage",
+            "line in between",
+            "trailing line",
+            "with braces",
+            "missing",
+            "optional",
+        )
+        if branch == "rawhide"
+        or autorelease_case == "unchanged"
+        and autochangelog_case == "unchanged"
+    ]
+    return valid_combinations
+
+
 class TestProcessDistgit:
     """Test the rpmautospec.subcommands.process_distgit module"""
 
@@ -104,21 +130,10 @@ class TestProcessDistgit:
             )
 
     @pytest.mark.parametrize("overwrite_specfile", (False, True))
-    @pytest.mark.parametrize("branch", ("rawhide", "epel8"))
     @pytest.mark.parametrize("dirty_worktree", (False, True))
-    @pytest.mark.parametrize("autorelease_case", ("unchanged", "with braces", "optional"))
     @pytest.mark.parametrize(
-        "autochangelog_case",
-        (
-            "unchanged",
-            "changelog case insensitive",
-            "changelog trailing garbage",
-            "line in between",
-            "trailing line",
-            "with braces",
-            "missing",
-            "optional",
-        ),
+        "branch, autorelease_case, autochangelog_case",
+        _generate_branch_autorelease_autochangelog_case_combinations(),
     )
     def test_process_distgit(
         self,
@@ -130,12 +145,6 @@ class TestProcessDistgit:
         autochangelog_case,
     ):
         """Test the process_distgit() function"""
-        if branch != "rawhide" and (
-            autorelease_case != "unchanged" or autochangelog_case != "unchanged"
-        ):
-            # Fuzzing makes the tests fail when applied to a merge commit
-            pytest.xfail("invalid parameter combination")
-
         workdir = str(tmp_path)
         with tarfile.open(
             os.path.join(

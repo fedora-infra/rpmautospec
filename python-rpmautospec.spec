@@ -20,6 +20,9 @@ URL:            https://pagure.io/fedora-infra/rpmautospec
 Source0:        https://releases.pagure.org/fedora-infra/rpmautospec/rpmautospec-%{version}.tar.gz
 
 BuildArch:      noarch
+# the langpacks are needed for tests
+BuildRequires:  glibc-langpack-de
+BuildRequires:  glibc-langpack-en
 BuildRequires:  python3-devel >= 3.6.0
 BuildRequires:  python3-setuptools
 %if %{with epel_le_7}
@@ -30,6 +33,7 @@ BuildRequires:  python2-devel
 # python3-koji
 %if ! %{with epel_le_7}
 BuildRequires:  koji
+BuildRequires:  python%{python3_pkgversion}-babel
 BuildRequires:  python3-koji
 BuildRequires:  python3-pygit2
 BuildRequires:  python%{python3_pkgversion}-pytest
@@ -52,6 +56,7 @@ Summary:        %{summary}
 %{?python_provide:%python_provide python3-%{srcname}}
 
 Requires: koji
+Requires: python3-babel
 Requires: python3-koji
 Requires: python3-pygit2
 Requires: rpm
@@ -141,6 +146,9 @@ install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 %endif
 
 %changelog
+* Sun Nov 07 2021 Nils Philippsen <nils@redhat.com>
+- require python3-babel and glibc langpacks (the latter for testing)
+
 * Fri Aug 06 2021 Nils Philippsen <nils@redhat.com> - 0.2.5-1
 - Update to 0.2.5
 

@@ -12,6 +12,7 @@ from textwrap import TextWrapper
 from typing import Any, Dict, Optional, Sequence, Union
 
 import pygit2
+from babel.dates import format_datetime
 
 from .misc import AUTORELEASE_MACRO
 
@@ -302,7 +303,12 @@ class PkgHistoryProcessor:
         }
 
         changelog_author = f"{commit.author.name} <{commit.author.email}>"
-        changelog_date = dt.datetime.utcfromtimestamp(commit.commit_time).strftime("%a %b %d %Y")
+        changelog_date = format_datetime(
+            dt.datetime.utcfromtimestamp(commit.commit_time),
+            format="EEE MMM dd Y",
+            locale="en",
+        )
+
         changelog_evr = f"{commit_result['epoch-version']}-{commit_result['release-complete']}"
 
         changelog_header = f"* {changelog_date} {changelog_author} {changelog_evr}"
@@ -634,7 +640,9 @@ class PkgHistoryProcessor:
                         changelog_author = f"{signature.name} <{signature.email}>"
                     except KeyError:
                         changelog_author = "Unknown User <please-configure-git-user@example.com>"
-                    changelog_date = dt.datetime.utcnow().strftime("%a %b %d %Y")
+                    changelog_date = format_datetime(
+                        dt.datetime.utcnow(), format="EEE MMM dd Y", locale="en"
+                    )
                     changelog_evr = f"{epoch_version}-{release_complete}"
 
                     changelog_header = f"* {changelog_date} {changelog_author} {changelog_evr}"

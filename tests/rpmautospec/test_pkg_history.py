@@ -1,6 +1,9 @@
+import datetime as dt
+import locale
 import os
 import re
 import stat
+from calendar import LocaleTextCalendar
 from shutil import rmtree
 from unittest.mock import patch
 
@@ -14,6 +17,21 @@ from rpmautospec.pkg_history import PkgHistoryProcessor
 def processor(repo):
     processor = PkgHistoryProcessor(repo.workdir)
     return processor
+
+
+@pytest.fixture
+def setlocale():
+    """Allow temporary modification of locale settings."""
+    saved_locale_settings = {
+        category: locale.getlocale(getattr(locale, category))
+        for category in dir(locale)
+        if category.startswith("LC_") and category != "LC_ALL"
+    }
+
+    yield locale.setlocale
+
+    for category, locale_settings in saved_locale_settings.items():
+        locale.setlocale(getattr(locale, category), locale_settings)
 
 
 class TestPkgHistoryProcessor:
@@ -128,8 +146,13 @@ class TestPkgHistoryProcessor:
         else:
             assert processor._get_rpmverflags_for_commit(head_commit)["epoch-version"] == "1.0"
 
-    @pytest.mark.parametrize("testcase", ("without commit", "with commit", "all results"))
-    def test_run(self, testcase, repo, processor):
+    @pytest.mark.parametrize(
+        "testcase", ("without commit", "with commit", "all results", "locale set")
+    )
+    def test_run(self, testcase, repo, processor, setlocale):
+        if testcase == "locale set":
+            setlocale(locale.LC_ALL, "de_DE.UTF-8")
+
         all_results = "all results" in testcase
 
         head_commit = repo[repo.head.target]
@@ -165,5 +188,17 @@ class TestPkgHistoryProcessor:
             "- Did nothing!",
         ):
             assert snippet in top_entry["data"]
+
+        cal = LocaleTextCalendar(firstweekday=0, locale="C.UTF-8")
+        commit_time = dt.datetime.utcfromtimestamp(head_commit.commit_time)
+        weekdayname = cal.formatweekday(day=commit_time.weekday(), width=3)
+        monthname = cal.formatmonthname(
+            theyear=commit_time.year,
+            themonth=commit_time.month,
+            width=1,
+            withyear=False,
+        )[:3]
+        expected_date_blurb = f"* {weekdayname} {monthname} {commit_time.day:02} {commit_time.year}"
+        assert top_entry["data"].startswith(expected_date_blurb)
 
         assert all("error" not in entry for entry in changelog)

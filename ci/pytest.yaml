@@ -9,6 +9,9 @@
       become: yes
       package:
         name:
+          - glibc-langpack-de
+          - glibc-langpack-en
+          - python3-babel
           - python3-koji
           - python3-pygit2
           - python3-pytest

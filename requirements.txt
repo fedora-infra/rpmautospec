@@ -1,2 +1,3 @@
+babel>=2.9
 koji
 pygit2>=1.2.1

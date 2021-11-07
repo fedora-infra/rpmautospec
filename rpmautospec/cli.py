@@ -1,4 +1,5 @@
 import argparse
+import locale
 import logging
 import sys
 import typing
@@ -91,6 +92,8 @@ def get_cli_args(args: typing.List[str]) -> argparse.Namespace:
 
 
 def main():
+    locale.setlocale(locale.LC_ALL, "")
+
     args = get_cli_args(sys.argv[1:])
 
     setup_logging(log_level=args.log_level)

@@ -42,3 +42,16 @@ more parents, which e.g. happens if branches are merged with ``git merge
 branch is used, disregarding the contents of other branches. In this case,
 rpmautospec will follow the first parent it encounters which has the same tree
 as the merge commit and disregard the others.
+
+
+Rebuilding a package without changing it
+----------------------------------------
+
+In the past, rebuilding a package to pick up changed dependencies, or in the context of mass
+rebuilds was accomplished by bumping the release and adding a suitable changelog entry. With
+`rpmautospec`, you have to tell git that you really want to add a commit without any changes in
+content to accomplish the equivalent, e.g.::
+
+    git commit --allow-empty
+
+The resulting empty head commit can be pushed into the repository of the package and built normally.

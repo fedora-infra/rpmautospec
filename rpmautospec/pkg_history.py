@@ -71,6 +71,21 @@ class PkgHistoryProcessor:
         except pygit2.GitError:
             self.repo = None
 
+    @staticmethod
+    def _get_rpm_packager() -> str:
+        fallback = "John Doe <packager@example.com>"
+        try:
+            return (
+                subprocess.check_output(
+                    ("rpm", "--eval", f"%{{?packager}}%{{!?packager:{fallback}}}"),
+                    stderr=subprocess.DEVNULL,
+                )
+                .decode("UTF-8")
+                .strip()
+            )
+        except Exception:
+            return fallback
+
     @classmethod
     def _get_rpmverflags(cls, path: str, name: Optional[str] = None) -> Optional[str]:
         """Retrieve the epoch/version and %autorelease flags set in spec file.
@@ -578,17 +593,23 @@ class PkgHistoryProcessor:
         # whether or not the worktree differs and this needs to be reflected in the result(s)
         reflect_worktree = False
 
-        if not head:
-            head = self.repo[self.repo.head.target]
-            diff_to_head = self.repo.diff(head)
-            reflect_worktree = diff_to_head.stats.files_changed > 0
-        elif isinstance(head, str):
-            head = self.repo[head]
+        if self.repo:
+            if not head:
+                head = self.repo[self.repo.head.target]
+                diff_to_head = self.repo.diff(head)
+                reflect_worktree = diff_to_head.stats.files_changed > 0
+            elif isinstance(head, str):
+                head = self.repo[head]
 
-        visited_results = self._run_on_history(head, visitors=visitors)
-        head_result = visited_results[head]
+            visited_results = self._run_on_history(head, visitors=visitors)
+            head_result = visited_results[head]
+        else:
+            reflect_worktree = True
+            visited_results = {}
+            head_result = {}
 
         if reflect_worktree:
+            # Not a git repository, or the git worktree isn't clean.
             worktree_result = {}
 
             verflags = self._get_rpmverflags(self.path, name=self.name)
@@ -607,7 +628,7 @@ class PkgHistoryProcessor:
 
             # Mimic the bottom half of release_visitor
             worktree_result["epoch-version"] = epoch_version = verflags["epoch-version"]
-            if epoch_version == head_result["epoch-version"]:
+            if head_result and epoch_version == head_result["epoch-version"]:
                 release_number = head_result["release-number"] + 1
             else:
                 release_number = 1
@@ -628,16 +649,22 @@ class PkgHistoryProcessor:
                 changelog = ()
             else:
                 previous_changelog = head_result.get("changelog", ())
-                changed_files = self._files_changed_in_diff(diff_to_head)
-                skip_for_changelog = all(
-                    any(fnmatchcase(f, path) for path in self.changelog_ignore_patterns)
-                    for f in changed_files
-                )
+                if self.repo:
+                    changed_files = self._files_changed_in_diff(diff_to_head)
+                    skip_for_changelog = all(
+                        any(fnmatchcase(f, path) for path in self.changelog_ignore_patterns)
+                        for f in changed_files
+                    )
+                else:
+                    skip_for_changelog = False
 
                 if not skip_for_changelog:
                     try:
                         signature = self.repo.default_signature
                         changelog_author = f"{signature.name} <{signature.email}>"
+                    except AttributeError:
+                        # self.repo == None -> no git repo
+                        changelog_author = self._get_rpm_packager()
                     except KeyError:
                         changelog_author = "Unknown User <please-configure-git-user@example.com>"
                     changelog_date = format_datetime(

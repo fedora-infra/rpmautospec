@@ -147,7 +147,7 @@ class TestPkgHistoryProcessor:
             assert processor._get_rpmverflags_for_commit(head_commit)["epoch-version"] == "1.0"
 
     @pytest.mark.parametrize(
-        "testcase", ("without commit", "with commit", "all results", "locale set")
+        "testcase", ("without commit", "with commit", "all results", "locale set", "without repo")
     )
     def test_run(self, testcase, repo, processor, setlocale):
         if testcase == "locale set":
@@ -155,7 +155,12 @@ class TestPkgHistoryProcessor:
 
         all_results = "all results" in testcase
 
-        head_commit = repo[repo.head.target]
+        if testcase == "without repo":
+            rmtree(repo.path)
+            processor = PkgHistoryProcessor(repo.workdir)
+            head_commit = None
+        else:
+            head_commit = repo[repo.head.target]
 
         if testcase == "with commit":
             args = [head_commit]
@@ -176,29 +181,40 @@ class TestPkgHistoryProcessor:
         else:
             assert all(isinstance(key, str) for key in res)
 
-        assert res["commit-id"] == head_commit.id
-        assert res["release-number"] == 2
-
         changelog = res["changelog"]
         top_entry = changelog[0]
 
-        assert top_entry["commit-id"] == head_commit.id
-        for snippet in (
-            "Jane Doe <jane.doe@example.com>",
-            "- Did nothing!",
-        ):
-            assert snippet in top_entry["data"]
+        if testcase == "without repo":
+            assert res["release-number"] == 1
 
-        cal = LocaleTextCalendar(firstweekday=0, locale="C.UTF-8")
-        commit_time = dt.datetime.utcfromtimestamp(head_commit.commit_time)
-        weekdayname = cal.formatweekday(day=commit_time.weekday(), width=3)
-        monthname = cal.formatmonthname(
-            theyear=commit_time.year,
-            themonth=commit_time.month,
-            width=1,
-            withyear=False,
-        )[:3]
-        expected_date_blurb = f"* {weekdayname} {monthname} {commit_time.day:02} {commit_time.year}"
-        assert top_entry["data"].startswith(expected_date_blurb)
+            for snippet in (
+                processor._get_rpm_packager(),
+                "- Uncommitted changes",
+            ):
+                assert snippet in top_entry["data"]
+        else:
+            assert res["commit-id"] == head_commit.id
+            assert res["release-number"] == 2
+            assert top_entry["commit-id"] == head_commit.id
+
+            for snippet in (
+                "Jane Doe <jane.doe@example.com>",
+                "- Did nothing!",
+            ):
+                assert snippet in top_entry["data"]
+
+            cal = LocaleTextCalendar(firstweekday=0, locale="C.UTF-8")
+            commit_time = dt.datetime.utcfromtimestamp(head_commit.commit_time)
+            weekdayname = cal.formatweekday(day=commit_time.weekday(), width=3)
+            monthname = cal.formatmonthname(
+                theyear=commit_time.year,
+                themonth=commit_time.month,
+                width=1,
+                withyear=False,
+            )[:3]
+            expected_date_blurb = (
+                f"* {weekdayname} {monthname} {commit_time.day:02} {commit_time.year}"
+            )
+            assert top_entry["data"].startswith(expected_date_blurb)
 
         assert all("error" not in entry for entry in changelog)

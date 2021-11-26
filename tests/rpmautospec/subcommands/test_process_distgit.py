@@ -14,13 +14,13 @@ from rpmautospec.subcommands import process_distgit
 __here__ = os.path.dirname(__file__)
 
 
-def _generate_branch_autorelease_autochangelog_case_combinations():
+def _generate_branch_testcase_combinations():
     """Pre-generate valid combinations to avoid cluttering pytest output.
 
     Only run fuzzing tests on the Rawhide branch because merge
     commits (which it doesn't have) make them fail."""
     valid_combinations = [
-        (branch, autorelease_case, autochangelog_case)
+        (branch, autorelease_case, autochangelog_case, remove_changelog_file)
         for branch in ("rawhide", "epel8")
         for autorelease_case in ("unchanged", "with braces", "optional")
         for autochangelog_case in (
@@ -33,9 +33,11 @@ def _generate_branch_autorelease_autochangelog_case_combinations():
             "missing",
             "optional",
         )
+        for remove_changelog_file in (False, True)
         if branch == "rawhide"
         or autorelease_case == "unchanged"
         and autochangelog_case == "unchanged"
+        and not remove_changelog_file
     ]
     return valid_combinations
 
@@ -67,11 +69,14 @@ class TestProcessDistgit:
         return int(match.group("relnum")), match.group("rest")
 
     @staticmethod
-    def fuzz_spec_file(spec_file_path, autorelease_case, autochangelog_case, run_git_amend):
-        """Fuzz a spec file in ways which shouldn't change the outcome"""
+    def fuzz_spec_file(spec_file_path, autorelease_case, autochangelog_case, remove_changelog_file):
+        """Fuzz a spec file in ways which (often) shouldn't change the outcome"""
 
         with open(spec_file_path, "r") as orig, open(spec_file_path + ".new", "w") as new:
+            encountered_first_after_conversion = False
             for line in orig:
+                if remove_changelog_file and encountered_first_after_conversion:
+                    break
                 if line.startswith("Release:") and autorelease_case != "unchanged":
                     if autorelease_case == "with braces":
                         print("Release:        %{autorelease}", file=new)
@@ -102,38 +107,40 @@ class TestProcessDistgit:
                     else:
                         raise ValueError(f"Unknown autochangelog_case: {autochangelog_case}")
                 else:
+                    if line == "- Honour the tradition of antiquated encodings!\n":
+                        encountered_first_after_conversion = True
                     print(line, file=new, end="")
 
         os.rename(spec_file_path + ".new", spec_file_path)
 
-        if run_git_amend:
-            # Ensure worktree doesn't differ
-            workdir = os.path.dirname(spec_file_path)
-            commit_timestamp = check_output(
-                ["git", "log", "-1", "--pretty=format:%cI"],
-                cwd=workdir,
-                encoding="ascii",
-            ).strip()
-            env = os.environ.copy()
-            # Set name and email explicitly so CI doesn't trip over them being unset.
-            env.update(
-                {
-                    "GIT_COMMITTER_NAME": "Test User",
-                    "GIT_COMMITTER_EMAIL": "<test@example.com>",
-                    "GIT_COMMITTER_DATE": commit_timestamp,
-                }
-            )
-            run(
-                ["git", "commit", "--all", "--allow-empty", "--amend", "--no-edit"],
-                cwd=workdir,
-                env=env,
-            )
+    @staticmethod
+    def run_git_amend(worktree_dir):
+        # Ensure worktree doesn't differ
+        commit_timestamp = check_output(
+            ["git", "log", "-1", "--pretty=format:%cI"],
+            cwd=worktree_dir,
+            encoding="ascii",
+        ).strip()
+        env = os.environ.copy()
+        # Set name and email explicitly so CI doesn't trip over them being unset.
+        env.update(
+            {
+                "GIT_COMMITTER_NAME": "Test User",
+                "GIT_COMMITTER_EMAIL": "<test@example.com>",
+                "GIT_COMMITTER_DATE": commit_timestamp,
+            }
+        )
+        run(
+            ["git", "commit", "--all", "--allow-empty", "--amend", "--no-edit"],
+            cwd=worktree_dir,
+            env=env,
+        )
 
     @pytest.mark.parametrize("overwrite_specfile", (False, True))
     @pytest.mark.parametrize("dirty_worktree", (False, True))
     @pytest.mark.parametrize(
-        "branch, autorelease_case, autochangelog_case",
-        _generate_branch_autorelease_autochangelog_case_combinations(),
+        "branch, autorelease_case, autochangelog_case, remove_changelog_file",
+        _generate_branch_testcase_combinations(),
     )
     def test_process_distgit(
         self,
@@ -143,6 +150,7 @@ class TestProcessDistgit:
         dirty_worktree,
         autorelease_case,
         autochangelog_case,
+        remove_changelog_file,
     ):
         """Test the process_distgit() function"""
         workdir = str(tmp_path)
@@ -174,8 +182,18 @@ class TestProcessDistgit:
                 test_spec_file_path,
                 autorelease_case,
                 autochangelog_case,
-                run_git_amend=not dirty_worktree,
+                remove_changelog_file,
             )
+
+        if remove_changelog_file:
+            os.unlink(os.path.join(unpacked_repo_dir, "changelog"))
+
+        if (
+            autorelease_case != "unchanged"
+            or autochangelog_case != "unchanged"
+            or remove_changelog_file
+        ) and not dirty_worktree:
+            self.run_git_amend(unpacked_repo_dir)
 
         if overwrite_specfile:
             target_spec_file_path = None
@@ -203,7 +221,11 @@ class TestProcessDistgit:
 
         with tempfile.NamedTemporaryFile() as tmpspec:
             shutil.copy2(expected_spec_file_path, tmpspec.name)
-            if autorelease_case != "unchanged" or autochangelog_case != "unchanged":
+            if (
+                autorelease_case != "unchanged"
+                or autochangelog_case != "unchanged"
+                or remove_changelog_file
+            ):
                 if autochangelog_case not in (
                     "changelog case insensitive",
                     "changelog trailing garbage",
@@ -218,7 +240,7 @@ class TestProcessDistgit:
                     expected_spec_file_path,
                     autorelease_case,
                     fuzz_autochangelog_case,
-                    run_git_amend=False,
+                    remove_changelog_file,
                 )
 
             rpm_cmd = [
@@ -245,7 +267,9 @@ class TestProcessDistgit:
             expected_relnum, expected_rest = self.relnum_split(expected_output)
 
             if dirty_worktree and (
-                autorelease_case != "unchanged" or autochangelog_case != "unchanged"
+                autorelease_case != "unchanged"
+                or autochangelog_case != "unchanged"
+                or remove_changelog_file
             ):
                 expected_relnum += 1
 
@@ -261,7 +285,9 @@ class TestProcessDistgit:
             expected_output = check_output(expected_cmd + q_changelog, encoding="utf-8")
 
             if dirty_worktree and (
-                autorelease_case != "unchanged" or autochangelog_case != "unchanged"
+                autorelease_case != "unchanged"
+                or autochangelog_case != "unchanged"
+                or remove_changelog_file
             ):
                 diff = list(difflib.ndiff(expected_output.splitlines(), test_output.splitlines()))
                 # verify entry for uncommitted changes

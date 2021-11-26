@@ -268,6 +268,8 @@ class PkgHistoryProcessor:
         except KeyError:
             changelog_blob = None
 
+        child_changelog_removed = child_info.get("changelog_removed")
+        our_changelog_removed = False
         if commit.parents:
             changelog_changed = True
             for parent in commit.parents:
@@ -275,6 +277,8 @@ class PkgHistoryProcessor:
                     par_changelog_blob = parent.tree["changelog"]
                 except KeyError:
                     par_changelog_blob = None
+                else:
+                    our_changelog_removed = our_changelog_removed or not changelog_blob
                 if changelog_blob == par_changelog_blob:
                     changelog_changed = False
         else:
@@ -301,18 +305,24 @@ class PkgHistoryProcessor:
                 merge_unresolvable = not changelog_changed
 
         our_child_must_continue = (
-            not (changelog_changed or merge_unresolvable)
+            not (changelog_changed and changelog_blob or merge_unresolvable)
             and specfile_present
             and child_must_continue
         )
 
         log.debug("\tchangelog changed: %s", changelog_changed)
+        log.debug("\tchild changelog removed: %s", child_changelog_removed)
+        log.debug("\tour changelog removed: %s", our_changelog_removed)
         log.debug("\tmerge unresolvable: %s", merge_unresolvable)
         log.debug("\tspec file present: %s", specfile_present)
         log.debug("\tchild must continue (incoming): %s", child_must_continue)
         log.debug("\tchild must continue (outgoing): %s", our_child_must_continue)
 
-        commit_result, parent_results = yield {"child_must_continue": our_child_must_continue}
+        commit_result, parent_results = yield {
+            "child_must_continue": our_child_must_continue,
+            "changelog_removed": not (changelog_blob and changelog_changed)
+            and (child_changelog_removed or our_changelog_removed),
+        }
 
         changelog_entry = {
             "commit-id": commit.id,
@@ -341,18 +351,15 @@ class PkgHistoryProcessor:
             changelog_entry["error"] = "unresolvable merge"
             previous_changelog = ()
             commit_result["changelog"] = (changelog_entry,)
-        elif changelog_changed:
+        elif changelog_changed and changelog_blob:
             log.debug("\tchangelog file changed")
-            if changelog_blob:
+            if not child_changelog_removed:
                 changelog_entry["data"] = changelog_blob.data.decode("utf-8", errors="replace")
+                commit_result["changelog"] = (changelog_entry,)
             else:
-                # Changelog removed. Oops.
-                log.debug("\tchangelog file removed")
-                changelog_entry[
-                    "data"
-                ] = f"{changelog_header}\n- RPMAUTOSPEC: changelog file removed"
-                changelog_entry["error"] = "changelog file removed"
-            commit_result["changelog"] = (changelog_entry,)
+                # The `changelog` file was removed in a later commit, stop changelog generation.
+                log.debug("\t  skipping")
+                commit_result["changelog"] = ()
         else:
             # Pull previous changelog entries from parent result (if any).
             if len(commit.parents) == 1:
@@ -411,14 +418,17 @@ class PkgHistoryProcessor:
             else:
                 if k == "child_must_continue":
                     mf[k] = v1 or v2
+                elif k == "changelog_removed":
+                    mf[k] = v1 and v2
                 else:
                     raise KeyError(f"Unknown information key: {k}")
         return mf
 
     def _run_on_history(
-        self, head: pygit2.Commit, *, visitors: Sequence = ()
+        self, head: pygit2.Commit, *, visitors: Sequence = (), seed_info: Dict[str, Any] = None
     ) -> Dict[pygit2.Commit, Dict[str, Any]]:
         """Process historical commits with visitors and gather results."""
+        seed_info = {"child_must_continue": True, **(seed_info or {})}
         # maps visited commits to their (in-flight) visitors and if they must
         # continue
         commit_coroutines = {}
@@ -464,7 +474,7 @@ class PkgHistoryProcessor:
                     log.debug("commit %s: %s", commit.short_id, commit.message.split("\n", 1)[0])
 
                 if commit == head:
-                    children_visitors_info = [{"child_must_continue": True} for v in visitors]
+                    children_visitors_info = [seed_info for v in visitors]
                 else:
                     this_children = commit_children[commit]
                     if not all(child in commit_coroutines for child in this_children):
@@ -614,14 +624,21 @@ class PkgHistoryProcessor:
         reflect_worktree = False
 
         if self.repo:
+            seed_info = None
             if not head:
                 head = self.repo[self.repo.head.target]
                 diff_to_head = self.repo.diff(head)
                 reflect_worktree = diff_to_head.stats.files_changed > 0
+                if (
+                    reflect_worktree
+                    and not (self.specfile.parent / "changelog").exists()
+                    and "changelog" in head.tree
+                ):
+                    seed_info = {"changelog_removed": True}
             elif isinstance(head, str):
                 head = self.repo[head]
 
-            visited_results = self._run_on_history(head, visitors=visitors)
+            visited_results = self._run_on_history(head, visitors=visitors, seed_info=seed_info)
             head_result = visited_results[head]
         else:
             reflect_worktree = True

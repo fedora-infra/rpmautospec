@@ -179,7 +179,7 @@ class PkgHistoryProcessor:
 
             return self._get_rpmverflags(workdir, self.name)
 
-    def release_number_visitor(self, commit: pygit2.Commit, children_must_continue: bool):
+    def release_number_visitor(self, commit: pygit2.Commit, child_info: Dict[str, Any]):
         """Visit a commit to determine its release number.
 
         The coroutine returned first determines if the parent chain(s) must be
@@ -205,18 +205,18 @@ class PkgHistoryProcessor:
             tag_string = ""
 
         if not epoch_version:
-            must_continue = True
+            child_must_continue = True
         else:
             epoch_versions_to_check = []
             for p in commit.parents:
                 verflags = self._get_rpmverflags_for_commit(p)
                 if verflags:
                     epoch_versions_to_check.append(verflags["epoch-version"])
-            must_continue = epoch_version in epoch_versions_to_check
+            child_must_continue = epoch_version in epoch_versions_to_check
 
         # Suspend execution, yield whether caller should continue, and get back the (partial) result
         # for this commit and parent results as dictionaries on resume.
-        commit_result, parent_results = yield must_continue
+        commit_result, parent_results = yield {"child_must_continue": child_must_continue}
 
         commit_result["epoch-version"] = epoch_version
 
@@ -248,7 +248,7 @@ class PkgHistoryProcessor:
                 files.add(delta.new_file.path)
         return files
 
-    def changelog_visitor(self, commit: pygit2.Commit, children_must_continue: bool):
+    def changelog_visitor(self, commit: pygit2.Commit, child_info: Dict[str, Any]):
         """Visit a commit to generate changelog entries for it and its parents.
 
         It first determines if parent chain(s) must be followed, i.e. if the
@@ -257,6 +257,7 @@ class PkgHistoryProcessor:
         modified) and full results of parents back (as dictionaries), which
         get processed and the results for this commit yielded again.
         """
+        child_must_continue = child_info["child_must_continue"]
         # Check if the spec file exists, if not, there will be no changelog.
         specfile_present = f"{self.name}.spec" in commit.tree
 
@@ -299,19 +300,19 @@ class PkgHistoryProcessor:
                 # care. If it didn't change, we don't know how to continue and need to flag that.
                 merge_unresolvable = not changelog_changed
 
-        child_must_continue = (
+        our_child_must_continue = (
             not (changelog_changed or merge_unresolvable)
             and specfile_present
-            and children_must_continue
+            and child_must_continue
         )
 
         log.debug("\tchangelog changed: %s", changelog_changed)
         log.debug("\tmerge unresolvable: %s", merge_unresolvable)
         log.debug("\tspec file present: %s", specfile_present)
-        log.debug("\tchildren must continue: %s", children_must_continue)
-        log.debug("\tchild must continue: %s", child_must_continue)
+        log.debug("\tchild must continue (incoming): %s", child_must_continue)
+        log.debug("\tchild must continue (outgoing): %s", our_child_must_continue)
 
-        commit_result, parent_results = yield child_must_continue
+        commit_result, parent_results = yield {"child_must_continue": our_child_must_continue}
 
         changelog_entry = {
             "commit-id": commit.id,
@@ -399,6 +400,21 @@ class PkgHistoryProcessor:
 
         yield commit_result
 
+    @staticmethod
+    def _merge_info(f1: Dict[str, Any], f2: Dict[str, Any]) -> Dict[str, Any]:
+        mf = f1.copy()
+        for k, v2 in f2.items():
+            try:
+                v1 = mf[k]
+            except KeyError:
+                mf[k] = v2
+            else:
+                if k == "child_must_continue":
+                    mf[k] = v1 or v2
+                else:
+                    raise KeyError(f"Unknown information key: {k}")
+        return mf
+
     def _run_on_history(
         self, head: pygit2.Commit, *, visitors: Sequence = ()
     ) -> Dict[pygit2.Commit, Dict[str, Any]]:
@@ -406,7 +422,7 @@ class PkgHistoryProcessor:
         # maps visited commits to their (in-flight) visitors and if they must
         # continue
         commit_coroutines = {}
-        commit_coroutines_must_continue = {}
+        commit_coroutines_info = {}
 
         # keep track of branches
         branch_heads = [head]
@@ -448,7 +464,7 @@ class PkgHistoryProcessor:
                     log.debug("commit %s: %s", commit.short_id, commit.message.split("\n", 1)[0])
 
                 if commit == head:
-                    children_visitors_must_continue = [True for v in visitors]
+                    children_visitors_info = [{"child_must_continue": True} for v in visitors]
                 else:
                     this_children = commit_children[commit]
                     if not all(child in commit_coroutines for child in this_children):
@@ -472,19 +488,22 @@ class PkgHistoryProcessor:
                             )
                         break
 
-                    # For all visitor coroutines, determine if any of the children must continue.
-                    children_visitors_must_continue = [
+                    # For all visitor coroutines, merge their produced info, e.g. to determine if
+                    # any of the children must continue.
+                    children_visitors_info = [
                         reduce(
-                            lambda must_continue, child: (
-                                must_continue or commit_coroutines_must_continue[child][vindex]
+                            lambda info, child: self._merge_info(
+                                info, commit_coroutines_info[child][vindex]
                             ),
                             this_children,
-                            False,
+                            {},
                         )
                         for vindex, v in enumerate(visitors)
                     ]
 
-                    keep_processing = keep_processing and any(children_visitors_must_continue)
+                    keep_processing = keep_processing and any(
+                        info["child_must_continue"] for info in children_visitors_info
+                    )
 
                 branch.append(commit)
 
@@ -493,17 +512,18 @@ class PkgHistoryProcessor:
                     # method. Pass the ordered list of "is there a child whose coroutine of the same
                     # visitor wants to continue" into it.
                     commit_coroutines[commit] = coroutines = [
-                        v(commit, children_visitors_must_continue[vi])
-                        for vi, v in enumerate(visitors)
+                        v(commit, children_visitors_info[vi]) for vi, v in enumerate(visitors)
                     ]
 
                     # Consult all visitors for the commit on whether we should continue and store
                     # the results.
-                    commit_coroutines_must_continue[commit] = [next(c) for c in coroutines]
+                    commit_coroutines_info[commit] = [next(c) for c in coroutines]
                 else:
                     # Only traverse this commit.
                     commit_coroutines[commit] = coroutines = None
-                    commit_coroutines_must_continue[commit] = [False for v in visitors]
+                    commit_coroutines_info[commit] = [
+                        {"child_must_continue": False} for v in visitors
+                    ]
 
                 if not commit.parents:
                     log.debug("\tno parents, bailing out")

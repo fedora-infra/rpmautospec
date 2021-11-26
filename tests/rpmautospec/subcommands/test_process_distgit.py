@@ -137,126 +137,123 @@ class TestProcessDistgit:
             pytest.xfail("invalid parameter combination")
 
         workdir = str(tmp_path)
-        if True:
-            with tarfile.open(
-                os.path.join(
-                    __here__,
-                    os.path.pardir,
-                    os.path.pardir,
-                    "test-data",
-                    "repodata",
-                    "dummy-test-package-gloster-git.tar.gz",
-                )
-            ) as tar:
-                tar.extractall(path=workdir)
-
-            unpacked_repo_dir = os.path.join(workdir, "dummy-test-package-gloster")
-            test_spec_file_path = os.path.join(
-                unpacked_repo_dir,
-                "dummy-test-package-gloster.spec",
-            )
-
-            cwd = os.getcwd()
-            os.chdir(unpacked_repo_dir)
-            run(["git", "checkout", branch])
-            os.chdir(cwd)
-
-            if autorelease_case != "unchanged" or autochangelog_case != "unchanged":
-                self.fuzz_spec_file(
-                    test_spec_file_path,
-                    autorelease_case,
-                    autochangelog_case,
-                    run_git_amend=not dirty_worktree,
-                )
-
-            if overwrite_specfile:
-                target_spec_file_path = None
-            else:
-                target_spec_file_path = os.path.join(workdir, "test-this-specfile-please.spec")
-
-            orig_test_spec_file_stat = os.stat(test_spec_file_path)
-            process_distgit.process_distgit(unpacked_repo_dir, target_spec_file_path)
-            if not overwrite_specfile:
-                test_spec_file_stat = os.stat(test_spec_file_path)
-                # we can't compare stat_results directly because st_atime has changed
-                for attr in ("mode", "ino", "dev", "uid", "gid", "size", "mtime", "ctime"):
-                    assert getattr(test_spec_file_stat, "st_" + attr) == getattr(
-                        orig_test_spec_file_stat, "st_" + attr
-                    )
-
-            expected_spec_file_path = os.path.join(
+        with tarfile.open(
+            os.path.join(
                 __here__,
                 os.path.pardir,
                 os.path.pardir,
                 "test-data",
                 "repodata",
-                "dummy-test-package-gloster.spec.expected",
+                "dummy-test-package-gloster-git.tar.gz",
+            )
+        ) as tar:
+            tar.extractall(path=workdir)
+
+        unpacked_repo_dir = os.path.join(workdir, "dummy-test-package-gloster")
+        test_spec_file_path = os.path.join(
+            unpacked_repo_dir,
+            "dummy-test-package-gloster.spec",
+        )
+
+        cwd = os.getcwd()
+        os.chdir(unpacked_repo_dir)
+        run(["git", "checkout", branch])
+        os.chdir(cwd)
+
+        if autorelease_case != "unchanged" or autochangelog_case != "unchanged":
+            self.fuzz_spec_file(
+                test_spec_file_path,
+                autorelease_case,
+                autochangelog_case,
+                run_git_amend=not dirty_worktree,
             )
 
-            with tempfile.NamedTemporaryFile() as tmpspec:
-                shutil.copy2(expected_spec_file_path, tmpspec.name)
-                if autorelease_case != "unchanged" or autochangelog_case != "unchanged":
-                    if autochangelog_case not in (
-                        "changelog case insensitive",
-                        "changelog trailing garbage",
-                    ):
-                        # "%changelog", "%ChAnGeLoG", ... stay verbatim, trick fuzz_spec_file() to
-                        # leave the rest of the cases as is, the %autorelease macro is expanded.
-                        fuzz_autochangelog_case = "unchanged"
-                    else:
-                        fuzz_autochangelog_case = autochangelog_case
-                    expected_spec_file_path = tmpspec.name
-                    self.fuzz_spec_file(
-                        expected_spec_file_path,
-                        autorelease_case,
-                        fuzz_autochangelog_case,
-                        run_git_amend=False,
-                    )
+        if overwrite_specfile:
+            target_spec_file_path = None
+        else:
+            target_spec_file_path = os.path.join(workdir, "test-this-specfile-please.spec")
 
-                rpm_cmd = ["rpm", "--define", "dist .fc32", "--specfile"]
+        orig_test_spec_file_stat = os.stat(test_spec_file_path)
+        process_distgit.process_distgit(unpacked_repo_dir, target_spec_file_path)
+        if not overwrite_specfile:
+            test_spec_file_stat = os.stat(test_spec_file_path)
+            # we can't compare stat_results directly because st_atime has changed
+            for attr in ("mode", "ino", "dev", "uid", "gid", "size", "mtime", "ctime"):
+                assert getattr(test_spec_file_stat, "st_" + attr) == getattr(
+                    orig_test_spec_file_stat, "st_" + attr
+                )
 
-                if target_spec_file_path:
-                    test_cmd = rpm_cmd + [target_spec_file_path]
-                else:
-                    test_cmd = rpm_cmd + [test_spec_file_path]
-                expected_cmd = rpm_cmd + [expected_spec_file_path]
+        expected_spec_file_path = os.path.join(
+            __here__,
+            os.path.pardir,
+            os.path.pardir,
+            "test-data",
+            "repodata",
+            "dummy-test-package-gloster.spec.expected",
+        )
 
-                q_release = ["--qf", "%{release}\n"]
-                test_output = check_output(test_cmd + q_release, encoding="utf-8").strip()
-                test_relnum, test_rest = self.relnum_split(test_output)
-                expected_output = check_output(expected_cmd + q_release, encoding="utf-8").strip()
-                expected_relnum, expected_rest = self.relnum_split(expected_output)
-
-                if dirty_worktree and (
-                    autorelease_case != "unchanged" or autochangelog_case != "unchanged"
+        with tempfile.NamedTemporaryFile() as tmpspec:
+            shutil.copy2(expected_spec_file_path, tmpspec.name)
+            if autorelease_case != "unchanged" or autochangelog_case != "unchanged":
+                if autochangelog_case not in (
+                    "changelog case insensitive",
+                    "changelog trailing garbage",
                 ):
-                    expected_relnum += 1
-
-                if branch == "epel8":
-                    expected_relnum += 1
-
-                assert test_relnum == expected_relnum
-
-                assert test_rest == expected_rest
-
-                q_changelog = ["--changelog"]
-                test_output = check_output(test_cmd + q_changelog, encoding="utf-8")
-                expected_output = check_output(expected_cmd + q_changelog, encoding="utf-8")
-
-                if dirty_worktree and (
-                    autorelease_case != "unchanged" or autochangelog_case != "unchanged"
-                ):
-                    diff = list(
-                        difflib.ndiff(expected_output.splitlines(), test_output.splitlines())
-                    )
-                    # verify entry for uncommitted changes
-                    assert all(line.startswith("+ ") for line in diff[:3])
-                    assert diff[0].endswith(f"-{expected_relnum}")
-                    assert diff[1] == "+ - Uncommitted changes"
-                    assert diff[2] == "+ "
-
-                    # verify the rest is the expected changelog
-                    assert all(line.startswith("  ") for line in diff[3:])
-                    assert expected_output.splitlines() == [line[2:] for line in diff[3:]]
+                    # "%changelog", "%ChAnGeLoG", ... stay verbatim, trick fuzz_spec_file() to
+                    # leave the rest of the cases as is, the %autorelease macro is expanded.
+                    fuzz_autochangelog_case = "unchanged"
                 else:
-                    assert test_output == expected_output
+                    fuzz_autochangelog_case = autochangelog_case
+                expected_spec_file_path = tmpspec.name
+                self.fuzz_spec_file(
+                    expected_spec_file_path,
+                    autorelease_case,
+                    fuzz_autochangelog_case,
+                    run_git_amend=False,
+                )
+
+            rpm_cmd = ["rpm", "--define", "dist .fc32", "--specfile"]
+
+            if target_spec_file_path:
+                test_cmd = rpm_cmd + [target_spec_file_path]
+            else:
+                test_cmd = rpm_cmd + [test_spec_file_path]
+            expected_cmd = rpm_cmd + [expected_spec_file_path]
+
+            q_release = ["--qf", "%{release}\n"]
+            test_output = check_output(test_cmd + q_release, encoding="utf-8").strip()
+            test_relnum, test_rest = self.relnum_split(test_output)
+            expected_output = check_output(expected_cmd + q_release, encoding="utf-8").strip()
+            expected_relnum, expected_rest = self.relnum_split(expected_output)
+
+            if dirty_worktree and (
+                autorelease_case != "unchanged" or autochangelog_case != "unchanged"
+            ):
+                expected_relnum += 1
+
+            if branch == "epel8":
+                expected_relnum += 1
+
+            assert test_relnum == expected_relnum
+
+            assert test_rest == expected_rest
+
+            q_changelog = ["--changelog"]
+            test_output = check_output(test_cmd + q_changelog, encoding="utf-8")
+            expected_output = check_output(expected_cmd + q_changelog, encoding="utf-8")
+
+            if dirty_worktree and (
+                autorelease_case != "unchanged" or autochangelog_case != "unchanged"
+            ):
+                diff = list(difflib.ndiff(expected_output.splitlines(), test_output.splitlines()))
+                # verify entry for uncommitted changes
+                assert all(line.startswith("+ ") for line in diff[:3])
+                assert diff[0].endswith(f"-{expected_relnum}")
+                assert diff[1] == "+ - Uncommitted changes"
+                assert diff[2] == "+ "
+
+                # verify the rest is the expected changelog
+                assert all(line.startswith("  ") for line in diff[3:])
+                assert expected_output.splitlines() == [line[2:] for line in diff[3:]]
+            else:
+                assert test_output == expected_output

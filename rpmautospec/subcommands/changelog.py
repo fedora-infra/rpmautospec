@@ -42,9 +42,9 @@ def collate_changelog(
 ) -> Union[str, bytes]:
     changelog = processor_results["changelog"]
     if result_type == str:
-        entry_strings = (_coerce_to_str(entry["data"]) for entry in changelog)
+        entry_strings = (_coerce_to_str(entry.format()) for entry in changelog)
     else:
-        entry_strings = (_coerce_to_bytes(entry["data"]) for entry in changelog)
+        entry_strings = (_coerce_to_bytes(entry.format()) for entry in changelog)
     return "\n\n".join(entry_strings)
 
 

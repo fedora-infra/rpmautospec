@@ -112,7 +112,7 @@ def process_distgit(
 
         if needs_autochangelog:
             print(
-                "\n\n".join(entry["data"] for entry in result["changelog"]),
+                "\n\n".join(entry.format() for entry in result["changelog"]),
                 file=tmp_specfile,
             )
 

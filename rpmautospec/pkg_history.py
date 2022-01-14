@@ -8,12 +8,11 @@ from fnmatch import fnmatchcase
 from functools import lru_cache, reduce
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from textwrap import TextWrapper
 from typing import Any, Dict, Optional, Sequence, Union
 
 import pygit2
-from babel.dates import format_datetime
 
+from .changelog import ChangelogEntry
 from .misc import AUTORELEASE_MACRO
 
 
@@ -276,6 +275,9 @@ class PkgHistoryProcessor:
                 files.add(delta.new_file.path)
         return files
 
+    def _changelog_for_commit(self, commit, commit_result):
+        """Generate the changelog entry text from a commit."""
+
     def changelog_visitor(self, commit: pygit2.Commit, child_info: Dict[str, Any]):
         """Visit a commit to generate changelog entries for it and its parents.
 
@@ -350,30 +352,21 @@ class PkgHistoryProcessor:
             and (child_changelog_removed or our_changelog_removed),
         }
 
-        changelog_entry = {
-            "commit-id": commit.id,
-        }
-
-        changelog_author = f"{commit.author.name} <{commit.author.email}>"
-        changelog_date = format_datetime(
-            dt.datetime.utcfromtimestamp(commit.commit_time),
-            format="EEE MMM dd Y",
-            locale="en",
+        changelog_entry = ChangelogEntry(
+            {
+                "commit-id": commit.id,
+                "authorblurb": f"{commit.author.name} <{commit.author.email}>",
+                "timestamp": dt.datetime.utcfromtimestamp(commit.commit_time),
+                "commitlog": commit.message,
+                "epoch-version": commit_result["epoch-version"],
+                "release-complete": commit_result["release-complete"],
+            }
         )
-
-        epoch_version = commit_result["epoch-version"]
-        if epoch_version:
-            changelog_evr = f" {epoch_version}-{commit_result['release-complete']}"
-        else:
-            changelog_evr = ""
-
-        changelog_header = f"* {changelog_date} {changelog_author}{changelog_evr}"
 
         skip_for_changelog = not specfile_present
 
         if merge_unresolvable:
             log.debug("\tunresolvable merge")
-            changelog_entry["data"] = f"{changelog_header}\n- RPMAUTOSPEC: unresolvable merge"
             changelog_entry["error"] = "unresolvable merge"
             previous_changelog = ()
             commit_result["changelog"] = (changelog_entry,)
@@ -419,16 +412,9 @@ class PkgHistoryProcessor:
 
             log.debug("\tskip_for_changelog: %s", skip_for_changelog)
 
+            changelog_entry["skip"] = skip_for_changelog
+
             if not skip_for_changelog:
-                commit_subject = commit.message.split("\n", 1)[0].strip()
-                if commit_subject.startswith("-"):
-                    commit_subject = commit_subject[1:].lstrip()
-                if not commit_subject:
-                    commit_subject = "RPMAUTOSPEC: empty commit log subject after stripping"
-                    changelog_entry["error"] = "empty commit log subject"
-                wrapper = TextWrapper(width=75, subsequent_indent="  ")
-                wrapped_msg = wrapper.fill(f"- {commit_subject}")
-                changelog_entry["data"] = f"{changelog_header}\n{wrapped_msg}"
                 commit_result["changelog"] = (changelog_entry,) + previous_changelog
             else:
                 commit_result["changelog"] = previous_changelog
@@ -726,24 +712,24 @@ class PkgHistoryProcessor:
                 if not skip_for_changelog:
                     try:
                         signature = self.repo.default_signature
-                        changelog_author = f"{signature.name} <{signature.email}>"
+                        authorblurb = f"{signature.name} <{signature.email}>"
                     except AttributeError:
                         # self.repo == None -> no git repo
-                        changelog_author = self._get_rpm_packager()
+                        authorblurb = self._get_rpm_packager()
                     except KeyError:
-                        changelog_author = "Unknown User <please-configure-git-user@example.com>"
-                    changelog_date = format_datetime(
-                        dt.datetime.utcnow(), format="EEE MMM dd Y", locale="en"
+                        authorblurb = "Unknown User <please-configure-git-user@example.com>"
+
+                    changelog_entry = ChangelogEntry(
+                        {
+                            "commit-id": None,
+                            "authorblurb": authorblurb,
+                            "timestamp": dt.datetime.utcnow(),
+                            "commitlog": "Uncommitted changes",
+                            "epoch-version": epoch_version,
+                            "release-complete": release_complete,
+                        }
                     )
-                    changelog_evr = f"{epoch_version}-{release_complete}"
 
-                    changelog_header = f"* {changelog_date} {changelog_author} {changelog_evr}"
-                    changelog_item = "- Uncommitted changes"
-
-                    changelog_entry = {
-                        "commit-id": None,
-                        "data": f"{changelog_header}\n{changelog_item}",
-                    }
                     changelog = (changelog_entry,) + previous_changelog
                 else:
                     changelog = previous_changelog

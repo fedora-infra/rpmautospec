@@ -210,9 +210,17 @@ class PkgHistoryProcessor:
             epoch_versions_to_check = []
             for p in commit.parents:
                 verflags = self._get_rpmverflags_for_commit(p)
-                if verflags:
-                    epoch_versions_to_check.append(verflags["epoch-version"])
-            child_must_continue = epoch_version in epoch_versions_to_check
+                if not verflags:
+                    child_must_continue = True
+                    break
+                epoch_versions_to_check.append(verflags["epoch-version"])
+            else:
+                child_must_continue = (
+                    epoch_version in epoch_versions_to_check or epoch_version is None
+                )
+
+        log.debug("\tepoch_version: %s", epoch_version)
+        log.debug("\tchild must continue: %s", child_must_continue)
 
         # Suspend execution, yield whether caller should continue, and get back the (partial) result
         # for this commit and parent results as dictionaries on resume.
@@ -220,17 +228,37 @@ class PkgHistoryProcessor:
 
         commit_result["epoch-version"] = epoch_version
 
-        # Find the maximum applicable parent release number and increment by one.
-        commit_result["release-number"] = release_number = (
-            max(
-                (
-                    res["release-number"] if res and epoch_version == res["epoch-version"] else 0
-                    for res in parent_results
-                ),
-                default=0,
-            )
-            + 1
+        log.debug("\tepoch_version: %s", epoch_version)
+        log.debug(
+            "\tparent rel numbers: %s",
+            ", ".join(str(res["release-number"]) if res else "none" for res in parent_results),
         )
+
+        # Find the maximum applicable parent release number and increment by one if the
+        # epoch-version can be parsed from the spec file.
+        release_number = max(
+            (
+                res["release-number"]
+                if res
+                and (
+                    # Paper over gaps in epoch-versions, these could be simple syntax errors in
+                    # the spec file, or a retired, then unretired package.
+                    epoch_version is None
+                    or res["epoch-version"] is None
+                    or epoch_version == res["epoch-version"]
+                )
+                else 0
+                for res in parent_results
+            ),
+            default=0,
+        )
+
+        if epoch_version is not None:
+            release_number += 1
+
+        commit_result["release-number"] = release_number
+
+        log.debug("\trelease_number: %s", release_number)
 
         prerel_str = "0." if prerelease else ""
         release_number_with_base = release_number + base - 1
@@ -305,9 +333,7 @@ class PkgHistoryProcessor:
                 merge_unresolvable = not changelog_changed
 
         our_child_must_continue = (
-            not (changelog_changed and changelog_blob or merge_unresolvable)
-            and specfile_present
-            and child_must_continue
+            not (changelog_changed and changelog_blob or merge_unresolvable) and child_must_continue
         )
 
         log.debug("\tchangelog changed: %s", changelog_changed)
@@ -335,17 +361,17 @@ class PkgHistoryProcessor:
             locale="en",
         )
 
-        changelog_evr = f"{commit_result['epoch-version']}-{commit_result['release-complete']}"
+        epoch_version = commit_result["epoch-version"]
+        if epoch_version:
+            changelog_evr = f" {epoch_version}-{commit_result['release-complete']}"
+        else:
+            changelog_evr = ""
 
-        changelog_header = f"* {changelog_date} {changelog_author} {changelog_evr}"
+        changelog_header = f"* {changelog_date} {changelog_author}{changelog_evr}"
 
-        skip_for_changelog = False
+        skip_for_changelog = not specfile_present
 
-        if not specfile_present:
-            # no spec file => start fresh
-            log.debug("\tno spec file present")
-            commit_result["changelog"] = ()
-        elif merge_unresolvable:
+        if merge_unresolvable:
             log.debug("\tunresolvable merge")
             changelog_entry["data"] = f"{changelog_header}\n- RPMAUTOSPEC: unresolvable merge"
             changelog_entry["error"] = "unresolvable merge"
@@ -390,6 +416,8 @@ class PkgHistoryProcessor:
                     any(fnmatchcase(f, pat) for pat in self.changelog_ignore_patterns)
                     for f in changed_files
                 )
+
+            log.debug("\tskip_for_changelog: %s", skip_for_changelog)
 
             if not skip_for_changelog:
                 commit_subject = commit.message.split("\n", 1)[0].strip()

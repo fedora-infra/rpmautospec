@@ -221,7 +221,16 @@ class TestProcessDistgit:
                     run_git_amend=False,
                 )
 
-            rpm_cmd = ["rpm", "--define", "dist .fc32", "--specfile"]
+            rpm_cmd = [
+                "rpm",
+                "--define",
+                "dist .fc32",
+                "--define",
+                "_changelog_trimage 0",
+                "--define",
+                "_changelog_trimtime 0",
+                "--specfile",
+            ]
 
             if target_spec_file_path:
                 test_cmd = rpm_cmd + [target_spec_file_path]

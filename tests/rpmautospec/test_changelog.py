@@ -1,220 +1,153 @@
 import datetime as dt
-import locale
-import os
 import re
-import stat
-from calendar import LocaleTextCalendar
-from shutil import rmtree
-from unittest.mock import patch
+from pathlib import Path
 
-import pygit2
 import pytest
+import yaml
 
-from rpmautospec.pkg_history import PkgHistoryProcessor
+from rpmautospec.changelog import ChangelogEntry
 
-
-@pytest.fixture
-def processor(repo):
-    processor = PkgHistoryProcessor(repo.workdir)
-    return processor
-
-
-@pytest.fixture
-def setlocale():
-    """Allow temporary modification of locale settings."""
-    saved_locale_settings = {
-        category: locale.getlocale(getattr(locale, category))
-        for category in dir(locale)
-        if category.startswith("LC_") and category != "LC_ALL"
-    }
-
-    yield locale.setlocale
-
-    for category, locale_settings in saved_locale_settings.items():
-        locale.setlocale(getattr(locale, category), locale_settings)
+HERE = Path(__file__).parent
+COMMITLOG_CHANGELOG_DIR = HERE.parent / "test-data" / "commitlog-to-changelog"
+COMMITLOGFILE_RE = re.compile(r"^commit-(?P<variant>.*)\.txt$")
+TESTDATA = {}
 
 
-class TestPkgHistoryProcessor:
-
-    version_re = re.compile(r"^Version: .*$", flags=re.MULTILINE)
-
-    @pytest.mark.parametrize(
-        "testcase",
-        (
-            "str, is file",
-            "str, is dir",
-            "path, is file",
-            "path, is file, wrong extension",
-            "path, is dir",
-            "doesn't exist",
-            "spec doesn't exist, is dir",
-            "no git repo",
-            "not a regular file",
-        ),
-    )
-    @patch("rpmautospec.pkg_history.pygit2")
-    def test___init__(self, pygit2, testcase, specfile):
-        if "wrong extension" in testcase:
-            # Path.rename() only returns the new path from Python 3.8 on.
-            specfile.rename(specfile.with_suffix(".foo"))
-            specfile = specfile.with_suffix(".foo")
-
-        spec_or_path = specfile
-
-        if "is dir" in testcase:
-            spec_or_path = spec_or_path.parent
-
-        if "spec doesn't exist" in testcase:
-            specfile.unlink()
-        elif "doesn't exist" in testcase:
-            rmtree(specfile.parent)
-
-        if "str" in testcase:
-            spec_or_path = str(spec_or_path)
-
-        if "doesn't exist" in testcase:
-            with pytest.raises(RuntimeError) as excinfo:
-                PkgHistoryProcessor(spec_or_path)
-            if "spec doesn't exist" in testcase:
-                expected_message = f"Spec file '{specfile}' doesn't exist in '{specfile.parent}'."
-            else:
-                expected_message = f"Spec file or path '{spec_or_path}' doesn't exist."
-            assert str(excinfo.value) == expected_message
-            return
-
-        if "not a regular file" in testcase:
-            specfile.unlink()
-            os.mknod(specfile, stat.S_IFIFO | stat.S_IRUSR | stat.S_IWUSR)
-            with pytest.raises(RuntimeError) as excinfo:
-                PkgHistoryProcessor(spec_or_path)
-            assert str(excinfo.value) == "File specified as `spec_or_path` is not a regular file."
-            return
-
-        if "wrong extension" in testcase:
-            with pytest.raises(ValueError) as excinfo:
-                PkgHistoryProcessor(spec_or_path)
-            assert str(excinfo.value) == (
-                "File specified as `spec_or_path` must have '.spec' as an extension."
-            )
-            return
-
-        if "no git repo" in testcase:
-
-            class GitError(Exception):
-                pass
-
-            pygit2.GitError = GitError
-            pygit2.Repository.side_effect = GitError
-
-        processor = PkgHistoryProcessor(spec_or_path)
-
-        assert processor.specfile == specfile
-        assert processor.path == specfile.parent
-
-        pygit2.Repository.assert_called_once()
-
-        if "no git repo" in testcase:
-            assert processor.repo is None
-        else:
-            assert processor.repo
-
-    @pytest.mark.parametrize("testcase", ("normal", "no spec file"))
-    def test__get_rpmverflags_for_commit(self, testcase, specfile, repo, processor):
-        head_commit = repo[repo.head.target]
-
-        if testcase == "no spec file":
-            index = repo.index
-            index.remove(specfile.name)
-            index.write()
-
-            tree = index.write_tree()
-
-            parent, ref = repo.resolve_refish(repo.head.name)
-
-            head_commit = repo[
-                repo.create_commit(
-                    ref.name,
-                    repo.default_signature,
-                    repo.default_signature,
-                    "Be gone, spec file!",
-                    tree,
-                    [parent.oid],
+def _read_commitlog_changelog_testdata():
+    if not TESTDATA:
+        for commitlog_path in sorted(COMMITLOG_CHANGELOG_DIR.glob("commit*.txt")):
+            match = COMMITLOGFILE_RE.match(commitlog_path.name)
+            variant = match.group("variant")
+            chlog_items_path = commitlog_path.with_name(f"expected-{variant}.yaml")
+            chlog_entry_path = commitlog_path.with_name(f"expected-{variant}.txt")
+            with open(chlog_items_path, "r") as chlog_items_fp:
+                TESTDATA[variant] = (
+                    commitlog_path.read_text(),
+                    yaml.safe_load(chlog_items_fp)["changelog_items"],
+                    chlog_entry_path.read_text(),
                 )
-            ]
+    return TESTDATA
 
-            assert processor._get_rpmverflags_for_commit(head_commit) is None
+
+def pytest_generate_tests(metafunc):
+    if (
+        "commitlog_chlogitems" in metafunc.fixturenames
+        or "commitlog_chlogentry" in metafunc.fixturenames
+    ):
+        _read_commitlog_changelog_testdata()
+
+        if "commitlog_chlogitems" in metafunc.fixturenames:
+            metafunc.parametrize(
+                "commitlog_chlogitems",
+                [(val[0], val[1]) for val in TESTDATA.values()],
+                ids=(f"commitlog-{variant}" for variant in TESTDATA),
+            )
+
+        if "commitlog_chlogentry" in metafunc.fixturenames:
+            metafunc.parametrize(
+                "commitlog_chlogentry",
+                [(val[0], val[2]) for val in TESTDATA.values()],
+                ids=(f"commitlog-{variant}" for variant in TESTDATA),
+            )
+
+
+class TestChangelogEntry:
+    @staticmethod
+    def _parametrize_commitlog(commitlog, *, subject_with_dash, trailing_newline):
+        if subject_with_dash:
+            commitlog = f"- {commitlog}"
+
+        if trailing_newline:
+            if commitlog[-1] != "\n":
+                commitlog += "\n"
         else:
-            assert processor._get_rpmverflags_for_commit(head_commit)["epoch-version"] == "1.0"
+            commitlog = commitlog.rstrip("\n")
 
-    @pytest.mark.parametrize(
-        "testcase", ("without commit", "with commit", "all results", "locale set", "without repo")
-    )
-    def test_run(self, testcase, repo, processor, setlocale):
-        if testcase == "locale set":
-            setlocale(locale.LC_ALL, "de_DE.UTF-8")
+        return commitlog
 
-        all_results = "all results" in testcase
+    @pytest.mark.parametrize("subject_with_dash", (True, False))
+    @pytest.mark.parametrize("trailing_newline", (True, False))
+    def test_commitlog_to_changelog_items(
+        self, subject_with_dash, trailing_newline, commitlog_chlogitems
+    ):
+        commitlog, expected_changelog_items = commitlog_chlogitems
 
-        if testcase == "without repo":
-            rmtree(repo.path)
-            processor = PkgHistoryProcessor(repo.workdir)
-            head_commit = None
-        else:
-            head_commit = repo[repo.head.target]
-
-        if testcase == "with commit":
-            args = [head_commit]
-        else:
-            args = []
-
-        res = processor.run(
-            *args,
-            visitors=[processor.release_number_visitor, processor.changelog_visitor],
-            all_results=all_results,
+        commitlog = self._parametrize_commitlog(
+            commitlog, subject_with_dash=subject_with_dash, trailing_newline=trailing_newline
         )
 
-        assert isinstance(res, dict)
-        if all_results:
-            assert all(isinstance(key, pygit2.Commit) for key in res)
-            # only verify outcome for head commit below
-            res = res[head_commit]
-        else:
-            assert all(isinstance(key, str) for key in res)
+        changelog_items = ChangelogEntry.commitlog_to_changelog_items(commitlog)
+        assert changelog_items == expected_changelog_items
 
-        changelog = res["changelog"]
-        top_entry = changelog[0]
+    @pytest.mark.parametrize("with_epoch_version_release", (True, "epoch-version", False))
+    @pytest.mark.parametrize("with_error_is_none", (False, True))
+    @pytest.mark.parametrize("subject_with_dash", (True, False))
+    @pytest.mark.parametrize("trailing_newline", (True, False))
+    def test_format(
+        self,
+        with_epoch_version_release,
+        with_error_is_none,
+        subject_with_dash,
+        trailing_newline,
+        commitlog_chlogentry,
+    ):
+        commitlog, expected_changelog_entry = commitlog_chlogentry
 
-        if testcase == "without repo":
-            assert res["release-number"] == 1
+        commitlog = self._parametrize_commitlog(
+            commitlog, subject_with_dash=subject_with_dash, trailing_newline=trailing_newline
+        )
 
-            for snippet in (
-                processor._get_rpm_packager(),
-                "- Uncommitted changes",
-            ):
-                assert snippet in top_entry.format()
-        else:
-            assert res["commit-id"] == head_commit.id
-            assert res["release-number"] == 2
-            assert top_entry["commit-id"] == head_commit.id
+        changelog_entry = ChangelogEntry(
+            {
+                "timestamp": dt.datetime(1970, 1, 1, 0, 0, 0),
+                "authorblurb": "An Author <anauthor@example.com>",
+                "epoch-version": None,
+                "release-complete": None,
+                "commitlog": commitlog,
+            }
+        )
 
-            for snippet in (
-                "Jane Doe <jane.doe@example.com>",
-                "- Did nothing!",
-            ):
-                assert snippet in top_entry.format()
+        expected_evr = ""
+        if with_epoch_version_release:
+            changelog_entry["epoch-version"] = "1.0"
+            expected_evr = " 1.0"
+            if with_epoch_version_release != "epoch-version":
+                changelog_entry["release-complete"] = "1"
+                expected_evr = " 1.0-1"
 
-            cal = LocaleTextCalendar(firstweekday=0, locale="C.UTF-8")
-            commit_time = dt.datetime.utcfromtimestamp(head_commit.commit_time)
-            weekdayname = cal.formatweekday(day=commit_time.weekday(), width=3)
-            monthname = cal.formatmonthname(
-                theyear=commit_time.year,
-                themonth=commit_time.month,
-                width=1,
-                withyear=False,
-            )[:3]
-            expected_date_blurb = (
-                f"* {weekdayname} {monthname} {commit_time.day:02} {commit_time.year}"
-            )
-            assert top_entry.format().startswith(expected_date_blurb)
+        if with_error_is_none:
+            changelog_entry["error"] = None
 
-        assert all("error" not in entry for entry in changelog)
+        expected_changelog_entry = (
+            f"* Thu Jan 01 1970 An Author <anauthor@example.com>{expected_evr}\n"
+            + expected_changelog_entry
+        )
+
+        formatted_changelog_entry = changelog_entry.format()
+        assert formatted_changelog_entry == expected_changelog_entry.rstrip("\n")
+
+    @pytest.mark.parametrize("error", ("string", "list"))
+    def test_format_error(self, error):
+        changelog_entry = ChangelogEntry(
+            {
+                "timestamp": dt.datetime(1970, 1, 1, 0, 0, 0),
+                "authorblurb": "An Author <anauthor@example.com>",
+                "epoch-version": "1.0",
+                "release-complete": "1",
+            }
+        )
+
+        if error == "string":
+            changelog_entry["error"] = "a string"
+        else:  # error == "list"
+            changelog_entry["error"] = ["a string", "and another"]
+
+        expected_changelog_entry = (
+            "* Thu Jan 01 1970 An Author <anauthor@example.com> 1.0-1\n- RPMAUTOSPEC: a string"
+        )
+
+        if error == "list":
+            expected_changelog_entry += "\n- RPMAUTOSPEC: and another"
+
+        formatted_changelog_entry = changelog_entry.format()
+        assert formatted_changelog_entry == expected_changelog_entry.rstrip("\n")

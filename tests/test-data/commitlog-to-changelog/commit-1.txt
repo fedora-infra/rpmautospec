@@ -1,0 +1,13 @@
+A commit subject on a pretty long line so that it
+
+… would overshoot limits continued here.
+- Some item which is also pretty verbose and contains a lot of detail so that
+  it would be continued in the next line but it should still become one
+changelog item. And a %macro.
+- Some
+- more
+- but
+- shorter
+- items
+
+This should be ignored.

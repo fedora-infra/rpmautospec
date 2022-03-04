@@ -1,2 +1,3 @@
+PyYAML
 pytest
 pytest-cov

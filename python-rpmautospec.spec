@@ -38,6 +38,7 @@ BuildRequires:  python3-koji
 BuildRequires:  python3-pygit2
 BuildRequires:  python%{python3_pkgversion}-pytest
 BuildRequires:  python%{python3_pkgversion}-pytest-cov
+BuildRequires:  python%{python3_pkgversion}-pyyaml
 BuildRequires:  git
 %endif
 
@@ -146,6 +147,9 @@ install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 %endif
 
 %changelog
+* Fri Mar 04 2022 Nils Philippsen <nils@redhat.com>
+- require python3-pyyaml for building
+
 * Sun Nov 07 2021 Nils Philippsen <nils@redhat.com>
 - require python3-babel and glibc langpacks (the latter for testing)
 

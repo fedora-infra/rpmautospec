@@ -1,0 +1,5 @@
+A commit subject
+
+- Another item
+
+This should be ignored.

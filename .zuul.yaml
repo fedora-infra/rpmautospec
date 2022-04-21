@@ -1,31 +1,51 @@
 ---
-- job:
-    name: pre-commit
-    run: ci/pre-commit.yaml
-    nodeset: fedora-34-vm
-- job:
-    name: pytest-rawhide
-    run: ci/pytest.yaml
-    nodeset: fedora-rawhide-vm
-- job:
-    name: pytest-f34
-    run: ci/pytest.yaml
-    nodeset: fedora-34-vm
-- job:
-    name: pytest-f33
-    run: ci/pytest.yaml
-    nodeset: fedora-33-vm
 - project:
     check:
       jobs:
-        - pre-commit
-        - pytest-rawhide
-        - pytest-f34
-        - pytest-f33
+        - fi-pre-commit
+        - fi-pytest-rawhide:
+            vars:
+              dependencies:
+                - glibc-langpack-de
+                - glibc-langpack-en
+                - python3-babel
+                - python3-koji
+                - python3-pygit2
+                - python3-pytest
+                - python3-pytest-cov
+                - python3-pyyaml
+                - python3-rpm
+        - fi-pytest-f34:
+            vars:
+              dependencies:
+                - glibc-langpack-de
+                - glibc-langpack-en
+                - python3-babel
+                - python3-koji
+                - python3-pygit2
+                - python3-pytest
+                - python3-pytest-cov
+                - python3-pyyaml
+                - python3-rpm
+        - fi-pytest-f35:
+            vars:
+              dependencies:
+                - glibc-langpack-de
+                - glibc-langpack-en
+                - python3-babel
+                - python3-koji
+                - python3-pygit2
+                - python3-pytest
+                - python3-pytest-cov
+                - python3-pyyaml
+                - python3-rpm
         - rpm-mock-build:
             vars:
-              mock_config: fedora-34-x86_64
+              mock_config: fedora-35-x86_64
               build_from_source: true
               version_from_specfile: true
               src_name: rpmautospec
-            nodeset: fedora-34-vm
+            nodeset:
+              nodes:
+                name: test-node
+                label: zuul-worker-f35

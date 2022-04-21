@@ -48,4 +48,4 @@
             nodeset:
               nodes:
                 name: test-node
-                label: zuul-worker-f35
+                label: cloud-fedora-35

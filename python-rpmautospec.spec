@@ -38,6 +38,7 @@ BuildRequires:  python3-koji
 BuildRequires:  python3-pygit2
 BuildRequires:  python%{python3_pkgversion}-pytest
 BuildRequires:  python%{python3_pkgversion}-pytest-cov
+BuildRequires:  python%{python3_pkgversion}-pytest-xdist
 BuildRequires:  python%{python3_pkgversion}-pyyaml
 BuildRequires:  git
 %endif
@@ -143,10 +144,13 @@ install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 # is no point in running them
 %if ! 0%{?rhel} || 0%{?rhel} > 7
 %check
-%{__python3} -m pytest
+%{__python3} -m pytest -n auto
 %endif
 
 %changelog
+* Mon Apr 25 2022 Nils Philippsen <nils@redhat.com>
+- Require python3-pytest-xdist for building
+
 * Fri Mar 04 2022 Nils Philippsen <nils@redhat.com>
 - require python3-pyyaml for building
 

@@ -1,15 +1,5 @@
 %global srcname rpmautospec
 
-# Up to EL7, Python files in private directories would be byte-compiled.
-%if ! 0%{?rhel} || 0%{?rhel} > 7
-%bcond_with epel_le_7
-%else
-%bcond_without epel_le_7
-# We don't want to byte-compile Python files in private directories, i.e. the Koji plugins. As a
-# side effect, this doesn't byte-compile Python files in the system locations either, huzzah!
-%global __os_install_post %(echo '%{__os_install_post}' | sed -e 's!/usr/lib[^[:space:]]*/brp-python-bytecompile[[:space:]].*$!!g')
-%endif
-
 Name:           python-rpmautospec
 Version:        0.2.5
 Release:        1%{?dist}
@@ -20,18 +10,12 @@ URL:            https://pagure.io/fedora-infra/rpmautospec
 Source0:        https://releases.pagure.org/fedora-infra/rpmautospec/rpmautospec-%{version}.tar.gz
 
 BuildArch:      noarch
+BuildRequires:  git
 # the langpacks are needed for tests
 BuildRequires:  glibc-langpack-de
 BuildRequires:  glibc-langpack-en
 BuildRequires:  python3-devel >= 3.6.0
 BuildRequires:  python3-setuptools
-%if %{with epel_le_7}
-BuildRequires:  python2-devel
-%endif
-# EPEL7 does not have python3-koji and the other dependencies here are only
-# needed in the buildroot for the tests, which can't run because of the lack of
-# python3-koji
-%if ! %{with epel_le_7}
 BuildRequires:  koji
 BuildRequires:  python%{python3_pkgversion}-babel
 BuildRequires:  python3-koji
@@ -40,8 +24,6 @@ BuildRequires:  python%{python3_pkgversion}-pytest
 BuildRequires:  python%{python3_pkgversion}-pytest-cov
 BuildRequires:  python%{python3_pkgversion}-pytest-xdist
 BuildRequires:  python%{python3_pkgversion}-pyyaml
-BuildRequires:  git
-%endif
 
 Obsoletes:      koji-hub-plugin-rpmautospec < 0.1.5-2
 Conflicts:      koji-hub-plugin-rpmautospec < 0.1.5-2
@@ -129,27 +111,19 @@ mkdir -p  %{buildroot}%{_prefix}/lib/koji-builder-plugins/
 install -m 0644 koji_plugins/rpmautospec_builder.py \
     %{buildroot}%{_prefix}/lib/koji-builder-plugins/
 
-%if %{with epel_le_7}
-# EL <= 7: Byte-compile all the things
-%py_byte_compile %{python3} %{buildroot}%{python3_sitelib}
-%py_byte_compile %{python2} %{buildroot}%{python2_sitelib}
-%endif
 %py_byte_compile %{python3} %{buildroot}%{_prefix}/lib/koji-builder-plugins/
 
 # RPM macros
 mkdir -p %{buildroot}%{rpmmacrodir}
 install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 
-# EPEL7 does not have python3-koji which is needed to run the tests, so there
-# is no point in running them
-%if ! 0%{?rhel} || 0%{?rhel} > 7
 %check
 %{__python3} -m pytest -n auto
-%endif
 
 %changelog
 * Mon Apr 25 2022 Nils Philippsen <nils@redhat.com>
 - Require python3-pytest-xdist for building
+- Remove EL7 quirks, pkg isn't built there
 
 * Fri Mar 04 2022 Nils Philippsen <nils@redhat.com>
 - require python3-pyyaml for building

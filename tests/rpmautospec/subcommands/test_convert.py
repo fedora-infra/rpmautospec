@@ -4,7 +4,7 @@ Test the rpmautospec.subcommands.converter module
 
 import logging
 from types import SimpleNamespace
-import unittest.mock
+from unittest import mock
 
 import pygit2
 import pytest
@@ -51,7 +51,7 @@ def test_init_dirty_tree(specfile, repo):
         convert.PkgConverter(specfile)
 
 
-@unittest.mock.patch("rpmautospec.subcommands.convert.PkgConverter")
+@mock.patch("rpmautospec.subcommands.convert.PkgConverter")
 def test_main_invalid_args(specfile):
     args = SimpleNamespace(
         spec_or_path=specfile, message="", no_commit=False, no_changelog=False, no_release=False
@@ -70,7 +70,7 @@ def test_main_invalid_args(specfile):
         convert.main(args)
 
 
-@unittest.mock.patch("rpmautospec.subcommands.convert.PkgConverter")
+@mock.patch("rpmautospec.subcommands.convert.PkgConverter")
 def test_main_valid_args(pkg_converter_mock, specfile):
     pkg_converter = unittest.mock.Mock(spec=convert.PkgConverter)()
     pkg_converter_mock.return_value = pkg_converter

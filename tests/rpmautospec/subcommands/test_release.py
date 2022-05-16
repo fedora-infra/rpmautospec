@@ -3,7 +3,7 @@ import os.path
 import tarfile
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock
+from unittest import mock
 
 import pytest
 
@@ -39,7 +39,7 @@ class TestRelease:
                 assert release.calculate_release(unpacked_repo_dir) == expected_release
             else:
                 with caplog.at_level(logging.INFO):
-                    args = Mock()
+                    args = mock.Mock()
                     args.spec_or_path = unpacked_repo_dir
                     release.main(args)
                 assert f"calculate_release release: {expected_release}" in caplog.text

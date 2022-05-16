@@ -1,7 +1,14 @@
+# when bootstrapping Python, pytest-xdist is not yet available (also not yet in EPEL9)
+%if ! 0%{?rhel} || 0%{?rhel} > 9
+%bcond_without xdist
+%else
+%bcond_with xdist
+%endif
+
 %global srcname rpmautospec
 
 Name:           python-rpmautospec
-Version:        0.2.7
+Version:        0.2.8
 Release:        1%{?dist}
 Summary:        Package and CLI tool to generate release fields and changelogs
 
@@ -22,7 +29,9 @@ BuildRequires:  python3-koji
 BuildRequires:  python3-pygit2
 BuildRequires:  python%{python3_pkgversion}-pytest
 BuildRequires:  python%{python3_pkgversion}-pytest-cov
+%if %{with xdist}
 BuildRequires:  python%{python3_pkgversion}-pytest-xdist
+%endif
 BuildRequires:  python%{python3_pkgversion}-pyyaml
 
 Obsoletes:      koji-hub-plugin-rpmautospec < 0.1.5-2
@@ -118,9 +127,17 @@ mkdir -p %{buildroot}%{rpmmacrodir}
 install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 
 %check
-%{__python3} -m pytest -n auto
+%{__python3} -m pytest \
+%if %{with xdist}
+--numprocesses=auto
+%endif
+
 
 %changelog
+* Mon May 16 2022 Nils Philippsen <nils@redhat.com> - 0.2.8-1
+- Update to 0.2.8
+- Don't require python3-pytest-xdist for building on EL9
+
 * Mon May 16 2022 Nils Philippsen <nils@redhat.com> - 0.2.7-1
 - Update to 0.2.7
 

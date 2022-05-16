@@ -71,12 +71,10 @@ def test_main_invalid_args(specfile):
 
 
 @mock.patch("rpmautospec.subcommands.convert.PkgConverter")
-def test_main_valid_args(pkg_converter_mock, specfile):
-    pkg_converter = unittest.mock.Mock(spec=convert.PkgConverter)()
-    pkg_converter_mock.return_value = pkg_converter
+def test_main_valid_args(PkgConverter, specfile):
+    PkgConverter.return_value = pkg_converter = mock.MagicMock()
 
     # No Release change.
-    pkg_converter.reset_mock()
     args = SimpleNamespace(
         spec_or_path=specfile,
         message="message",

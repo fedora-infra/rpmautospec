@@ -1,9 +1,5 @@
-# when bootstrapping Python, pytest-xdist is not yet available (also not yet in EPEL9)
-%if ! 0%{?rhel} || 0%{?rhel} > 9
+# when bootstrapping Python, pytest-xdist is not yet available
 %bcond_without xdist
-%else
-%bcond_with xdist
-%endif
 
 %global srcname rpmautospec
 
@@ -134,6 +130,9 @@ install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 
 
 %changelog
+* Wed Jun 08 2022 Nils Philippsen <nils@redhat.com>
+- Generally BR: python3-pytest-xdist, also on EL9
+
 * Mon May 16 2022 Nils Philippsen <nils@redhat.com> - 0.2.8-1
 - Update to 0.2.8
 - Don't require python3-pytest-xdist for building on EL9

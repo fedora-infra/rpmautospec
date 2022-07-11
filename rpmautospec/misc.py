@@ -6,7 +6,7 @@ from typing import Union
 
 
 # the %autorelease macro including parameters
-AUTORELEASE_MACRO = "autorelease(e:s:pb:)"
+AUTORELEASE_MACRO = "autorelease(e:s:pb:n)"
 
 autorelease_re = re.compile(
     r"\s*(?i:Release)\s*:.*%(?:autorelease(?:\s|$)|\{\??autorelease(?:\s+[^\}]*)?\})"

@@ -16,6 +16,7 @@ The ``%autorelease`` macro accepts these parameters to allow packagers to specif
 the different portions of the release field:
 
 * ``-b <baserelease>``: Allows specifying a custom base release number (i.e. other than 1).
+* ``-n``: Don’t render the dist tag, e.g. for use in macros, if the dist tag is added later.
 
 
 .. important::

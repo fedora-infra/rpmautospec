@@ -11,12 +11,13 @@ HERE = Path(__file__).parent
 MACROS_FILE = HERE.parent / "rpm" / "macros.d" / "macros.rpmautospec"
 
 
+@pytest.mark.parametrize("nodisttag", (False, True))
 @pytest.mark.parametrize("base", (None, 10))
 @pytest.mark.parametrize("prerelease", (False, True))
 @pytest.mark.parametrize("snapshot", (None, "19700101"))
 @pytest.mark.parametrize("extra", (None, "ilikeunsortableversions"))
 @pytest.mark.parametrize("braces", (False, True))
-def test_autorelease(braces, extra, snapshot, prerelease, base):
+def test_autorelease(braces, extra, snapshot, prerelease, base, nodisttag):
     expected = ""
     if braces:
         autorelease_macro = "%{autorelease"
@@ -41,7 +42,10 @@ def test_autorelease(braces, extra, snapshot, prerelease, base):
         autorelease_macro += " -p"
         expected = "0." + expected
 
-    expected += ".DIST"
+    if nodisttag:
+        autorelease_macro += " -n"
+    else:
+        expected += ".DIST"
 
     if braces:
         autorelease_macro += "}"

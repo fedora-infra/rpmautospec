@@ -15,11 +15,11 @@ __here__ = os.path.dirname(__file__)
 
 autorelease_template = """## START: Set by rpmautospec
 ## (rpmautospec version {version})
-%define autorelease(e:s:pb:) %{{?-p:0.}}%{{lua:
+%define autorelease(e:s:pb:n) %{{?-p:0.}}%{{lua:
     release_number = {autorelease_number:d};
     base_release_number = tonumber(rpm.expand("%{{?-b*}}%{{!?-b:1}}"));
     print(release_number + base_release_number - 1);
-}}%{{?-e:.%{{-e*}}}}%{{?-s:.%{{-s*}}}}%{{?dist}}
+}}%{{?-e:.%{{-e*}}}}%{{?-s:.%{{-s*}}}}%{{!?-n:%{{?dist}}}}
 ## END: Set by rpmautospec
 """  # noqa: E501
 

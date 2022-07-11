@@ -65,8 +65,10 @@ class TestMisc:
             pytest.param(False, False, "", False, False, id="nothing"),
         ),
     )
+    @pytest.mark.parametrize("specpath_type", (str, Path))
     def test_check_specfile_features(
         self,
+        specpath_type,
         with_autorelease,
         with_autorelease_braces,
         autorelease_flags,
@@ -83,7 +85,7 @@ class TestMisc:
                 with_autochangelog=with_autochangelog,
             )
 
-            features = misc.check_specfile_features(specfile.name)
+            features = misc.check_specfile_features(specpath_type(specfile.name))
 
             assert features.has_autorelease == with_autorelease
             if with_changelog:

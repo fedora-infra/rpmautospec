@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import TextIO
 
@@ -18,14 +19,24 @@ class TestMisc:
         specfile: TextIO,
         *,
         with_autorelease=True,
+        with_autorelease_braces=False,
         autorelease_flags="",
         with_changelog=True,
         with_autochangelog=True,
     ):
+        if autorelease_flags and not autorelease_flags.startswith(" "):
+            autorelease_flags = " " + autorelease_flags
+
         contents = [
             "Line 1",
             "Line 2",
-            f"Release: %autorelease {autorelease_flags}" if with_autorelease else "Release: 1",
+            (
+                f"Release: %{{autorelease{autorelease_flags}}}"
+                if with_autorelease_braces
+                else f"Release: %autorelease{autorelease_flags}"
+            )
+            if with_autorelease
+            else "Release: 1",
             "Line 4",
             "Line 5",
         ]
@@ -40,16 +51,24 @@ class TestMisc:
         specfile.flush()
 
     @pytest.mark.parametrize(
-        "with_autorelease,autorelease_flags,with_changelog,with_autochangelog",
+        "with_autorelease, with_autorelease_braces, autorelease_flags, with_changelog,"
+        + " with_autochangelog",
         (
-            pytest.param(True, "", True, True, id="all features"),
-            pytest.param(True, "-b 200", True, True, id="with non standard base release number"),
-            pytest.param(False, "", False, False, id="nothing"),
+            pytest.param(True, False, "", True, True, id="all features"),
+            pytest.param(
+                True, False, "-b 200", True, True, id="with non standard base release number"
+            ),
+            pytest.param(True, True, "", True, True, id="all features, braces"),
+            pytest.param(
+                True, True, "-b 200", True, True, id="with non standard base release number, braces"
+            ),
+            pytest.param(False, False, "", False, False, id="nothing"),
         ),
     )
     def test_check_specfile_features(
         self,
         with_autorelease,
+        with_autorelease_braces,
         autorelease_flags,
         with_changelog,
         with_autochangelog,
@@ -58,6 +77,7 @@ class TestMisc:
             self._generate_spec_with_features(
                 specfile,
                 with_autorelease=with_autorelease,
+                with_autorelease_braces=with_autorelease_braces,
                 autorelease_flags=autorelease_flags,
                 with_changelog=with_changelog,
                 with_autochangelog=with_autochangelog,

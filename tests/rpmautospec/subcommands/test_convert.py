@@ -3,6 +3,7 @@ Test the rpmautospec.subcommands.converter module
 """
 
 import logging
+import re
 from types import SimpleNamespace
 from unittest import mock
 
@@ -11,6 +12,10 @@ import pytest
 
 from rpmautospec.subcommands import convert
 from rpmautospec.misc import autorelease_re, autochangelog_re
+
+release_autorelease_re = re.compile(
+    convert.release_re.pattern + autorelease_re.pattern, re.MULTILINE
+)
 
 
 def test_init_invalid_path(tmp_path):
@@ -125,9 +130,9 @@ def test_main_valid_args(PkgConverter, specfile):
 @pytest.mark.parametrize(
     "release, expected",
     [
-        ("Release: 1%{dist}", "\nRelease: %autorelease\n"),
-        ("Release \t: \t1%{dist}", "\nRelease \t: \t%autorelease\n"),
-        ("ReLeAsE: 1%{dist}", "\nReLeAsE: %autorelease\n"),
+        ("Release: 1%{dist}", "Release: %autorelease\n"),
+        ("Release \t: \t1%{dist}", "Release \t: \t%autorelease\n"),
+        ("ReLeAsE: 1%{dist}", "ReLeAsE: %autorelease\n"),
     ],
     ids=[
         "regular",
@@ -144,7 +149,7 @@ def test_autorelease(specfile, expected):
     converter.convert_to_autorelease()
     converter.save()
 
-    assert autorelease_re.search(specfile.read_text()).group() == expected
+    assert release_autorelease_re.search(specfile.read_text()).group() == expected
 
 
 def test_autorelease_already_converted(specfile, caplog):
@@ -156,7 +161,7 @@ def test_autorelease_already_converted(specfile, caplog):
     caplog.clear()
     converter.convert_to_autorelease()
     assert len(caplog.records) == 1
-    assert "is already using %autorelease" in caplog.records[0].message
+    assert "uses %autorelease already" in caplog.records[0].message
 
 
 @pytest.mark.parametrize(

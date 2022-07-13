@@ -8,9 +8,7 @@ from typing import Union
 # the %autorelease macro including parameters
 AUTORELEASE_MACRO = "autorelease(e:s:pb:n)"
 
-autorelease_re = re.compile(
-    r"\s*(?i:Release)\s*:.*%(?:autorelease(?:\s|$)|\{\??autorelease(?:\s+[^\}]*)?\})"
-)
+autorelease_re = re.compile(r"%(?:autorelease(?:\s|$)|\{\??autorelease(?:\s+[^\}]*)?\})")
 changelog_re = re.compile(r"^%changelog(?:\s.*)?$", re.IGNORECASE)
 autochangelog_re = re.compile(r"\s*%(?:autochangelog|\{\??autochangelog\})\s*")
 
@@ -34,7 +32,7 @@ def check_specfile_features(specpath: Union[Path, str]) -> SpecfileFeatures:
         for lineno, line in enumerate(iter(specfile), start=1):
             line = line.rstrip("\n")
 
-            if not has_autorelease and autorelease_re.match(line):
+            if not has_autorelease and autorelease_re.search(line):
                 has_autorelease = True
 
             if changelog_lineno is None and changelog_re.match(line):

@@ -27,18 +27,27 @@ class TestMisc:
         if autorelease_flags and not autorelease_flags.startswith(" "):
             autorelease_flags = " " + autorelease_flags
 
+        base = 3
+        if with_autorelease:
+            if with_autorelease_braces:
+                autorelease_blurb = f"%{{autorelease{autorelease_flags}}}"
+            else:
+                autorelease_blurb = f"%autorelease{autorelease_flags}"
+
+            if with_autorelease == "macro":
+                release_blurb = f"%global baserelease {autorelease_blurb}\nRelease: %baserelease"
+                base = 4
+            else:
+                release_blurb = f"Release: {autorelease_blurb}"
+        else:
+            release_blurb = "Release: 1"
+
         contents = [
             "Line 1",
             "Line 2",
-            (
-                f"Release: %{{autorelease{autorelease_flags}}}"
-                if with_autorelease_braces
-                else f"Release: %autorelease{autorelease_flags}"
-            )
-            if with_autorelease
-            else "Release: 1",
-            "Line 4",
-            "Line 5",
+            release_blurb,
+            f"Line {base + 1}",
+            f"Line {base + 2}",
         ]
         if with_changelog:
             contents.append("%changelog")
@@ -55,10 +64,12 @@ class TestMisc:
         + " with_autochangelog",
         (
             pytest.param(True, False, "", True, True, id="all features"),
+            pytest.param("macro", False, "", True, True, id="all features, macro"),
             pytest.param(
                 True, False, "-b 200", True, True, id="with non standard base release number"
             ),
             pytest.param(True, True, "", True, True, id="all features, braces"),
+            pytest.param("macro", True, "", True, True, id="all features, braces, macro"),
             pytest.param(
                 True, True, "-b 200", True, True, id="with non standard base release number, braces"
             ),
@@ -85,16 +96,19 @@ class TestMisc:
                 with_autochangelog=with_autochangelog,
             )
 
+            specfile.seek(0)
+            contents = specfile.read()  # noqa
+
             features = misc.check_specfile_features(specpath_type(specfile.name))
 
-            assert features.has_autorelease == with_autorelease
+            assert features.has_autorelease == bool(with_autorelease)
             if with_changelog:
-                assert features.changelog_lineno == 6
+                assert features.changelog_lineno == 7 if with_autorelease == "macro" else 6
             else:
                 assert features.changelog_lineno is None
             assert features.has_autochangelog == with_autochangelog
             if with_autochangelog:
-                assert features.autochangelog_lineno == 7
+                assert features.autochangelog_lineno == 8 if with_autorelease == "macro" else 7
             else:
                 assert features.autochangelog_lineno is None
 

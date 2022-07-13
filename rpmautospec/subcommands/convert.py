@@ -9,6 +9,8 @@ from ..misc import autochangelog_re, autorelease_re, changelog_re
 
 log = logging.getLogger(__name__)
 
+release_re = re.compile(r"^(?P<tag>(?i:Release)\s*:\s*)")
+
 
 class PkgConverter:
     def __init__(self, spec_or_path: Path):
@@ -88,26 +90,35 @@ class PkgConverter:
                 f.write("\n".join(self.changelog_lines) + "\n")
 
     def convert_to_autorelease(self):
-        release_re = re.compile(r"^(?P<tag>Release\s*:\s*)", re.IGNORECASE)
-        release_lines = ((i, release_re.match(line)) for i, line in enumerate(self.spec_lines))
-        release_lines = [(i, match) for i, match in release_lines if match]
-        line_numbers = ", ".join(f"{i+1}" for i, _ in release_lines)
-        log.debug("Found Release tag on line(s) %s", line_numbers)
+        release_autorelease_lines = {
+            i: (release_re.match(line), autorelease_re.search(line))
+            for i, line in enumerate(self.spec_lines)
+        }
+        release_lines = [i for i, (rel_m, autorel_m) in release_autorelease_lines.items() if rel_m]
+        autorelease_lines = [
+            i for i, (rel_m, autorel_m) in release_autorelease_lines.items() if autorel_m
+        ]
 
         if not release_lines:
             raise RuntimeError(f"Unable to locate Release tag in spec file {str(self.specfile)!r}")
-        elif len(release_lines) > 1:
+
+        if autorelease_lines:
+            log.warning(f"{str(self.specfile)!r} uses %autorelease already")
+            return
+
+        line_numbers = ", ".join(f"{i+1}" for i in release_lines)
+        log.debug("Found Release tag on line(s) %s", line_numbers)
+
+        if len(release_lines) > 1:
             raise RuntimeError(
                 f"Found multiple Release tags on lines {line_numbers} "
                 f"in spec file {str(self.specfile)!r}"
             )
 
         # Process the line so the inserted macro is aligned to the previous location of the tag.
-        lineno, match = release_lines[0]
-        if autorelease_re.match(self.spec_lines[lineno]):
-            log.warning(f"{str(self.specfile)!r} is already using %autorelease")
-            return
-        self.spec_lines[lineno] = f"{match.group('tag')}%autorelease\n"
+        lineno = release_lines[0]
+        release_match = release_autorelease_lines[lineno][0]
+        self.spec_lines[lineno] = f"{release_match.group('tag')}%autorelease\n"
 
     def convert_to_autochangelog(self):
         changelog_lines = [i for i, line in enumerate(self.spec_lines) if changelog_re.match(line)]

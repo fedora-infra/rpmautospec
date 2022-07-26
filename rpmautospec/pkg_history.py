@@ -676,7 +676,7 @@ class PkgHistoryProcessor:
                         "base": 1,
                     }
 
-            # Mimic the bottom half of release_visitor
+            # Mimic the bottom half of release_number_visitor
             worktree_result["epoch-version"] = epoch_version = verflags["epoch-version"]
             if head_result and epoch_version == head_result["epoch-version"]:
                 release_number = head_result["release-number"] + 1

@@ -251,7 +251,7 @@ class PkgHistoryProcessor:
             default=0,
         )
 
-        if epoch_version is not None:
+        if self.specfile.name in commit.tree:
             release_number += 1
 
         commit_result["release-number"] = release_number

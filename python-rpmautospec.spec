@@ -4,7 +4,7 @@
 %global srcname rpmautospec
 
 Name:           python-rpmautospec
-Version:        0.2.8
+Version:        0.3.0
 Release:        1%{?dist}
 Summary:        Package and CLI tool to generate release fields and changelogs
 
@@ -130,6 +130,9 @@ install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 
 
 %changelog
+* Wed Jul 27 2022 Nils Philippsen <nils@redhat.com> - 0.3.0-1
+- Update to 0.3.0
+
 * Wed Jun 08 2022 Nils Philippsen <nils@redhat.com>
 - Generally BR: python3-pytest-xdist, also on EL9
 

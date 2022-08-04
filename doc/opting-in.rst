@@ -22,7 +22,8 @@ with the ``%autorelease`` macro, such as:
 .. note::
     Often, changing to automatic releases will result in an initial jump of the release number
     because the number of commits since the last version change is higher than the number of builds
-    up to here. This is expected and not a sign that the product is defective.
+    up to here. This is expected and not a sign that the product is defective. To avoid such a jump,
+    it is best to switch to ``%autorelease`` right before a version bump.
 
 There are different options you can associate with this macro which are
 documented in: :ref:`using-autorelease`.

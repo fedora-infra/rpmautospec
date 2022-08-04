@@ -51,21 +51,27 @@ history of the package.
 For existing packages
 ^^^^^^^^^^^^^^^^^^^^^
 
-Existing packages will already have a ``%changelog`` section with content, you can copy that into a
-file ``changelog`` that needs to be added to the git repository of the package.  You can then remove
-the content of the ``%changelog`` section of your spec file and simply have it be:
+Existing packages will already have a ``%changelog`` section with some
+entries. Those contents should be copied into a ``changelog`` file
+(that will be added to the git repository of the package), and removed
+from the spec file. This change must be done in a *single commit*.
+
+Use the ``convert`` command to do this automatically:
+
+::
+
+    rpmautospec convert
+
+
+After the change, the content of the ``%changelog`` section should be:
 
 ::
 
     %changelog
     %autochangelog
 
-Once these two changes are done, commit them in a *single commit* for both
-files. If the same commit contains other changes that would require
-a changelog entry, add it to the top of the ``changelog`` file.
-
 From now on, the changelog will be automatically generated from the commit
-history of your git repository up until the most recent commit found that
+history of your git repository up until the most recent commit that
 changes the ``changelog`` file.
 
 More explanations on how the ``%autochangelog`` macro works can be found

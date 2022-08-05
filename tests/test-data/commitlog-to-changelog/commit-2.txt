@@ -1,3 +1,5 @@
 A commit subject on a pretty long line two three
 
 This should be ignored.
+
+[skip changelog]

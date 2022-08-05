@@ -9,11 +9,69 @@ which is inserted in the spec file where the ``%autochangelog`` macro is set.
 These two sources of information are:
 
 * An optional ``changelog`` file in the dist-git repository of the package. If
-  this file is present, it is included **as is** in the spec file (i.e. be
-  careful how you format this file).
+  this file is present, it is included **as is** in the spec file. It should
+  be formatted according to the rules required for the changelog text, but
+  **without** the escaping of rpm macros that would be needed if it was part
+  of the spec file.
 
 * The git history of the package between the most recent commit touching
   ``changelog`` and the latest commit made to the package.
+
+Changelog entries generated from commit messages
+------------------------------------------------
+
+In the simplest case, the commit summary (the first line) becomes the
+changelog entry. `rpmautospec` will automatically add the line with
+information about authorship and date based on the commit authorship
+and timestamp. It will also add appropriate indentation and the dash
+("-"), so those should not be included in the commit summary.
+
+Commit message::
+
+    Update to version 2.3.4 (rhbz#666)
+
+    This also fixes build issues on arm64.
+
+… results in the following changelog entry::
+
+    * Mon Nov 25 2019 Foo Bar <foo@bar.com> 2.3.4-1
+    - Update to version 2.3.4 (rhbz#666)
+
+It is possible to generate a longer changelog entry. If the first line
+of the commit message body starts with an ellipsis (three dots "..."
+or the equivalent Unicode character "…"), the subsequent text will be
+appended to the first item of a changelog entry. Dashed list items
+following the first item will be added as separate (dashed) changelog
+entries::
+
+    Update to version 2.3.5
+
+    ... (rhbz#667, rhbz#123, and a few other nasty bugs)
+
+    - Fixes build issues on s390 (rhbz#668)
+
+    (Text without a dash is ignored.)
+
+… results in the following changelog entry::
+
+    * Mon Nov 26 2019 Foo Bar <foo@bar.com> 2.3.5-1
+    - Update to version 2.3.5 (rhbz#667, rhbz#123, and a few other nasty bugs)
+    - Fixes build issues on s390 (rhbz#668)
+
+Skipping changelog entries
+--------------------------
+
+A commit will result in no changelog entry if it contains::
+
+  [skip changelog]
+
+as a separate line. This is useful in those cases where the commit is
+not interesting for the user, for example because it does cleanup or
+fixes an error in a previous commit or a build failure, and when
+reverting commits.
+
+Note that release suffix produced by the ``%autorelease`` macro is
+still bumped for such commits.
 
 
 Examples
@@ -31,9 +89,16 @@ Thus if the history looks like:
 
 ::
 
-    E:  Update to 2.3.4
+    F:  Update to 2.3.4
+    |
+    E:  Fix build on arm64
+    |
+    |   Fixes bug introduced in previous commit.
+    |   [skip changelog]
     |
     D:  Fix building on armv7 with gcc10
+    |
+    |   ... (required for the mass rebuild).
     |
     C:  Update to 1.5
     |
@@ -49,7 +114,7 @@ The automatically generated changelog will look like:
     - Update to 2.3.4
 
     * Thu Feb 06 2020 John Doe <john@doe.com> - 1.5-2
-    - Fix building for armv7 with gcc10
+    - Fix building for armv7 with gcc10 (required for the mass rebuild)
 
     * Thu Feb 06 2020 Foo Bar <foo@bar.com> - 1.5-1
     - Update to 1.5
@@ -78,7 +143,7 @@ So if the changelog file looks like:
     - Update to 2.3.5
 
     * Wed Jul 25 2018 Foo Bar <foo@bar.com> 2.3.4-1
-    - Update to 2.3.4
+    - Fix building for armv7 with gcc10 (required for the mass rebuild)
 
     * Thu Feb 06 2020 John Doe <john@doe.com> - 1.5-2
     - Fix building for armv7 with gcc10
@@ -100,6 +165,10 @@ And the history looks like:
 
 ::
 
+    K:  Fix build on s390x
+    |
+    |   [skip changelog]
+    |
     J:  Update to 2.4
     |
     I:  Fix typo in the changelog file
@@ -108,7 +177,7 @@ And the history looks like:
     |
     G:  Move changelog to ``changelog`` and fix typo
     |
-    F:  Udate to 2.3.5
+    F:  Update to 2.3.5
     |
     E:  Update to 2.3.4
     |
@@ -135,7 +204,7 @@ The automatically generated changelog will look like:
     - Update to 2.3.4
 
     * Thu Feb 06 2020 John Doe <john@doe.com> - 1.5-2
-    - Fix building for armv7 with gcc10
+    - Fix building for armv7 with gcc10 (required for the mass rebuild)
 
     * Thu Feb 06 2020 Foo Bar <foo@bar.com> - 1.5-1
     - Update to 1.5
@@ -153,4 +222,9 @@ content of the ``changelog`` file is included **as is**.
 
 In addition, we can see that the commits ``G``, ``H`` and ``I`` are not
 shown in the generated changelog since they were made before the most
-recent commit changing the ``changelog`` file.
+recent commit changing the ``changelog`` file, and ``K`` is skipped
+because of the ``[skip changelog]`` annotation.
+
+.. note::
+   At any time, `rpmautospec generate-changelog` can be used to preview
+   how the generated changelog will look.

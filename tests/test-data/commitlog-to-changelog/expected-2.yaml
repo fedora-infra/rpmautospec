@@ -1,3 +1,4 @@
 ---
 changelog_items:
   - A commit subject on a pretty long line two three
+skip_changelog: true

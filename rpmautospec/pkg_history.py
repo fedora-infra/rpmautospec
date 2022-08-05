@@ -372,7 +372,7 @@ class PkgHistoryProcessor:
             }
         )
 
-        skip_for_changelog = not specfile_present
+        skip_for_changelog = changelog_entry.skip_changelog() or not specfile_present
 
         if merge_unresolvable:
             log.debug("\tunresolvable merge")

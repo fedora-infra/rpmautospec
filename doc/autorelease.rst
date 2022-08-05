@@ -6,7 +6,7 @@ Using the ``%autorelease`` Macro
 Fedora's `Versioning Guidelines`_ define the different elements of which a
 release field consists. They are as follows:
 
-::
+.. code-block:: spec
 
     <pkgrel>%{?dist}[.<minorbump>]
 
@@ -35,12 +35,10 @@ Examples
 The Simple Case
 ^^^^^^^^^^^^^^^
 
-.. include:: examples/test-autorelease.spec
-   :literal:
+.. literalinclude:: examples/test-autorelease.spec
+   :language: spec
 
-Will generate the following NEVR:
-
-::
+Will generate the following NEVR::
 
     test-autorelease-1.0-1.fc34.x86_64
 
@@ -50,12 +48,10 @@ Will generate the following NEVR:
 The Custom Base Release Case
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. include:: examples/test-autorelease-baserelease.spec
-   :literal:
+.. literalinclude:: examples/test-autorelease-baserelease.spec
+   :language: spec
 
-Will generate the following NEVR:
-
-::
+Will generate the following NEVR::
 
     test-autorelease-baserelease-1.0-100.fc34.x86_64
 
@@ -70,9 +66,11 @@ This form is recommended for packages with complex versioning requirements
 when support for RHEL7 and other systems with old rpm versions is required.
 See `Traditional Versioning`_ in the Packaging Guidelines for details.
 
-The release field is extended::
+The release field is extended:
 
-    <pkgrel>[.<extraver>][.<snapinfo>]%{?dist}[.<minorbump>]
+.. code-block:: spec
+
+   <pkgrel>[.<extraver>][.<snapinfo>]%{?dist}[.<minorbump>]
 
 Square brackets indicate an optional item.
 
@@ -93,12 +91,10 @@ Examples
 The Pre-Release Case
 ^^^^^^^^^^^^^^^^^^^^
 
-.. include:: examples/test-autorelease-prerelease.spec
-   :literal:
+.. literalinclude:: examples/test-autorelease-prerelease.spec
+   :language: spec
 
-Will generate the following NEVR:
-
-::
+Will generate the following NEVR::
 
     test-autorelease-prerelease-1.0-0.1.pre1.fc34.x86_64
 
@@ -108,12 +104,10 @@ Will generate the following NEVR:
 The Extraver Case
 ^^^^^^^^^^^^^^^^^
 
-.. include:: examples/test-autorelease-extraver.spec
-   :literal:
+.. literalinclude:: examples/test-autorelease-extraver.spec
+   :language: spec
 
-Will generate the following NEVR:
-
-::
+Will generate the following NEVR::
 
     test-autorelease-extraver-1.0-1.pre1.fc34.x86_64
 
@@ -123,12 +117,10 @@ Will generate the following NEVR:
 The Snapshot Case
 ^^^^^^^^^^^^^^^^^
 
-.. include:: examples/test-autorelease-snapshot.spec
-   :literal:
+.. literalinclude:: examples/test-autorelease-snapshot.spec
+   :language: spec
 
-Will generate the following NEVR:
-
-::
+Will generate the following NEVR::
 
     test-autorelease-snapshot-1.0-1.20200317git1234abcd.fc34.x86_64
 
@@ -138,12 +130,10 @@ Will generate the following NEVR:
 The Snapshot and Extraver case
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. include:: examples/test-autorelease-extraver-snapshot.spec
-   :literal:
+.. literalinclude:: examples/test-autorelease-extraver-snapshot.spec
+   :language: spec
 
-Will generate the following NEVR:
-
-::
+Will generate the following NEVR::
 
     test-autorelease-extraver-snapshot-1.0-1.pre1.20200317git1234abcd.fc34.x86_64
 

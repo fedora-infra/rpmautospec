@@ -50,7 +50,9 @@ Rebuilding a package without changing it
 In the past, rebuilding a package to pick up changed dependencies, or in the context of mass
 rebuilds was accomplished by bumping the release and adding a suitable changelog entry. With
 `rpmautospec`, you have to tell git that you really want to add a commit without any changes in
-content to accomplish the equivalent, e.g.::
+content to accomplish the equivalent, e.g.:
+
+.. code-block:: bash
 
     git commit --allow-empty
 

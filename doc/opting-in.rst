@@ -9,13 +9,13 @@ Use the ``%autorelease`` macro
 
 Basically, in the spec file you replace the manually set release, e.g.:
 
-::
+.. code-block:: spec
 
     Release:    7{%dist}
 
 with the ``%autorelease`` macro, such as:
 
-::
+.. code-block:: spec
 
     Release:    %autorelease
 
@@ -38,7 +38,7 @@ For new packages
 If you use this macro in a brand-new package without git history, you can
 simply put the following two lines at the end of your spec file:
 
-::
+.. code-block:: spec
 
     %changelog
     %autochangelog
@@ -65,7 +65,7 @@ Use the ``convert`` command to do this automatically:
 
 After the change, the content of the ``%changelog`` section should be:
 
-::
+.. code-block:: spec
 
     %changelog
     %autochangelog

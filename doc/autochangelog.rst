@@ -99,9 +99,7 @@ Only Commits
 If a package has no ``changelog`` file, `rpmautospec` will only use the git
 history to generate the changelog.
 
-Thus if the history looks like:
-
-::
+Thus if the history looks like::
 
     F:  Update to 2.3.4
     |
@@ -120,9 +118,7 @@ Thus if the history looks like:
     |
     A:  Initial import
 
-The automatically generated changelog will look like:
-
-::
+The automatically generated changelog will look like::
 
     * Wed Jul 25 2018 Foo Bar <foo@bar.com> - 2.3.4-1
     - Update to 2.3.4
@@ -149,9 +145,7 @@ Commits and Changelog
 If a package has a ``changelog`` file, `rpmautospec` will only generate entries
 from the commits after its last change and then append its contents verbatim.
 
-So if the changelog file looks like:
-
-::
+So if the changelog file looks like::
 
     * Mon Nov 25 2019 Foo Bar <foo@bar.com> 2.3.5-1
     - Update to 2.3.5
@@ -175,9 +169,7 @@ So if the changelog file looks like:
 "Foo Bar".)
 
 
-And the history looks like:
-
-::
+And the history looks like::
 
     K:  Fix build on s390x
     |
@@ -204,9 +196,7 @@ And the history looks like:
     A:  Initial import
 
 
-The automatically generated changelog will look like:
-
-::
+The automatically generated changelog will look like::
 
     * Mon Mar 02 2020 Jane Smith <jane@smith.com> - 2.4-1
     - Update to 2.4

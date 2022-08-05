@@ -58,6 +58,20 @@ entries::
     - Update to version 2.3.5 (rhbz#667, rhbz#123, and a few other nasty bugs)
     - Fixes build issues on s390 (rhbz#668)
 
+.. note::
+
+   These examples use "`rhbz#nnn`" to refer to RedHat Bugzilla bug
+   number *nnn*. This convention is `understood by bodhi`_, which
+   may automatically associate an update with this build with that bug
+   and e.g. close the bug when the update goes to stable.
+
+   If you don't want bodhi to add the bug to the update, a different
+   syntax must be used, e.g. "`rhbz #nnn`" (note the space between
+   "`rhbz`" and "`#`").
+
+.. _understood by bodhi: https://fedora-infra.github.io/bodhi/6.0/user/automatic_updates.html#fedora-linux-specific-regex
+
+
 Skipping changelog entries
 --------------------------
 

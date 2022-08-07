@@ -15,7 +15,6 @@ release and changelog fields in RPM spec files opting to use it.
    autochangelog
    peculiarities
    install
-   deploying
 
 
 

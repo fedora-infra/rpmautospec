@@ -104,7 +104,7 @@ class ChangelogEntry(dict):
         )
 
         if entry_info["epoch-version"]:
-            changelog_evr = f" {entry_info['epoch-version']}"
+            changelog_evr = f" - {entry_info['epoch-version']}"
             if entry_info["release-complete"]:
                 changelog_evr += f"-{entry_info['release-complete']}"
         else:

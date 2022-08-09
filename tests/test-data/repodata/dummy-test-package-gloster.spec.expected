@@ -41,16 +41,16 @@ cp -p uuid %{buildroot}%{_datadir}/%{name}
 %{_datadir}/%{name}
 
 %changelog
-* Mon Apr 26 2021 Stephen Coady <scoady@redhat.com> 0-11
+* Mon Apr 26 2021 Stephen Coady <scoady@redhat.com> - 0-11
 - use autorelease instead of autorel
 
-* Fri Mar 27 2020 Pierre-Yves Chibon <pingou@pingoured.fr> 0-10
+* Fri Mar 27 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0-10
 - Change license to MIT
 
-* Fri Mar 27 2020 Pierre-Yves Chibon <pingou@pingoured.fr> 0-9
+* Fri Mar 27 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0-9
 - Undo vandalism
 
-* Fri Mar 27 2020 King ISØ-8859 <kingiso8859@example.com> 0-8
+* Fri Mar 27 2020 King ISØ-8859 <kingiso8859@example.com> - 0-8
 - Honour the tradition of antiquated encodings!
 
 * Tue Jan 21 2020 Pierre-Yves Chibon <pingou@pingoured.fr> - 0-5

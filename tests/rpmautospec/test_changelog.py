@@ -110,10 +110,10 @@ class TestChangelogEntry:
         expected_evr = ""
         if with_epoch_version_release:
             changelog_entry["epoch-version"] = "1.0"
-            expected_evr = " 1.0"
+            expected_evr = " - 1.0"
             if with_epoch_version_release != "epoch-version":
                 changelog_entry["release-complete"] = "1"
-                expected_evr = " 1.0-1"
+                expected_evr = " - 1.0-1"
 
         if with_error_is_none:
             changelog_entry["error"] = None
@@ -143,7 +143,7 @@ class TestChangelogEntry:
             changelog_entry["error"] = ["a string", "and another"]
 
         expected_changelog_entry = (
-            "* Thu Jan 01 1970 An Author <anauthor@example.com> 1.0-1\n- RPMAUTOSPEC: a string"
+            "* Thu Jan 01 1970 An Author <anauthor@example.com> - 1.0-1\n- RPMAUTOSPEC: a string"
         )
 
         if error == "list":

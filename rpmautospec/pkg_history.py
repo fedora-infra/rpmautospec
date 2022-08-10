@@ -133,14 +133,17 @@ class PkgHistoryProcessor:
             f"{name}.spec",
         ]
 
-        try:
-            output = (
-                subprocess.check_output(rpm_cmd, cwd=path, stderr=subprocess.PIPE)
-                .decode("UTF-8")
-                .strip()
-            )
-        except Exception:
+        call = subprocess.run(
+            rpm_cmd,
+            cwd=path,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if call.returncode != 0:
+            log.debug("rpm query for %r failed: %s", query, call.stderr.decode("utf-8", "replace"))
             return None
+
+        output = call.stdout.decode("utf-8").strip()
 
         split_output = output.split("\n")
         epoch_version = split_output[0]

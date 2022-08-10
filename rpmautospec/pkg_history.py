@@ -33,6 +33,8 @@ class PkgHistoryProcessor:
         r"^E(?P<extraver>[^_]*)_S(?P<snapinfo>[^_]*)_P(?P<prerelease>[01])_B(?P<base>\d*)$"
     )
 
+    specfile_include_re = re.compile(rb"\n%include\s.*")
+
     def __init__(self, spec_or_path: Union[str, Path]):
         if isinstance(spec_or_path, str):
             spec_or_path = Path(spec_or_path)
@@ -172,8 +174,12 @@ class PkgHistoryProcessor:
                 return None
 
             specpath = Path(workdir) / self.specfile.name
-            with specpath.open("wb") as specfile:
-                specfile.write(specblob.data)
+
+            # Filter out any %include directives. They would cause
+            # spec file evaluation to fail.
+            specdata = self.specfile_include_re.sub(b"", specblob.data)
+
+            specpath.write_bytes(specdata)
 
             return self._get_rpmverflags(workdir, self.name)
 

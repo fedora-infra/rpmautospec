@@ -7,6 +7,7 @@ from collections import defaultdict
 from fnmatch import fnmatchcase
 from functools import lru_cache, reduce
 from pathlib import Path
+from shutil import SpecialFileError
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Optional, Sequence, Union
 
@@ -42,7 +43,7 @@ class PkgHistoryProcessor:
         spec_or_path = spec_or_path.absolute()
 
         if not spec_or_path.exists():
-            raise RuntimeError(f"Spec file or path '{spec_or_path}' doesn't exist.")
+            raise FileNotFoundError(f"Spec file or path '{spec_or_path}' doesn't exist.")
         elif spec_or_path.is_dir():
             self.path = spec_or_path
             self.name = spec_or_path.name
@@ -56,10 +57,10 @@ class PkgHistoryProcessor:
             self.name = spec_or_path.stem
             self.specfile = spec_or_path
         else:
-            raise RuntimeError("File specified as `spec_or_path` is not a regular file.")
+            raise SpecialFileError("File specified as `spec_or_path` is not a regular file.")
 
         if not self.specfile.exists():
-            raise RuntimeError(f"Spec file '{self.specfile}' doesn't exist in '{self.path}'.")
+            raise FileNotFoundError(f"Spec file '{self.specfile}' doesn't exist in '{self.path}'.")
 
         try:
             if hasattr(pygit2, "GIT_REPOSITORY_OPEN_NO_SEARCH"):

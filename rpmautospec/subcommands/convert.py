@@ -1,10 +1,11 @@
 import logging
-from pathlib import Path
 import re
+from pathlib import Path
+from shutil import SpecialFileError
 
 import pygit2
 
-from ..misc import autochangelog_re, autorelease_re, changelog_re
+from ..misc import autochangelog_re, autorelease_re, changelog_re, FileIsModifiedError
 
 
 log = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ class PkgConverter:
         spec_or_path = spec_or_path.absolute()
 
         if not spec_or_path.exists():
-            raise RuntimeError(f"Spec file or path {str(spec_or_path)!r} doesn't exist")
+            raise FileNotFoundError(f"Spec file or path {str(spec_or_path)!r} doesn't exist")
         elif spec_or_path.is_dir():
             self.path = spec_or_path
             name = spec_or_path.name
@@ -30,10 +31,10 @@ class PkgConverter:
             self.path = spec_or_path.parent
             self.specfile = spec_or_path
         else:
-            raise RuntimeError(f"Spec file or path {str(spec_or_path)!r} is not a regular file")
+            raise SpecialFileError(f"Spec file or path {str(spec_or_path)!r} is not a regular file")
 
         if not self.specfile.exists():
-            raise RuntimeError(
+            raise FileNotFoundError(
                 f"Spec file {str(self.specfile)!r} doesn't exist in {str(self.path)!r}"
             )
 
@@ -55,25 +56,25 @@ class PkgConverter:
             try:
                 spec_status = self.repo.status_file(self.specfile.relative_to(self.path))
             except KeyError:
-                raise RuntimeError(
+                raise FileExistsError(
                     f"Spec file {str(self.specfile)!r} is in a repository, but isn't tracked"
                 )
             # Allow converting unmodified, and saved-to-index files.
             if spec_status not in (pygit2.GIT_STATUS_CURRENT, pygit2.GIT_STATUS_INDEX_MODIFIED):
-                raise RuntimeError(f"Spec file {str(self.specfile)!r} is modified")
+                raise FileIsModifiedError(f"Spec file {str(self.specfile)!r} is modified")
             try:
                 self.repo.status_file("changelog")
             except KeyError:
                 pass  # Doesn't exist; good.
             else:
-                raise RuntimeError("Changelog file 'changelog' is already in the repository")
+                raise FileExistsError("Changelog file 'changelog' is already in the repository")
             for filepath, flags in self.repo.status().items():
                 if flags not in (
                     pygit2.GIT_STATUS_CURRENT,
                     pygit2.GIT_STATUS_IGNORED,
                     pygit2.GIT_STATUS_WT_NEW,
                 ):
-                    raise RuntimeError(f"Repository '{str(self.path)!r}' is dirty")
+                    raise FileIsModifiedError(f"Repository '{str(self.path)!r}' is dirty")
 
         self.changelog_lines = None
         self.spec_lines = None
@@ -224,9 +225,9 @@ def main(args):
     """Main method."""
     if not args.no_commit:
         if not args.message:
-            raise RuntimeError("Commit message cannot be empty")
+            raise ValueError("Commit message cannot be empty")
     if args.no_changelog and args.no_release:
-        raise RuntimeError("All changes are disabled")
+        raise ValueError("All changes are disabled")
 
     pkg = PkgConverter(Path(args.spec_or_path))
     pkg.load()

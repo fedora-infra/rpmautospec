@@ -4,7 +4,7 @@ import os
 import re
 import stat
 from calendar import LocaleTextCalendar
-from shutil import rmtree
+from shutil import rmtree, SpecialFileError
 from unittest.mock import patch
 
 import pygit2
@@ -73,7 +73,7 @@ class TestPkgHistoryProcessor:
             spec_or_path = str(spec_or_path)
 
         if "doesn't exist" in testcase:
-            with pytest.raises(RuntimeError) as excinfo:
+            with pytest.raises(FileNotFoundError) as excinfo:
                 PkgHistoryProcessor(spec_or_path)
             if "spec doesn't exist" in testcase:
                 expected_message = f"Spec file '{specfile}' doesn't exist in '{specfile.parent}'."
@@ -85,7 +85,7 @@ class TestPkgHistoryProcessor:
         if "not a regular file" in testcase:
             specfile.unlink()
             os.mknod(specfile, stat.S_IFIFO | stat.S_IRUSR | stat.S_IWUSR)
-            with pytest.raises(RuntimeError) as excinfo:
+            with pytest.raises(SpecialFileError) as excinfo:
                 PkgHistoryProcessor(spec_or_path)
             assert str(excinfo.value) == "File specified as `spec_or_path` is not a regular file."
             return

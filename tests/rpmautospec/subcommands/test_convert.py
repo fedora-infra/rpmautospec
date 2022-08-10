@@ -11,7 +11,7 @@ import pygit2
 import pytest
 
 from rpmautospec.subcommands import convert
-from rpmautospec.misc import autorelease_re, autochangelog_re
+from rpmautospec.misc import autorelease_re, autochangelog_re, FileIsModifiedError
 
 release_autorelease_re = re.compile(
     convert.release_re.pattern + autorelease_re.pattern, re.MULTILINE
@@ -19,12 +19,12 @@ release_autorelease_re = re.compile(
 
 
 def test_init_invalid_path(tmp_path):
-    with pytest.raises(RuntimeError, match="doesn't exist"):
+    with pytest.raises(FileNotFoundError, match="doesn't exist"):
         convert.PkgConverter(tmp_path / "nonexistent.spec")
 
     dir_no_spec = tmp_path / "dir_no_spec"
     dir_no_spec.mkdir()
-    with pytest.raises(RuntimeError, match="doesn't exist in "):
+    with pytest.raises(FileNotFoundError, match="doesn't exist in "):
         convert.PkgConverter(dir_no_spec)
 
     no_spec_extension = tmp_path / "noext"
@@ -37,13 +37,13 @@ def test_init_dirty_tree(specfile, repo):
     # The changelog file has already been added:
     changelog = specfile.parent / "changelog"
     changelog.touch()
-    with pytest.raises(RuntimeError, match="'changelog' is already in the repository"):
+    with pytest.raises(FileExistsError, match="'changelog' is already in the repository"):
         convert.PkgConverter(specfile)
     changelog.unlink()
 
     # The spec file has been modified without committing it:
     specfile.write_text("Modified")
-    with pytest.raises(RuntimeError, match="is modified"):
+    with pytest.raises(FileIsModifiedError, match="is modified"):
         convert.PkgConverter(specfile)
     repo.reset(repo.head.target, pygit2.GIT_RESET_HARD)
 
@@ -52,7 +52,7 @@ def test_init_dirty_tree(specfile, repo):
     dirty.write_text("")
     repo.index.add("dirty")
     repo.index.write()
-    with pytest.raises(RuntimeError, match="is dirty"):
+    with pytest.raises(FileIsModifiedError, match="is dirty"):
         convert.PkgConverter(specfile)
 
 
@@ -61,7 +61,7 @@ def test_main_invalid_args(specfile):
     args = SimpleNamespace(
         spec_or_path=specfile, message="", no_commit=False, no_changelog=False, no_release=False
     )
-    with pytest.raises(RuntimeError, match="Commit message cannot be empty"):
+    with pytest.raises(ValueError, match="Commit message cannot be empty"):
         convert.main(args)
 
     args = SimpleNamespace(
@@ -71,7 +71,7 @@ def test_main_invalid_args(specfile):
         no_changelog=True,
         no_release=True,
     )
-    with pytest.raises(RuntimeError, match="All changes are disabled"):
+    with pytest.raises(ValueError, match="All changes are disabled"):
         convert.main(args)
 
 

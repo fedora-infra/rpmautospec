@@ -19,6 +19,11 @@ SpecfileFeatures = namedtuple(
 )
 
 
+class FileIsModifiedError(OSError):
+    "A file under version control has been modified."
+    pass
+
+
 @lru_cache(maxsize=None)
 def check_specfile_features(specpath: Union[Path, str]) -> SpecfileFeatures:
     if not isinstance(specpath, Path):

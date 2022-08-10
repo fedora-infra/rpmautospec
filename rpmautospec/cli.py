@@ -1,4 +1,5 @@
 import argparse
+import contextlib
 import locale
 import logging
 import sys
@@ -91,6 +92,16 @@ def get_cli_args(args: typing.List[str]) -> argparse.Namespace:
     return parser.parse_args(args)
 
 
+@contextlib.contextmanager
+def suppress_expected_exceptions():
+    """Suppress tracebacks on common "expected" exceptions"""
+    try:
+        yield
+    except BrokenPipeError:
+        pass
+
+
+@suppress_expected_exceptions()
 def main():
     locale.setlocale(locale.LC_ALL, "")
 

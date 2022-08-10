@@ -1,4 +1,3 @@
-import logging
 import os.path
 import tarfile
 import tempfile
@@ -17,7 +16,7 @@ class TestRelease:
     """Test the rpmautospec.subcommands.release module"""
 
     @pytest.mark.parametrize("method_to_test", ("calculate_release", "main"))
-    def test_calculate_release(self, method_to_test, caplog):
+    def test_calculate_release(self, method_to_test, capsys):
         with tempfile.TemporaryDirectory() as workdir:
             with tarfile.open(
                 os.path.join(
@@ -38,8 +37,9 @@ class TestRelease:
             if method_to_test == "calculate_release":
                 assert release.calculate_release(unpacked_repo_dir) == expected_release
             else:
-                with caplog.at_level(logging.INFO):
-                    args = mock.Mock()
-                    args.spec_or_path = unpacked_repo_dir
-                    release.main(args)
-                assert f"calculate_release release: {expected_release}" in caplog.text
+                args = mock.Mock()
+                args.spec_or_path = unpacked_repo_dir
+                release.main(args)
+
+                captured = capsys.readouterr()
+                assert f"calculate_release release: {expected_release}" in captured.out

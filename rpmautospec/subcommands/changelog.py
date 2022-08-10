@@ -1,10 +1,6 @@
-import logging
 from typing import Any, Dict, Optional, Union
 
 from ..pkg_history import PkgHistoryProcessor
-
-
-log = logging.getLogger(__name__)
 
 
 def register_subcommand(subparsers):
@@ -57,4 +53,4 @@ def produce_changelog(spec_or_repo):
 def main(args):
     """Main method."""
     changelog = produce_changelog(args.spec_or_path)
-    log.info(changelog)
+    print(changelog)

@@ -93,15 +93,18 @@ def get_cli_args(args: typing.List[str]) -> argparse.Namespace:
 
 
 @contextlib.contextmanager
-def suppress_expected_exceptions():
+def handle_expected_exceptions():
     """Suppress tracebacks on common "expected" exceptions"""
     try:
         yield
     except BrokenPipeError:
         pass
+    except OSError as e:
+        # this covers various cases like file not found / has wrong type / access is denied.
+        sys.exit(str(e))
 
 
-@suppress_expected_exceptions()
+@handle_expected_exceptions()
 def main():
     locale.setlocale(locale.LC_ALL, "")
 

@@ -282,6 +282,10 @@ def test_commit(specfile, release, changelog, repo):
         *(patch.delta.old_file.path for patch in diff),
     }
 
-    assert head.message == "Convert to rpmautospec."
+    if changelog_should_change or release_should_change:
+        expected_message = "Convert to rpmautospec."
+    else:
+        expected_message = "Did nothing!"
+    assert head.message == expected_message
     assert (specfile.name in fileschanged) == (changelog_should_change or release_should_change)
     assert ("changelog" in fileschanged) == changelog_should_change

@@ -167,8 +167,13 @@ class PkgConverter:
             signature.email,
             ref.shorthand,
         )
-        oid = self.repo.create_commit(ref.name, signature, signature, message, tree, [parent.oid])
-        log.debug("Committed %s to repository", oid)
+        if self.repo.diff(tree, parent, cached=True).patch:
+            oid = self.repo.create_commit(
+                ref.name, signature, signature, message, tree, [parent.oid]
+            )
+            log.debug("Committed %s to repository", oid)
+        else:
+            log.warning("Nothing to commit")
 
 
 def register_subcommand(subparsers):

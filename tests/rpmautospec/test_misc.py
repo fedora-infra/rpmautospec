@@ -54,7 +54,15 @@ class TestMisc:
         if with_autochangelog:
             contents.append("%autochangelog")
         else:
-            contents.extend(["* Thu Jan 01 1970 Some Name <email@example.com>", "- some entry"])
+            contents.extend(
+                [
+                    "* Fri Jan 02 1970 Some Name <email@example.com>",
+                    "- This %autorelease should be ignored.",
+                    "",
+                    "* Thu Jan 01 1970 Some Name <email@example.com>",
+                    "- some entry",
+                ]
+            )
 
         print("\n".join(contents), file=specfile)
         specfile.flush()
@@ -73,7 +81,7 @@ class TestMisc:
             pytest.param(
                 True, True, "-b 200", True, True, id="with non standard base release number, braces"
             ),
-            pytest.param(False, False, "", False, False, id="nothing"),
+            pytest.param(False, False, "", True, False, id="nothing"),
         ),
     )
     @pytest.mark.parametrize("specpath_type", (str, Path))
@@ -95,9 +103,6 @@ class TestMisc:
                 with_changelog=with_changelog,
                 with_autochangelog=with_autochangelog,
             )
-
-            specfile.seek(0)
-            contents = specfile.read()  # noqa
 
             features = misc.check_specfile_features(specpath_type(specfile.name))
 

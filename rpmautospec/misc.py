@@ -37,11 +37,12 @@ def check_specfile_features(specpath: Union[Path, str]) -> SpecfileFeatures:
         for lineno, line in enumerate(iter(specfile), start=1):
             line = line.rstrip("\n")
 
-            if not has_autorelease and autorelease_re.search(line):
-                has_autorelease = True
+            if changelog_lineno is None:
+                if not has_autorelease and autorelease_re.search(line):
+                    has_autorelease = True
 
-            if changelog_lineno is None and changelog_re.match(line):
-                changelog_lineno = lineno
+                if changelog_re.match(line):
+                    changelog_lineno = lineno
 
             if autochangelog_lineno is None and autochangelog_re.match(line):
                 autochangelog_lineno = lineno

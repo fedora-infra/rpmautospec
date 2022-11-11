@@ -66,3 +66,22 @@ content to accomplish the equivalent, e.g.:
     git commit --allow-empty
 
 The resulting empty head commit can be pushed into the repository of the package and built normally.
+
+
+Information about rpmautospec use in a built package
+----------------------------------------------------
+
+When preprocessing spec files for building, `rpmautospec` adds a header to the
+top of the spec file containing, among other things, information about its
+version and which features are used, e.g.:
+
+.. code-block::
+
+    ## START: Set by rpmautospec
+    ## (rpmautospec version 0.3.0)
+    ## RPMAUTOSPEC: autorelease, autochangelog
+    ...
+    ## END: Set by rpmautospec
+
+The preprocessed spec file is available in the SRPM which is generated as part
+of a package build.

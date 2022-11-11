@@ -13,15 +13,18 @@ from ..version import __version__
 log = logging.getLogger(__name__)
 __here__ = os.path.dirname(__file__)
 
-autorelease_template = """## START: Set by rpmautospec
+RPMAUTOSPEC_TEMPLATE = """## START: Set by rpmautospec
 ## (rpmautospec version {version})
+## RPMAUTOSPEC: {used_features}{autorelease_blurb_if_needed}
+## END: Set by rpmautospec
+"""
+
+AUTORELEASE_TEMPLATE = """
 %define autorelease(e:s:pb:n) %{{?-p:0.}}%{{lua:
     release_number = {autorelease_number:d};
     base_release_number = tonumber(rpm.expand("%{{?-b*}}%{{!?-b:1}}"));
     print(release_number + base_release_number - 1);
-}}%{{?-e:.%{{-e*}}}}%{{?-s:.%{{-s*}}}}%{{!?-n:%{{?dist}}}}
-## END: Set by rpmautospec
-"""  # noqa: E501
+}}%{{?-e:.%{{-e*}}}}%{{?-s:.%{{-s*}}}}%{{!?-n:%{{?dist}}}}"""  # noqa: E501
 
 
 def register_subcommand(subparsers):
@@ -87,11 +90,26 @@ def process_distgit(
 
     with processor.specfile.open("r") as specfile, tempfile.NamedTemporaryFile("w") as tmp_specfile:
         # Process the spec file into a temporary file...
-        if features.has_autorelease:
+        if features.has_autorelease or needs_autochangelog:
+            used_features = []
+
+            if features.has_autorelease:
+                autorelease_blurb_if_needed = AUTORELEASE_TEMPLATE.format(
+                    autorelease_number=autorelease_number
+                )
+                used_features.append("autorelease")
+            else:
+                autorelease_blurb_if_needed = ""
+
+            if needs_autochangelog:
+                used_features.append("autochangelog")
+
             # Write %autorelease macro header
             print(
-                autorelease_template.format(
-                    autorelease_number=autorelease_number, version=__version__
+                RPMAUTOSPEC_TEMPLATE.format(
+                    version=__version__,
+                    used_features=", ".join(used_features),
+                    autorelease_blurb_if_needed=autorelease_blurb_if_needed,
                 ),
                 file=tmp_specfile,
             )

@@ -11,6 +11,15 @@ here.
 Known constraints
 -----------------
 
+Package versions must be determinable from the spec file alone
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Both the Koji plugin and ``fedpkg`` preprocess package spec files outside of
+the target build root. If the version field of a package depends on macros
+not defined in the spec file (directly or indirectly), this will likely result
+in unexpected behavior if the macros in question differ between the environment
+of the target and that where preprocessing happens.
+
 One consistent release across the package
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

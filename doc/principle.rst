@@ -12,7 +12,7 @@ cloned, a dedicated plugin is run to preprocess the spec file:
 
 * It crawls the git history to count the number of commits since the last time the package version
   was bumped and to generate the changelog from the contents of the ``changelog`` file (if present)
-  and the commit logs of all later commits.
+  plus the logs of commits after this file changed for the last time.
 
 * It prepends a suitably defined ``%autorelease`` macro to the top of the spec
   file, freezing the computed value of the release number and thus allowing

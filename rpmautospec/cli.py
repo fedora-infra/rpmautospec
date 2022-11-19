@@ -112,7 +112,7 @@ def handle_expected_exceptions():
         pass
     except OSError as e:
         # this covers various cases like file not found / has wrong type / access is denied.
-        sys.exit(str(e))
+        sys.exit(f"error: {e}")
 
 
 @handle_expected_exceptions()

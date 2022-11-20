@@ -71,4 +71,4 @@ def calculate_release_number(spec_or_path: Union[str, Path]) -> int:
 def main(args):
     """Main method."""
     release = calculate_release(args.spec_or_path, complete_release=args.complete_release)
-    print("calculate_release release:", release)
+    print("Calculated release number:", release)

@@ -42,4 +42,4 @@ class TestRelease:
                 release.main(args)
 
                 captured = capsys.readouterr()
-                assert f"calculate_release release: {expected_release}" in captured.out
+                assert f"Calculated release number: {expected_release}" in captured.out

@@ -1,6 +1,7 @@
 from typing import Any, Dict, Optional, Union
 
 from ..pkg_history import PkgHistoryProcessor
+from .. import pager
 
 
 def register_subcommand(subparsers):
@@ -53,4 +54,4 @@ def produce_changelog(spec_or_repo):
 def main(args):
     """Main method."""
     changelog = produce_changelog(args.spec_or_path)
-    print(changelog)
+    pager.page(changelog, enabled=args.pager)

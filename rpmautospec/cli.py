@@ -47,7 +47,11 @@ class CustomArgumentParser(argparse.ArgumentParser):
 def get_cli_args(args: typing.List[str]) -> argparse.Namespace:
     global subcmd_modules_by_name
 
-    parser = CustomArgumentParser(prog="rpmautospec")
+    parser = CustomArgumentParser(
+        prog="rpmautospec",
+        epilog="Environment variable $RPMAUTOSPEC_LESS can specify pager options"
+        " (pager is currently only used by 'generate-changelog').",
+    )
 
     # global arguments
 
@@ -55,6 +59,13 @@ def get_cli_args(args: typing.List[str]) -> argparse.Namespace:
         "--koji-url",
         help="The base URL of the Koji hub",
         default="https://koji.fedoraproject.org/kojihub",
+    )
+
+    parser.add_argument(
+        "--pager",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Start a pager automatically",
     )
 
     log_level_group = parser.add_mutually_exclusive_group()

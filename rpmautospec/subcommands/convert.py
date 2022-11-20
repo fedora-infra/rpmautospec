@@ -2,6 +2,7 @@ import logging
 import re
 from pathlib import Path
 from shutil import SpecialFileError
+from typing import List, Optional
 
 import pygit2
 
@@ -79,6 +80,29 @@ class PkgConverter:
         self.changelog_lines = None
         self.spec_lines = None
 
+        # Collect information about conversions and operations that were performed
+        self.converted_release = False
+        self.converted_changelog = False
+        self.made_commit = False
+
+    def describe_changes(self, for_git: bool):
+        changes: List[str] = [
+            change
+            for change, shall_include in (
+                ("%autorelease", self.converted_release),
+                ("%autochangelog", self.converted_changelog),
+                ("committed to git", not for_git and self.made_commit),
+            )
+            if shall_include
+        ]
+
+        if for_git:
+            return f"Convert to {' and '.join(changes)}"
+        else:
+            if len(changes) > 2:
+                changes[-2] += ","
+            return f"Converted to {' and '.join(changes)}."
+
     def load(self):
         with self.specfile.open(encoding="utf-8") as f:
             self.spec_lines = f.readlines()
@@ -120,6 +144,7 @@ class PkgConverter:
         lineno = release_lines[0]
         release_match = release_autorelease_lines[lineno][0]
         self.spec_lines[lineno] = f"{release_match.group('tag')}%autorelease\n"
+        self.converted_release = True
 
     def convert_to_autochangelog(self):
         changelog_lines = [i for i, line in enumerate(self.spec_lines) if changelog_re.match(line)]
@@ -146,11 +171,15 @@ class PkgConverter:
 
         self.spec_lines[lineno:] = ["%autochangelog\n"]
         log.debug("Split %d lines to 'changelog' file", len(self.changelog_lines))
+        self.converted_changelog = True
 
-    def commit(self, message: str):
+    def commit(self, message: Optional[str]):
         if self.repo is None:
             log.debug("Unable to open repository at '%s'", self.path)
             return
+
+        if message is None:
+            message = self.describe_changes(for_git=True)
 
         index = self.repo.index
         index.add(self.specfile.relative_to(self.path))
@@ -173,6 +202,7 @@ class PkgConverter:
                 ref.name, signature, signature, message, tree, [parent.oid]
             )
             log.debug("Committed %s to repository", oid)
+            self.made_commit = True
         else:
             log.warning("Nothing to commit")
 
@@ -195,8 +225,7 @@ def register_subcommand(subparsers):
     convert_parser.add_argument(
         "--message",
         "-m",
-        default="Convert to rpmautospec",
-        help="Message to use when committing changes",
+        help="Override message to use when committing changes",
     )
 
     convert_parser.add_argument(
@@ -224,7 +253,7 @@ def register_subcommand(subparsers):
 def main(args):
     """Main method."""
     if not args.no_commit:
-        if not args.message:
+        if args.message == "":
             raise ValueError("Commit message cannot be empty")
     if args.no_changelog and args.no_release:
         raise ValueError("All changes are disabled")
@@ -238,3 +267,6 @@ def main(args):
     pkg.save()
     if not args.no_commit:
         pkg.commit(args.message)
+
+    # print final report so the user knows what happened
+    log.info(pkg.describe_changes(for_git=False))

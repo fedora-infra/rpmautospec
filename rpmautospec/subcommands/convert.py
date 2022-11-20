@@ -179,7 +179,7 @@ class PkgConverter:
             return
 
         if message is None:
-            message = self.describe_changes(for_git=True)
+            message = self.describe_changes(for_git=True) + "\n\n[skip changelog]"
 
         index = self.repo.index
         index.add(self.specfile.relative_to(self.path))

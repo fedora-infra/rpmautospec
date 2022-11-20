@@ -4,7 +4,6 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
-from fnmatch import fnmatchcase
 from functools import lru_cache, reduce
 from pathlib import Path
 from shutil import SpecialFileError
@@ -21,14 +20,6 @@ log = logging.getLogger(__name__)
 
 
 class PkgHistoryProcessor:
-
-    changelog_ignore_patterns = [
-        ".gitignore",
-        # no need to ignore "changelog" explicitly
-        "gating.yaml",
-        "sources",
-        "tests/*",
-    ]
 
     autorelease_flags_re = re.compile(
         r"^E(?P<extraver>[^_]*)_S(?P<snapinfo>[^_]*)_P(?P<prerelease>[01])_B(?P<base>\d*)$"
@@ -406,20 +397,6 @@ class PkgHistoryProcessor:
                         skip_for_changelog = True
                         break
 
-            if not skip_for_changelog:
-                # Check if this commit should be considered for the RPM changelog.
-                if parent_to_follow:
-                    diff = parent_to_follow.tree.diff_to_tree(commit.tree)
-                else:
-                    diff = commit.tree.diff_to_tree(swap=True)
-                changed_files = self._files_changed_in_diff(diff)
-                # Skip if no files changed (i.e. commit solely for changelog/build) or if any files
-                # are not to be ignored.
-                skip_for_changelog = changed_files and all(
-                    any(fnmatchcase(f, pat) for pat in self.changelog_ignore_patterns)
-                    for f in changed_files
-                )
-
             log.debug("\tskip_for_changelog: %s", skip_for_changelog)
 
             changelog_entry["skip"] = skip_for_changelog
@@ -732,39 +709,28 @@ class PkgHistoryProcessor:
                 changelog = ()
             else:
                 previous_changelog = head_result.get("changelog", ())
-                if self.repo:
-                    changed_files = self._files_changed_in_diff(diff_to_head)
-                    skip_for_changelog = all(
-                        any(fnmatchcase(f, path) for path in self.changelog_ignore_patterns)
-                        for f in changed_files
-                    )
-                else:
-                    skip_for_changelog = False
 
-                if not skip_for_changelog:
-                    try:
-                        signature = self.repo.default_signature
-                        authorblurb = f"{signature.name} <{signature.email}>"
-                    except AttributeError:
-                        # self.repo == None -> no git repo
-                        authorblurb = self._get_rpm_packager()
-                    except KeyError:
-                        authorblurb = "Unknown User <please-configure-git-user@example.com>"
+                try:
+                    signature = self.repo.default_signature
+                    authorblurb = f"{signature.name} <{signature.email}>"
+                except AttributeError:
+                    # self.repo == None -> no git repo
+                    authorblurb = self._get_rpm_packager()
+                except KeyError:
+                    authorblurb = "Unknown User <please-configure-git-user@example.com>"
 
-                    changelog_entry = ChangelogEntry(
-                        {
-                            "commit-id": None,
-                            "authorblurb": authorblurb,
-                            "timestamp": dt.datetime.utcnow(),
-                            "commitlog": "Uncommitted changes",
-                            "epoch-version": epoch_version,
-                            "release-complete": release_complete,
-                        }
-                    )
+                changelog_entry = ChangelogEntry(
+                    {
+                        "commit-id": None,
+                        "authorblurb": authorblurb,
+                        "timestamp": dt.datetime.utcnow(),
+                        "commitlog": "Uncommitted changes",
+                        "epoch-version": epoch_version,
+                        "release-complete": release_complete,
+                    }
+                )
 
-                    changelog = (changelog_entry,) + previous_changelog
-                else:
-                    changelog = previous_changelog
+                changelog = (changelog_entry,) + previous_changelog
 
             worktree_result["changelog"] = changelog
             visited_results[None] = worktree_result

@@ -107,7 +107,7 @@ class ChangelogEntry(dict):
             return entry_info["data"]
 
         changelog_date = format_datetime(
-            entry_info["timestamp"], format="EEE MMM dd Y", locale="en"
+            entry_info["timestamp"], format="EEE MMM dd y", locale="en"
         )
 
         if entry_info["epoch-version"]:

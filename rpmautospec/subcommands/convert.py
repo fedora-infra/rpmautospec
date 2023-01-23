@@ -128,7 +128,7 @@ class PkgConverter:
             raise RuntimeError(f"Unable to locate Release tag in spec file {str(self.specfile)!r}")
 
         if autorelease_lines:
-            log.warning(f"{str(self.specfile)!r} uses %autorelease already")
+            log.warning(f"{str(self.specfile)!r} is already using %autorelease")
             return
 
         line_numbers = ", ".join(f"{i+1}" for i in release_lines)

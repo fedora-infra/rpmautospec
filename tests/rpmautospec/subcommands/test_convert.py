@@ -161,7 +161,7 @@ def test_autorelease_already_converted(specfile, caplog):
     caplog.clear()
     converter.convert_to_autorelease()
     assert len(caplog.records) == 1
-    assert "uses %autorelease already" in caplog.records[0].message
+    assert "is already using %autorelease" in caplog.records[0].message
 
 
 @pytest.mark.parametrize(

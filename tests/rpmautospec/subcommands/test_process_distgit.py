@@ -9,6 +9,7 @@ import tempfile
 import pytest
 
 from rpmautospec.subcommands import process_distgit
+from .. import temporary_cd
 
 
 __here__ = os.path.dirname(__file__)
@@ -172,10 +173,8 @@ class TestProcessDistgit:
             "dummy-test-package-gloster.spec",
         )
 
-        cwd = os.getcwd()
-        os.chdir(unpacked_repo_dir)
-        run(["git", "checkout", branch])
-        os.chdir(cwd)
+        with temporary_cd(unpacked_repo_dir):
+            run(["git", "checkout", branch])
 
         if autorelease_case != "unchanged" or autochangelog_case != "unchanged":
             self.fuzz_spec_file(

@@ -288,9 +288,6 @@ class PkgHistoryProcessor:
                 files.add(delta.new_file.path)
         return files
 
-    def _changelog_for_commit(self, commit, commit_result):
-        """Generate the changelog entry text from a commit."""
-
     def changelog_visitor(self, commit: pygit2.Commit, child_info: Dict[str, Any]):
         """Visit a commit to generate changelog entries for it and its parents.
 

@@ -460,7 +460,7 @@ class PkgHistoryProcessor:
 
         # keep track of branches
         branch_heads = [head]
-        branches = []
+        snippets = []
 
         ########################################################################################
         # Unfortunately, pygit2 only tells us what the parents of a commit are, not what other
@@ -484,8 +484,8 @@ class PkgHistoryProcessor:
         # While new branch heads are encountered...
         while branch_heads:
             commit = branch_heads.pop(0)
-            branch = []
-            branches.append(branch)
+            snippet = []
+            snippets.append(snippet)
 
             keep_processing = True
 
@@ -505,9 +505,9 @@ class PkgHistoryProcessor:
                         # there's another branch that leads to this parent, put the remainder on the
                         # stack
                         branch_heads.append(commit)
-                        if not branch:
-                            # don't keep empty branches on the stack
-                            branches.pop()
+                        if not snippet:
+                            # don't keep empty snippets on the stack
+                            snippets.pop()
                         if log.isEnabledFor(logging.DEBUG):
                             log.debug(
                                 "\tunencountered children, putting remainder of snippet aside"
@@ -539,7 +539,7 @@ class PkgHistoryProcessor:
                         info["child_must_continue"] for info in children_visitors_info
                     )
 
-                branch.append(commit)
+                snippet.append(commit)
 
                 if keep_processing:
                     # Create visitor coroutines for the commit from the functions passed into this
@@ -577,10 +577,10 @@ class PkgHistoryProcessor:
                 log.debug("\tparent to follow: %s", commit.short_id)
 
         ###########################################################################################
-        # Now, `branches` contains disjunct lists of commits in new -> old order. Process these in
+        # Now, `snippets` contains disjunct lists of commits in new -> old order. Process these in
         # reverse, one at a time until encountering a commit where we don't know the results of all
         # parents. Then put the remainder back on the stack to be further processed later until we
-        # run out of branches with commits.
+        # run out of snippets with commits.
         ###########################################################################################
 
         log.debug("=====================================")
@@ -589,13 +589,13 @@ class PkgHistoryProcessor:
 
         visited_results = {}
 
-        while branches:
-            branch = branches.pop(0)
-            if branch:
-                log.debug("Processing snippet %s", branch[0].short_id)
-            while branch:
-                # Take one commit from the tail end of the branch and process.
-                commit = branch.pop()
+        while snippets:
+            snippet = snippets.pop(0)
+            if snippet:
+                log.debug("Processing snippet %s", snippet[0].short_id)
+            while snippet:
+                # Take one commit from the tail end of the snippet and process.
+                commit = snippet.pop()
 
                 if log.isEnabledFor(logging.DEBUG):
                     log.debug("commit %s: %s", commit.short_id, commit.message.split("\n", 1)[0])
@@ -618,9 +618,9 @@ class PkgHistoryProcessor:
                 ):
                     log.debug("\tputting back")
                     # put the unprocessed commit back
-                    branch.append(commit)
+                    snippet.append(commit)
                     # put the unprocessed remainder back
-                    branches.append(branch)
+                    snippets.append(snippet)
 
                     break
 

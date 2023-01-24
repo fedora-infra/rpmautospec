@@ -27,18 +27,6 @@
                 - python3-pytest-cov
                 - python3-pyyaml
                 - python3-rpm
-        - fi-pytest-f35:
-            vars:
-              dependencies:
-                - glibc-langpack-de
-                - glibc-langpack-en
-                - python3-babel
-                - python3-koji
-                - python3-pygit2
-                - python3-pytest
-                - python3-pytest-cov
-                - python3-pyyaml
-                - python3-rpm
         - rpm-mock-build:
             vars:
               mock_config: fedora-36-x86_64

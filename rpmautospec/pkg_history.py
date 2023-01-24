@@ -452,20 +452,23 @@ class PkgHistoryProcessor:
         self, head: pygit2.Commit, *, visitors: Sequence = (), seed_info: Dict[str, Any] = None
     ) -> Dict[pygit2.Commit, Dict[str, Any]]:
         """Process historical commits with visitors and gather results."""
+        # This sets the “playing field” for the head commit, it subs for the partial result of a
+        # child commit which doesn’t exist.
         seed_info = {"child_must_continue": True, **(seed_info or {})}
-        # maps visited commits to their (in-flight) visitors and if they must
-        # continue
+
+        # These map visited commits to their (in-flight) visitor coroutines and tracks if they must
+        # continue and other auxiliary information.
         commit_coroutines = {}
         commit_coroutines_info = {}
 
-        # keep track of branches
+        # This keeps track of the heads of branches that need to be processed.
         branch_heads = [head]
+        # This stores the discovered snippets, i.e. linear chains of commits.
         snippets = []
 
-        ########################################################################################
         # Unfortunately, pygit2 only tells us what the parents of a commit are, not what other
         # commits a commit is parent to (its children). Fortunately, Repository.walk() is quick.
-        ########################################################################################
+        # This maps parent commits to their children.
         commit_children = defaultdict(list)
         for commit in self.repo.walk(head.id):
             for parent in commit.parents:
@@ -475,6 +478,11 @@ class PkgHistoryProcessor:
         # To process, first walk the tree from the head commit downward, following all branches.
         # Check visitors whether they need parent results to do their work, i.e. the history needs
         # to be processed further, or just traversed.
+        #
+        # Here, the “top halves” of visitors get merged information from their child commit(s) as
+        # well as from visitors that ran prior on the same commit. In practice: during runtime,
+        # `changelog_visitor()` gets information from `release_number_visitor()` for the same
+        # commit.
         ##########################################################################################
 
         log.debug("===========================================================")
@@ -491,6 +499,7 @@ class PkgHistoryProcessor:
 
             while True:
                 if commit in commit_coroutines:
+                    # This commit was processed already, so `snippet` can be cut off before it.
                     log.debug("%s: coroutines exist, skipping", commit.short_id)
                     break
 
@@ -498,16 +507,20 @@ class PkgHistoryProcessor:
                     log.debug("commit %s: %s", commit.short_id, commit.message.split("\n", 1)[0])
 
                 if commit == head:
+                    # Set the stage for the first commit: Visitors expect to get some information
+                    # from their child commit(s), as there aren’t any yet, fake it.
                     children_visitors_info = [seed_info for v in visitors]
                 else:
                     this_children = commit_children[commit]
                     if not all(child in commit_coroutines for child in this_children):
-                        # there's another branch that leads to this parent, put the remainder on the
-                        # stack
+                        # There's another branch that leads to this parent, put the remainder on the
+                        # stack.
                         branch_heads.append(commit)
+
                         if not snippet:
-                            # don't keep empty snippets on the stack
+                            # Don't keep empty snippets on the stack.
                             snippets.pop()
+
                         if log.isEnabledFor(logging.DEBUG):
                             log.debug(
                                 "\tunencountered children, putting remainder of snippet aside"
@@ -520,6 +533,7 @@ class PkgHistoryProcessor:
                                     if child not in commit_coroutines
                                 ],
                             )
+
                         break
 
                     # For all visitor coroutines, merge their produced info, e.g. to determine if
@@ -553,7 +567,9 @@ class PkgHistoryProcessor:
                     # the results.
                     commit_coroutines_info[commit] = [next(c) for c in coroutines]
                 else:
-                    # Only traverse this commit.
+                    # Only traverse this commit. Traversal is important if parent commits are the
+                    # root of branches that affect the results (computed release number and
+                    # generated changelog).
                     commit_coroutines[commit] = coroutines = None
                     commit_coroutines_info[commit] = [
                         {"child_must_continue": False} for v in visitors
@@ -581,12 +597,17 @@ class PkgHistoryProcessor:
         # reverse, one at a time until encountering a commit where we don't know the results of all
         # parents. Then put the remainder back on the stack to be further processed later until we
         # run out of snippets with commits.
+        #
+        # Here, the “bottom halves” of visitors get results from their parent commit(s) as well as
+        # visitors run prior on the same commit, i.e. `release_number_visitor()` ->
+        # `changelog_visitor()`.
         ###########################################################################################
 
         log.debug("=====================================")
         log.debug("Processing linear history snippets...")
         log.debug("=====================================")
 
+        # This maps commits to their results.
         visited_results = {}
 
         while snippets:
@@ -601,7 +622,8 @@ class PkgHistoryProcessor:
                     log.debug("commit %s: %s", commit.short_id, commit.message.split("\n", 1)[0])
 
                 if commit_coroutines[commit] is None:
-                    # Only traverse, don't process commit.
+                    # Only traverse, but don't process this commit. Ancestral commits might have to
+                    # be taken into account again, so we can’t simply stop here.
                     log.debug("\tonly traverse")
                     continue
 
@@ -613,15 +635,15 @@ class PkgHistoryProcessor:
                         log.debug(
                             "\tcommit_coroutines[p] is None: %s", commit_coroutines[p] is None
                         )
+
                 if not all(
                     p in visited_results or commit_coroutines[p] is None for p in commit.parents
                 ):
+                    # This commit doesn’t have all information it needs to be processed. Put it and
+                    # the remainder of the snippet back to be processed later.
                     log.debug("\tputting back")
-                    # put the unprocessed commit back
                     snippet.append(commit)
-                    # put the unprocessed remainder back
                     snippets.append(snippet)
-
                     break
 
                 parent_results = [visited_results.get(p, {}) for p in commit.parents]

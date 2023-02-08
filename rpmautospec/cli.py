@@ -79,7 +79,7 @@ def get_cli_args(args: typing.List[str]) -> argparse.Namespace:
             dest="pager",
             action="store_false",
         )
-        parser.set_defaults(pager=True)
+    parser.set_defaults(pager=True)
 
     log_level_group = parser.add_mutually_exclusive_group()
     log_level_group.add_argument(

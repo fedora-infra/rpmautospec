@@ -47,11 +47,11 @@ def test_main_convert(release, changelog, repo):
     autorelease = "autorelease" not in release
     autochangelog = "autochangelog" not in changelog
     if not (autorelease or autochangelog):
-        return
+        pytest.skip("Not testing with a fully converted spec file.")
 
     with temporary_cd(repo.workdir):
         completed = subprocess.run(
-            [sys.executable, __here__ + "/../../run-rpmautospec.py", "convert"],
+            [sys.executable, "-c", "from rpmautospec import cli; cli.main()", "convert"],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

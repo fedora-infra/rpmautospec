@@ -123,6 +123,7 @@ mkdir -p %{buildroot}%{rpmmacrodir}
 install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 
 %check
+PYTHONPATH="%{buildroot}%{python3_sitelib}" \
 %{__python3} -m pytest \
 %if %{with xdist}
 --numprocesses=auto

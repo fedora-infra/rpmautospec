@@ -4,7 +4,7 @@
 %global srcname rpmautospec
 
 Name:           python-rpmautospec
-Version:        0.3.3
+Version:        0.3.4
 Release:        %autorelease
 Summary:        Package and CLI tool to generate release fields and changelogs
 

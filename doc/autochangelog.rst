@@ -41,13 +41,12 @@ It is possible to generate a longer changelog entry. If the first line
 of the commit message body starts with an ellipsis (three dots "..."
 or the equivalent Unicode character "…"), the subsequent text will be
 appended to the first item of a changelog entry. Dashed list items
-following the first item will be added as separate (dashed) changelog
-entries::
+following the first item (without blank lines in between) will be added
+as separate (dashed) changelog entries::
 
     Update to version 2.3.5
 
     ... (rhbz#667, rhbz#123, and a few other nasty bugs)
-
     - Fixes build issues on s390 (rhbz#668)
 
     (Text without a dash is ignored.)

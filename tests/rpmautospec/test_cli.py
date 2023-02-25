@@ -8,6 +8,10 @@ from . import temporary_cd
 
 
 __here__ = os.path.dirname(__file__)
+# We want to have our srcdir in the Python module load path so that
+# we actually import our version of the code and not the installed module.
+# Using run-rpmautospec.py takes care of this for us.
+run_rpmautospec_py = __here__ + "/../../run-rpmautospec.py"
 
 
 def test_main_help():
@@ -43,7 +47,7 @@ def test_main_help():
     indirect=True,
 )
 def test_main_convert(release, changelog, repo):
-    # we do the convertion iff it wasn't done before
+    # we do the conversion iff it wasn't done before
     autorelease = "autorelease" not in release
     autochangelog = "autochangelog" not in changelog
     if not (autorelease or autochangelog):
@@ -51,7 +55,7 @@ def test_main_convert(release, changelog, repo):
 
     with temporary_cd(repo.workdir):
         completed = subprocess.run(
-            [sys.executable, "-c", "from rpmautospec import cli; cli.main()", "convert"],
+            [sys.executable, run_rpmautospec_py, "convert"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             encoding="utf-8",

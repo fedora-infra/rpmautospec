@@ -52,11 +52,13 @@ def test_main_convert(release, changelog, repo):
     with temporary_cd(repo.workdir):
         completed = subprocess.run(
             [sys.executable, "-c", "from rpmautospec import cli; cli.main()", "convert"],
-            check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             encoding="utf-8",
         )
+        if completed.returncode != 0:
+            print("stderr:", completed.stderr)
+            completed.check_returncode()
 
     assert "Converted to " in completed.stdout
     assert ("%autorelease" in completed.stdout) == autorelease

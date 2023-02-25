@@ -54,19 +54,21 @@ rpmautospec will follow the first parent it encounters which has the same tree
 as the merge commit and disregard the others.
 
 
-Rebuilding a package without changing it
-----------------------------------------
+Rebuilding a package with no changes
+------------------------------------
 
-In the past, rebuilding a package to pick up changed dependencies, or in the context of mass
-rebuilds was accomplished by bumping the release and adding a suitable changelog entry. With
-`rpmautospec`, you have to tell git that you really want to add a commit without any changes in
-content to accomplish the equivalent, e.g.:
+In the past, rebuilding a package to pick up changed dependencies or
+in the context of mass rebuilds was accomplished by bumping the
+release and adding a suitable changelog entry and creating a commit.
+With `rpmautospec`, we only need the last step.
+But you have to tell git that you really want to add a
+commit without any changes:
 
 .. code-block:: bash
 
-    git commit --allow-empty
+    git commit --allow-empty -m 'Rebuild for …'
 
-The resulting empty head commit can be pushed into the repository of the package and built normally.
+The resulting empty commit can be pushed into the repository of the package and built normally.
 
 
 Information about `rpmautospec` use in a built package

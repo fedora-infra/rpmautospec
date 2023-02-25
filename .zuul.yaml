@@ -29,11 +29,11 @@
                 - python3-rpm
         - rpm-mock-build:
             vars:
-              mock_config: fedora-36-x86_64
+              mock_config: fedora-37-x86_64
               build_from_source: true
               version_from_specfile: true
               src_name: rpmautospec
             nodeset:
               nodes:
                 name: test-node
-                label: cloud-fedora-36
+                label: cloud-fedora-37

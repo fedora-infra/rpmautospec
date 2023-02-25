@@ -15,12 +15,3 @@ release and changelog fields in RPM spec files opting to use it.
    autochangelog
    peculiarities
    install
-
-
-
-Indices and tables
-------------------
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

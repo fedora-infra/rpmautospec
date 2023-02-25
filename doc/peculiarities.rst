@@ -1,7 +1,8 @@
 .. _peculiarities:
 
+******************************
 Peculiarities of `rpmautospec`
-==============================
+******************************
 
 `rpmautospec` has few peculiarities that we are aware of. Some may get
 fixed, others are considered negligible, but we still want to document them
@@ -68,8 +69,8 @@ content to accomplish the equivalent, e.g.:
 The resulting empty head commit can be pushed into the repository of the package and built normally.
 
 
-Information about rpmautospec use in a built package
-----------------------------------------------------
+Information about `rpmautospec` use in a built package
+------------------------------------------------------
 
 When preprocessing spec files for building, `rpmautospec` adds a header to the
 top of the spec file containing, among other things, information about its

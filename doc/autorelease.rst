@@ -1,7 +1,11 @@
 .. _using-autorelease:
 
-Using the ``%autorelease`` Macro
-================================
+**************************
+The ``%autorelease`` Macro
+**************************
+
+The contents of the ``Release`` field
+=====================================
 
 Fedora's `Versioning Guidelines`_ define the different elements of which a
 release field consists. They are as follows:
@@ -23,7 +27,6 @@ the different portions of the release field:
   the option when bumping the version the next time).
 * ``-n``: Don’t render the dist tag, e.g. for use in macros, if the dist tag is added later.
 
-
 .. important::
     To date, the ``%autorelease`` parameters are ignored in the headers of automatically generated
     changelog entries.
@@ -32,13 +35,11 @@ the different portions of the release field:
     In the prototype version the macro was named ``%autorel``. To make its purpose more obvious, it is
     ``%autorelease`` now.
 
-Examples
---------
 
 .. _simple example:
 
-The Simple Case
-^^^^^^^^^^^^^^^
+Example: The Simple Case
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. literalinclude:: examples/test-autorelease.spec
    :language: spec
@@ -50,8 +51,8 @@ Will generate the following NEVR::
 
 .. _baserelease example:
 
-The Custom Base Release Case
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Example: The Custom Base Release Case
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. literalinclude:: examples/test-autorelease-baserelease.spec
    :language: spec
@@ -88,13 +89,10 @@ those added fields:
 
 In the modern versioning, those fields are embedded in the package `Version` instead.
 
-Examples
---------
-
 .. _prerelease example:
 
-The Pre-Release Case
-^^^^^^^^^^^^^^^^^^^^
+Example: The Pre-Release Case
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. literalinclude:: examples/test-autorelease-prerelease.spec
    :language: spec
@@ -106,8 +104,8 @@ Will generate the following NEVR::
 
 .. _extraver case:
 
-The Extraver Case
-^^^^^^^^^^^^^^^^^
+Example: The Extraver Case
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. literalinclude:: examples/test-autorelease-extraver.spec
    :language: spec
@@ -119,8 +117,8 @@ Will generate the following NEVR::
 
 .. _snapshot case:
 
-The Snapshot Case
-^^^^^^^^^^^^^^^^^
+Example: The Snapshot Case
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. literalinclude:: examples/test-autorelease-snapshot.spec
    :language: spec
@@ -132,8 +130,8 @@ Will generate the following NEVR::
 
 .. _snapshot_and_extraver case:
 
-The Snapshot and Extraver case
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Example: The Snapshot and Extraver case
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. literalinclude:: examples/test-autorelease-extraver-snapshot.spec
    :language: spec

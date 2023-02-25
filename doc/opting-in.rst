@@ -1,13 +1,13 @@
-Opting into using `rpmautospec`
-===============================
+*******************
+Using `rpmautospec`
+*******************
 
-To opt into using `rpmautospec` you need to use the two macros as explained
-here below:
+To use `rpmautospec` you need to employ the two macros described below.
 
-Use the ``%autorelease`` macro
-------------------------------
+Using the ``%autorelease`` macro
+--------------------------------
 
-Basically, in the spec file you replace the manually set release, e.g.:
+Basically, in the spec file you replace the manually-set release, e.g.:
 
 .. code-block:: spec
 
@@ -30,8 +30,8 @@ with the ``%autorelease`` macro, such as:
     documented here: :ref:`using-autorelease`.
 
 
-Use the ``%autochangelog`` macro
---------------------------------
+Using the ``%autochangelog`` macro
+----------------------------------
 
 For new packages
 ^^^^^^^^^^^^^^^^
@@ -59,9 +59,9 @@ from the spec file. This change must be done in a *single commit*.
 
 Use the ``convert`` command to do this automatically:
 
-::
+.. code-block:: console
 
-    rpmautospec convert
+    $ rpmautospec convert
 
 
 After the change, the content of the ``%changelog`` section should be:
@@ -75,10 +75,9 @@ From now on, the changelog will be automatically generated from the commit
 history of your git repository up until the most recent commit that
 changes the ``changelog`` file.
 
-More explanations on how the ``%autochangelog`` macro works can be found
-in :ref:`using-autochangelog`.
-
-
 .. note::
-    Congratulations for opting into `rpmautospec`. You may now want to have a
-    look at the :ref:`peculiarities`.
+
+  More details about how to write multi-line entries or skip commits
+  in the changelog can be found in :ref:`using-autochangelog`.
+  More information about limitations of `rpmautospec` and
+  solutions to some common issues are described in the :ref:`peculiarities`.

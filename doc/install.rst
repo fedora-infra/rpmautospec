@@ -1,5 +1,6 @@
+************************
 Installing `rpmautospec`
-========================
+************************
 
 `rpmautospec` consists of these components:
 
@@ -22,8 +23,8 @@ therefore be installed simply by doing:
     The library requires a minimum Python version of 3.6.
 
 
-Installing the Koji Builders Plugin
------------------------------------
+Installing the Koji Builder Plugin
+----------------------------------
 
 The Koji plugin ``rpmautospec_builder`` is meant to be installed on all the
 Koji builders running the ``buildSRPMFromSCM`` task in:

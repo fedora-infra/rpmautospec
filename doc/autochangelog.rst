@@ -1,7 +1,7 @@
 .. _using-autochangelog:
 
-Using the ``%autochangelog`` Macro
-==================================
+The ``%autochangelog`` Macro
+============================
 
 `rpmautospec` combines two sources of information to generate a changelog
 which is inserted in the spec file where the ``%autochangelog`` macro is set.
@@ -87,13 +87,11 @@ Note that release suffix produced by the ``%autorelease`` macro is
 still bumped for such commits.
 
 
-Examples
---------
 
 .. _only commits example:
 
-Only Commits
-^^^^^^^^^^^^
+Example: Only Commits
+^^^^^^^^^^^^^^^^^^^^^
 
 If a package has no ``changelog`` file, `rpmautospec` will only use the git
 history to generate the changelog.
@@ -138,8 +136,8 @@ The automatically generated changelog will look like::
 
 .. _commits and changelog example:
 
-Commits and Changelog
-^^^^^^^^^^^^^^^^^^^^^
+Example: Commits and Changelog
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If a package has a ``changelog`` file, `rpmautospec` will only generate entries
 from the commits after its last change and then append its contents verbatim.

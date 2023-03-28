@@ -15,7 +15,12 @@ Square brackets indicate an optional item.
 The ``%autorelease`` macro accepts these parameters to allow packagers to specify
 the different portions of the release field:
 
-* ``-b <baserelease>``: Allows specifying a custom base release number (i.e. other than 1).
+* ``-b <baserelease>``: Allows specifying a custom base release number (the default is 1).
+
+  One use case for this would be, if a sub-package is split out into its own component and its
+  release number sequence should not be reset. E.g. if the last release number while it was still a
+  sub-package was 4, use ``-b 5`` here to let the sequence continue seamlessly (remember to remove
+  the option when bumping the version the next time).
 * ``-n``: Don’t render the dist tag, e.g. for use in macros, if the dist tag is added later.
 
 

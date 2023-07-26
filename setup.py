@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from setuptools import setup
+from setuptools import find_packages, setup
 
 
 HERE = Path(__file__).parent
@@ -41,7 +41,7 @@ setup(
     platforms=["Fedora", "GNU/Linux"],
     url="https://pagure.io/Fedora-Infra/rpmautospec",
     keywords="fedora",
-    packages=["rpmautospec"],
+    packages=find_packages(include=["rpmautospec", "rpmautospec.*"]),
     include_package_data=True,
     package_data={},
     zip_safe=False,

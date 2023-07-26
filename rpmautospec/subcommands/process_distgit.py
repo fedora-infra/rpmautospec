@@ -1,6 +1,7 @@
 import logging
 import os
 import shutil
+import stat
 import tempfile
 from pathlib import Path
 from typing import Union
@@ -60,8 +61,10 @@ def process_distgit(
     """
     processor = PkgHistoryProcessor(spec_or_path)
 
+    specfile_mode = None
     if target is None:
         target = processor.specfile
+        specfile_mode = stat.S_IMODE(target.stat().st_mode)
     elif isinstance(target, Path):
         target = Path(target)
 
@@ -138,6 +141,8 @@ def process_distgit(
 
         # ...and copy it back (potentially across device boundaries)
         shutil.copy2(tmp_specfile.name, target)
+        if specfile_mode is not None:
+            target.chmod(specfile_mode)
 
 
 def main(args):

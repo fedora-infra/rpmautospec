@@ -197,14 +197,22 @@ def test_process_distgit(
         target_spec_file_path = os.path.join(workdir, "test-this-specfile-please.spec")
 
     orig_test_spec_file_stat = os.stat(test_spec_file_path)
+
+    # Set restrictive umask to check that file mode is preserved.
+    old_umask = os.umask(0o077)
     process_distgit.process_distgit(unpacked_repo_dir, target_spec_file_path)
+    # And restore previous umask.
+    os.umask(old_umask)
+
+    test_spec_file_stat = os.stat(test_spec_file_path)
+    attrs = ["mode", "ino", "dev", "uid", "gid"]
     if not overwrite_specfile:
-        test_spec_file_stat = os.stat(test_spec_file_path)
-        # we can't compare stat_results directly because st_atime has changed
-        for attr in ("mode", "ino", "dev", "uid", "gid", "size", "mtime", "ctime"):
-            assert getattr(test_spec_file_stat, "st_" + attr) == getattr(
-                orig_test_spec_file_stat, "st_" + attr
-            )
+        attrs.extend(["size", "mtime", "ctime"])
+
+    for attr in attrs:
+        assert getattr(test_spec_file_stat, "st_" + attr) == getattr(
+            orig_test_spec_file_stat, "st_" + attr
+        )
 
     expected_spec_file_path = os.path.join(
         __here__,

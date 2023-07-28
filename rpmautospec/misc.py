@@ -24,11 +24,8 @@ class FileIsModifiedError(OSError):
     pass
 
 
-@lru_cache(maxsize=None)
-def check_specfile_features(specpath: Union[Path, str]) -> SpecfileFeatures:
-    if not isinstance(specpath, Path):
-        specpath = Path(specpath)
-
+@lru_cache(maxsize=1024)
+def _check_specfile_features(specpath: Path, mtime: float, size: int) -> SpecfileFeatures:
     has_autorelease = False
     changelog_lineno = None
     autochangelog_lineno = None
@@ -53,6 +50,14 @@ def check_specfile_features(specpath: Union[Path, str]) -> SpecfileFeatures:
         changelog_lineno=changelog_lineno,
         autochangelog_lineno=autochangelog_lineno,
     )
+
+
+def check_specfile_features(specpath: Union[Path, str]) -> SpecfileFeatures:
+    if not isinstance(specpath, Path):
+        specpath = Path(specpath).resolve()
+
+    stat_result = specpath.stat()
+    return _check_specfile_features(specpath, stat_result.st_mtime, stat_result.st_size)
 
 
 def specfile_uses_rpmautospec(

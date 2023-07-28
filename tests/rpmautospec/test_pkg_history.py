@@ -146,6 +146,21 @@ class TestPkgHistoryProcessor:
         else:
             assert processor._get_rpmverflags_for_commit(head_commit)["epoch-version"] == "1.0"
 
+    def test__get_rpmverflags_for_commit_cache(self, repo, processor):
+        head_commit = repo[repo.head.target]
+
+        with patch.object(processor, "_get_rpmverflags") as _get_rpmverflags:
+            _get_rpmverflags.return_value = sentinel = object()
+
+            assert processor._get_rpmverflags_for_commit(head_commit) is sentinel
+
+            _get_rpmverflags.assert_called_once()
+            _get_rpmverflags.reset_mock()
+
+            assert processor._get_rpmverflags_for_commit(head_commit) is sentinel
+
+            _get_rpmverflags.assert_not_called()
+
     @pytest.mark.parametrize(
         "testcase", ("without commit", "with commit", "all results", "locale set", "without repo")
     )

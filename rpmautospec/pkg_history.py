@@ -4,7 +4,7 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
-from functools import lru_cache, reduce
+from functools import reduce
 from pathlib import Path
 from shutil import SpecialFileError
 from tempfile import TemporaryDirectory
@@ -62,6 +62,8 @@ class PkgHistoryProcessor:
             self.repo = pygit2.Repository(self.path, **kwargs)
         except pygit2.GitError:
             self.repo = None
+
+        self._rpmverflags_for_commits = {}
 
     @staticmethod
     def _get_rpm_packager() -> str:
@@ -163,8 +165,10 @@ class PkgHistoryProcessor:
 
         return result
 
-    @lru_cache(maxsize=None)
     def _get_rpmverflags_for_commit(self, commit):
+        if commit in self._rpmverflags_for_commits:
+            return self._rpmverflags_for_commits[commit]
+
         with TemporaryDirectory(prefix="rpmautospec-") as workdir:
             try:
                 specblob = commit.tree[self.specfile.name]
@@ -180,7 +184,9 @@ class PkgHistoryProcessor:
 
             specpath.write_bytes(specdata)
 
-            return self._get_rpmverflags(workdir, self.name)
+            self._rpmverflags_for_commits[commit] = self._get_rpmverflags(workdir, self.name)
+
+        return self._rpmverflags_for_commits[commit]
 
     def release_number_visitor(self, commit: pygit2.Commit, child_info: Dict[str, Any]):
         """Visit a commit to determine its release number.

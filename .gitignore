@@ -1,4 +1,4 @@
-# setuptools related
+# Python package related
 /build/
 /dist/
 /rpmautospec.egg-info/
@@ -8,8 +8,8 @@
 
 # Coverage related
 /htmlcov/
-/.coverage
 /coverage.xml
+.coverage
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -17,3 +17,6 @@ __pycache__/
 
 # Sphinx Docs Build
 /doc/_build/
+
+# Generated or unpackaged test data
+/tests/test-data/repodata/dummy-test-package-gloster/

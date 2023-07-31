@@ -437,7 +437,7 @@ class PkgHistoryProcessor:
         """Process historical commits with visitors and gather results."""
         # This sets the “playing field” for the head commit, it subs for the partial result of a
         # child commit which doesn’t exist.
-        seed_info = {"child_must_continue": True, **(seed_info or {})}
+        seed_info = {"child_must_continue": True} | (seed_info or {})
 
         # These map visited commits to their (in-flight) visitor coroutines and tracks if they must
         # continue and other auxiliary information.

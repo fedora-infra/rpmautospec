@@ -119,15 +119,12 @@ def run_git_amend(worktree_dir):
         cwd=worktree_dir,
         encoding="ascii",
     ).strip()
-    env = os.environ.copy()
     # Set name and email explicitly so CI doesn't trip over them being unset.
-    env.update(
-        {
-            "GIT_COMMITTER_NAME": "Test User",
-            "GIT_COMMITTER_EMAIL": "<test@example.com>",
-            "GIT_COMMITTER_DATE": commit_timestamp,
-        }
-    )
+    env = os.environ | {
+        "GIT_COMMITTER_NAME": "Test User",
+        "GIT_COMMITTER_EMAIL": "<test@example.com>",
+        "GIT_COMMITTER_DATE": commit_timestamp,
+    }
     run(
         ["git", "commit", "--all", "--allow-empty", "--amend", "--no-edit"],
         cwd=worktree_dir,

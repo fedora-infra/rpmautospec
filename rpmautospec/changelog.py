@@ -94,7 +94,7 @@ class ChangelogEntry(dict):
         return any(line.strip() == "[skip changelog]" for line in commitlog.split("\n"))
 
     def format(self, **overrides):
-        entry_info = {**self, **overrides}
+        entry_info = self | overrides
 
         if "error" not in entry_info:
             entry_info["error"] = None

@@ -173,7 +173,7 @@ class PkgConverter:
         log.debug("Split %d lines to 'changelog' file", len(self.changelog_lines))
         self.converted_changelog = True
 
-    def commit(self, message: Optional[str]):
+    def commit(self, message: Optional[str] = None):
         if self.repo is None:
             log.debug("Unable to open repository at '%s'", self.path)
             return

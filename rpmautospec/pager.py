@@ -3,7 +3,7 @@ import os
 from typing import Optional
 
 
-def page(text: str, enabled: Optional[bool]) -> None:
+def page(text: str, enabled: Optional[bool] = False) -> None:
     if enabled:
         # Initialize less options from $RPMAUTOSPEC_LESS or provide a suitable fallback.
         # F: don't page if one screen

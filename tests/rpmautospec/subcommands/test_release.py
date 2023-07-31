@@ -28,7 +28,11 @@ class TestRelease:
                     "dummy-test-package-gloster-git.tar.gz",
                 )
             ) as tar:
-                tar.extractall(path=workdir)
+                # Ensure unpackaged files are owned by user
+                for member in tar:
+                    member.uid = os.getuid()
+                    member.gid = os.getgid()
+                tar.extractall(path=workdir, numeric_owner=True)
 
             unpacked_repo_dir = Path(workdir) / "dummy-test-package-gloster"
 

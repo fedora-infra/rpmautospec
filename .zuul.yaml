@@ -3,42 +3,51 @@
     check:
       jobs:
         - fi-pre-commit
-        - fi-pytest-rawhide:
+
+        - fi-tox-python312:
             vars:
               dependencies:
+                - gcc
                 - glibc-langpack-de
                 - glibc-langpack-en
-                - python3-babel
-                - python3-koji
-                - python3-pygit2
-                - python3-pytest
-                - python3-pytest-cov
-                - python3-pyyaml
-                - python3-rpm
-        - fi-pytest-f38:
+                - libffi-devel
+                - libgit2-devel
+                - poetry
+                - python3.12-devel
+
+        - fi-tox-python311:
             vars:
               dependencies:
+                - gcc
                 - glibc-langpack-de
                 - glibc-langpack-en
-                - python3-babel
-                - python3-koji
-                - python3-pygit2
-                - python3-pytest
-                - python3-pytest-cov
-                - python3-pyyaml
-                - python3-rpm
-        - fi-pytest-f37:
+                - libffi-devel
+                - libgit2-devel
+                - poetry
+                - python3.11-devel
+
+        - fi-tox-python310:
             vars:
               dependencies:
+                - gcc
                 - glibc-langpack-de
                 - glibc-langpack-en
-                - python3-babel
-                - python3-koji
-                - python3-pygit2
-                - python3-pytest
-                - python3-pytest-cov
-                - python3-pyyaml
-                - python3-rpm
+                - libffi-devel
+                - libgit2-devel
+                - poetry
+                - python3.10-devel
+
+        - fi-tox-python39:
+            vars:
+              dependencies:
+                - gcc
+                - glibc-langpack-de
+                - glibc-langpack-en
+                - libffi-devel
+                - libgit2-devel
+                - poetry
+                - python3.9-devel
+
         - rpm-mock-build:
             vars:
               mock_config: fedora-38-x86_64

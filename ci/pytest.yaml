@@ -1,0 +1,22 @@
+---
+- hosts: all
+
+  tasks:
+    - name: List project directory on the test system
+      command: "ls -al {{ ansible_user_dir }}/{{ zuul.project.src_dir }}"
+
+    - name: Print dependencies
+      debug:
+        var: dependencies
+
+    - name: Install dependencies
+      dnf:
+        name:
+          "{{dependencies}}"
+      become: True
+      when: (dependencies is defined) and (dependencies|length > 0)
+
+    - name: run pytest
+      command:
+        chdir: "{{ ansible_user_dir }}/{{ zuul.project.src_dir }}"
+        cmd: python -m pytest pytest --import-mode importlib

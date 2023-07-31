@@ -1,2 +1,60 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "rpmautospec"
+version = "0.3.5"
+description = "A package and CLI tool to generate RPM release fields and changelogs."
+authors = [
+    "Pierre-Yves Chibon <pingou@pingoured.fr>",
+    "Nils Philippsen <nils@redhat.com>",
+    "Adam Saleh <asaleh@redhat.com>",
+    "Stephen Coady <scoady@redhat.com>",
+    "David Kirwan <dkirwan@redhat.com>",
+    "Elliott Sales de Andrade <quantum.analyst@gmail.com>",
+    "Zbigniew Jędrzejewski-Szmek <zbyszek@in.waw.pl>",
+]
+maintainers = ["Fedora Infrastructure <admin@fedoraproject.org>"]
+license = "MIT"
+readme = "README.rst"
+repository = "https://pagure.io/fedora-infra/rpmautospec"
+packages = [
+    { include = "rpmautospec/**/*.py" },
+]
+include = [
+    { path = "DCO.txt", format = "sdist" },
+    { path = "koji_plugins/__init__.py", format = "sdist" },
+    { path = "koji_plugins/rpmautospec_builder.py", format = "sdist" },
+    { path = "python-rpmautospec.spec", format = "sdist" },
+    { path = "rpm/macros.d/macros.rpmautospec", format = "sdist" },
+    { path = "run-rpmautospec.py", format = "sdist" },
+    { path = "tests/**/*.py", format = "sdist" },
+    { path = "tests/test-data/commitlog-to-changelog/commit*.txt", format = "sdist" },
+    { path = "tests/test-data/commitlog-to-changelog/expected*.txt", format = "sdist" },
+    { path = "tests/test-data/commitlog-to-changelog/expected*.yaml", format = "sdist" },
+    { path = "tests/test-data/repodata/dummy-test-package-gloster-git.tar.gz", format = "sdist" },
+    { path = "tests/test-data/repodata/dummy-test-package-gloster.spec.expected", format = "sdist" },
+    { path = "tests/test-data/test-specfiles/*.spec", format = "sdist" },
+]
+exclude = [
+    "**/.coverage",
+]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+babel = "^2.9"
+koji = "^1.33.0"
+pygit2 = "^1.2.1"
+
+[tool.poetry.group.dev.dependencies]
+pyyaml = "^5.3.1 || ^6"
+pytest = "^6.2.2 || ^7"
+pytest-cov = "^4.0.0"
+pytest-xdist = "^2.5.0 || ^3"
+
+[tool.poetry.scripts]
+rpmautospec = "rpmautospec.cli:main"
+
 [tool.black]
-    line_length = 100
+line_length = 100

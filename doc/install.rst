@@ -20,7 +20,7 @@ therefore be installed simply by doing:
 ``python setup.py install``.
 
 .. important:
-    The library requires a minimum Python version of 3.6.
+    The library requires a minimum Python version of 3.9.
 
 
 Installing the Koji Builder Plugin

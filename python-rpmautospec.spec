@@ -17,7 +17,7 @@ BuildRequires:  git
 # the langpacks are needed for tests
 BuildRequires:  glibc-langpack-de
 BuildRequires:  glibc-langpack-en
-BuildRequires:  python3-devel >= 3.6.0
+BuildRequires:  python3-devel >= 3.9.0
 BuildRequires:  python3-setuptools
 BuildRequires:  koji
 BuildRequires:  python%{python3_pkgversion}-babel

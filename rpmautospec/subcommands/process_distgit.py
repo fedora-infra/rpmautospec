@@ -4,7 +4,7 @@ import shutil
 import stat
 import tempfile
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 from ..misc import check_specfile_features
 from ..pkg_history import PkgHistoryProcessor
@@ -49,7 +49,10 @@ def register_subcommand(subparsers):
 
 
 def process_distgit(
-    spec_or_path: Union[Path, str], target: Union[Path, str] = None, *, enable_caching: bool = True
+    spec_or_path: Union[Path, str],
+    target: Optional[Union[Path, str]] = None,
+    *,
+    enable_caching: bool = True,
 ) -> bool:
     """Process an RPM spec file in a distgit repository.
 

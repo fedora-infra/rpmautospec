@@ -432,7 +432,11 @@ class PkgHistoryProcessor:
         return mf
 
     def _run_on_history(
-        self, head: pygit2.Commit, *, visitors: Sequence = (), seed_info: dict[str, Any] = None
+        self,
+        head: pygit2.Commit,
+        *,
+        visitors: Sequence = (),
+        seed_info: Optional[dict[str, Any]] = None,
     ) -> dict[pygit2.Commit, dict[str, Any]]:
         """Process historical commits with visitors and gather results."""
         # This sets the “playing field” for the head commit, it subs for the partial result of a

@@ -1,7 +1,6 @@
 import re
 from enum import Enum, auto
 from textwrap import TextWrapper
-from typing import List
 
 from babel.dates import format_datetime
 
@@ -21,8 +20,8 @@ class ChangelogEntry(dict):
     ellipsis_re = re.compile(r"^(?P<ellipsis>\.{3,}|…+)\s*(?P<rest>.*)$")
 
     @classmethod
-    def commitlog_to_changelog_items(cls, commitlog: str) -> List[str]:
-        changelog_items_lines: List[List[str]] = [[]]
+    def commitlog_to_changelog_items(cls, commitlog: str) -> list[str]:
+        changelog_items_lines: list[list[str]] = [[]]
 
         state: CommitLogParseState = CommitLogParseState.before_subject
 

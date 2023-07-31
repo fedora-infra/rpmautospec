@@ -3,7 +3,6 @@ import contextlib
 import locale
 import logging
 import sys
-import typing
 
 from .subcommands import changelog, convert, process_distgit, release
 
@@ -44,7 +43,7 @@ class CustomArgumentParser(argparse.ArgumentParser):
         super().__init__(*args, **kwargs)
 
 
-def get_cli_args(args: typing.List[str]) -> argparse.Namespace:
+def get_cli_args(args: list[str]) -> argparse.Namespace:
     global subcmd_modules_by_name
 
     parser = CustomArgumentParser(

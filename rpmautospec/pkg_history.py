@@ -8,7 +8,7 @@ from functools import reduce
 from pathlib import Path
 from shutil import SpecialFileError
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 
 import pygit2
 
@@ -188,7 +188,7 @@ class PkgHistoryProcessor:
 
         return self._rpmverflags_for_commits[commit]
 
-    def release_number_visitor(self, commit: pygit2.Commit, child_info: Dict[str, Any]):
+    def release_number_visitor(self, commit: pygit2.Commit, child_info: dict[str, Any]):
         """Visit a commit to determine its release number.
 
         The coroutine returned first determines if the parent chain(s) must be
@@ -285,7 +285,7 @@ class PkgHistoryProcessor:
                 files.add(delta.new_file.path)
         return files
 
-    def changelog_visitor(self, commit: pygit2.Commit, child_info: Dict[str, Any]):
+    def changelog_visitor(self, commit: pygit2.Commit, child_info: dict[str, Any]):
         """Visit a commit to generate changelog entries for it and its parents.
 
         It first determines if parent chain(s) must be followed, i.e. if the
@@ -415,7 +415,7 @@ class PkgHistoryProcessor:
         yield commit_result
 
     @staticmethod
-    def _merge_info(f1: Dict[str, Any], f2: Dict[str, Any]) -> Dict[str, Any]:
+    def _merge_info(f1: dict[str, Any], f2: dict[str, Any]) -> dict[str, Any]:
         mf = f1.copy()
         for k, v2 in f2.items():
             try:
@@ -432,8 +432,8 @@ class PkgHistoryProcessor:
         return mf
 
     def _run_on_history(
-        self, head: pygit2.Commit, *, visitors: Sequence = (), seed_info: Dict[str, Any] = None
-    ) -> Dict[pygit2.Commit, Dict[str, Any]]:
+        self, head: pygit2.Commit, *, visitors: Sequence = (), seed_info: dict[str, Any] = None
+    ) -> dict[pygit2.Commit, dict[str, Any]]:
         """Process historical commits with visitors and gather results."""
         # This sets the “playing field” for the head commit, it subs for the partial result of a
         # child commit which doesn’t exist.
@@ -647,7 +647,7 @@ class PkgHistoryProcessor:
         *,
         visitors: Sequence = (),
         all_results: bool = False,
-    ) -> Union[Dict[str, Any], Dict[pygit2.Commit, Dict[str, Any]]]:
+    ) -> Union[dict[str, Any], dict[pygit2.Commit, dict[str, Any]]]:
         """Process a package repository including a changed worktree."""
         # whether or not the worktree differs and this needs to be reflected in the result(s)
         reflect_worktree = False

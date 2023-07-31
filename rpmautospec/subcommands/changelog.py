@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 from ..pkg_history import PkgHistoryProcessor
 from .. import pager
@@ -35,7 +35,7 @@ def _coerce_to_bytes(str_or_bytes: Union[str, bytes]) -> str:
 
 
 def collate_changelog(
-    processor_results: Dict[str, Any], result_type: Optional[type] = str
+    processor_results: dict[str, Any], result_type: Optional[type] = str
 ) -> Union[str, bytes]:
     changelog = processor_results["changelog"]
     if result_type == str:

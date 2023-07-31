@@ -2,7 +2,7 @@ import logging
 import re
 from pathlib import Path
 from shutil import SpecialFileError
-from typing import List, Optional
+from typing import Optional
 
 import pygit2
 
@@ -86,7 +86,7 @@ class PkgConverter:
         self.made_commit = False
 
     def describe_changes(self, for_git: bool):
-        changes: List[str] = [
+        changes: list[str] = [
             change
             for change, shall_include in (
                 ("%autorelease", self.converted_release),

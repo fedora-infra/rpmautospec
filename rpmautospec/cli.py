@@ -54,12 +54,6 @@ def get_cli_args(args: list[str]) -> argparse.Namespace:
 
     # global arguments
 
-    parser.add_argument(
-        "--koji-url",
-        help="The base URL of the Koji hub",
-        default="https://koji.fedoraproject.org/kojihub",
-    )
-
     if hasattr(argparse, "BooleanOptionalAction"):
         parser.add_argument(
             "--pager",

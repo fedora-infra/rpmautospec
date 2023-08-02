@@ -43,7 +43,7 @@ class CustomArgumentParser(argparse.ArgumentParser):
         super().__init__(*args, **kwargs)
 
 
-def get_cli_args(args: list[str]) -> argparse.Namespace:
+def get_arg_parser() -> CustomArgumentParser:
     global subcmd_modules_by_name
 
     parser = CustomArgumentParser(
@@ -106,7 +106,11 @@ def get_cli_args(args: list[str]) -> argparse.Namespace:
 
         subcmd_modules_by_name[subcmd_name] = subcmd_module
 
-    return parser.parse_args(args)
+    return parser
+
+
+def get_cli_args(args: list[str]) -> argparse.Namespace:
+    return get_arg_parser().parse_args(args)
 
 
 @contextlib.contextmanager

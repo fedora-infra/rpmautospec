@@ -22,6 +22,7 @@ URL:            https://pagure.io/fedora-infra/rpmautospec
 Source0:        https://releases.pagure.org/fedora-infra/rpmautospec/rpmautospec-%{version}.tar.gz
 
 BuildArch:      noarch
+BuildRequires:  argparse-manpage
 BuildRequires:  git
 # the langpacks are needed for tests
 BuildRequires:  glibc-langpack-de
@@ -31,6 +32,7 @@ BuildRequires:  python%{python3_pkgversion}-devel >= 3.9.0
 BuildRequires:  python%{python3_pkgversion}-setuptools
 %endif
 BuildRequires:  koji
+BuildRequires:  python%{python3_pkgversion}-argparse-manpage
 BuildRequires:  python%{python3_pkgversion}-babel
 BuildRequires:  python%{python3_pkgversion}-koji
 BuildRequires:  python%{python3_pkgversion}-pygit2
@@ -130,6 +132,16 @@ install -m 0644 koji_plugins/rpmautospec_builder.py \
 mkdir -p %{buildroot}%{rpmmacrodir}
 install -m 644  rpm/macros.d/macros.rpmautospec %{buildroot}%{rpmmacrodir}/
 
+# Man page
+mkdir -p %{buildroot}%{_mandir}/man1
+PYTHONPATH="%{buildroot}%{python3_sitelib}" \
+    argparse-manpage \
+    --module rpmautospec.cli \
+    --function get_arg_parser \
+    --format single-commands-section \
+    --manual-title "User Commands" \
+    --output "%{buildroot}%{_mandir}/man1/rpmautospec.1"
+
 
 %check
 PYTHONPATH="%{buildroot}%{python3_sitelib}" \
@@ -145,6 +157,7 @@ PYTHONPATH="%{buildroot}%{python3_sitelib}" \
 
 %files -n %{srcname}
 %{_bindir}/rpmautospec
+%{_mandir}/man1/rpmautospec.1*
 
 %files -n koji-builder-plugin-rpmautospec
 %{_prefix}/lib/koji-builder-plugins/*

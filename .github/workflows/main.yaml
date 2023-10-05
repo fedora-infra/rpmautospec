@@ -31,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tox-env: ["py39", "py310", "py311", "py312"]
+        pyver: [39, 310, 311, 312]
     runs-on: ubuntu-latest
     container: fedorapython/fedora-python-tox:latest
     steps:
@@ -40,19 +40,25 @@ jobs:
       - name: Mark the directory as safe for git
         run: git config --global --add safe.directory $PWD
 
-      - name: Install RPM dependencies
+      - name: Install basic RPM dependencies
         run: >
           dnf -y install
           gcc
           glibc-langpack-de
           glibc-langpack-en
+          krb5-devel
           libffi-devel
-          libgit2-devel
           poetry
+          rpm
+          rpm-build
+
+      - name: Install libgit2-devel 1.7 package
+        if: ${{ matrix.pyver >= 312 }}
+        run: dnf --releasever=39 -y install libgit2-devel
 
       - name: Install base Python dependencies
         run: |
           python3 -m pip install --upgrade tox
 
       - name: run tests through tox
-        run: "tox -e ${{ matrix.tox-env }}"
+        run: "tox -e py${{ matrix.pyver }}"

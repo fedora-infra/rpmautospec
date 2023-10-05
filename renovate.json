@@ -1,0 +1,30 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base",
+    "group:allNonMajor",
+    "schedule:nonOfficeHours",
+    ":separateMultipleMajorReleases",
+    ":automergeMinor",
+    ":gitSignOff"
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "extends": [
+      "group:allNonMajor",
+      "schedule:daily"
+    ],
+    "commitMessageAction": "Update"
+  },
+  "automergeStrategy": "rebase",
+  "rangeStrategy": "widen",
+  "stabilityDays": 3,
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "matchDepTypes": ["devDependencies"],
+      "automerge": true,
+      "groupName": "dev dependencies"
+    }
+  ]
+}

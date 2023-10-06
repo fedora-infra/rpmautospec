@@ -18,7 +18,7 @@ authors = [
 maintainers = ["Fedora Infrastructure <admin@fedoraproject.org>"]
 license = "MIT"
 readme = "README.rst"
-repository = "https://pagure.io/fedora-infra/rpmautospec"
+repository = "https://github.com/fedora-infra/rpmautospec"
 packages = [
     { include = "rpmautospec/**/*.py" },
 ]

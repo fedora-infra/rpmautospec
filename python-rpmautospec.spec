@@ -18,8 +18,8 @@ Release:        %autorelease
 Summary:        Package and CLI tool to generate release fields and changelogs
 
 License:        MIT
-URL:            https://pagure.io/fedora-infra/rpmautospec
-Source0:        https://releases.pagure.org/fedora-infra/rpmautospec/rpmautospec-%{version}.tar.gz
+URL:            https://github.com/fedora-infra/rpmautospec
+Source0:        https://github.com/fedora-infra/rpmautospec/releases/download/%{version}/rpmautospec-%{version}.tar.gz
 
 BuildArch:      noarch
 BuildRequires:  argparse-manpage

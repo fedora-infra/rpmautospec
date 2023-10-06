@@ -12,7 +12,7 @@ Guidelines](https://docs.fedoraproject.org/en-US/packaging-guidelines/Versioning
 * `-b <baserelease>`: Allows specifying a custom base release number (i.e. other than 1).
 
 For compatiblity with "traditional versioning", `%autorelease` accepts `-p`, `-e <extraver>` and  `-s <snapinfo>`.
-See [Traditional Versioning](https://docs.pagure.org/fedora-infra.rpmautospec/autorelease.html/#_traditional_versioning)
+See [Traditional Versioning](https://fedora-infra.github.io/rpmautospec-docs/autorelease.html#traditional-versioning-with-part-of-the-upstream-version-information-in-the-release-field)
 for details.
 
 NB: In the prototype version the macro was named `%autorel`. To make its purpose more obvious, it is

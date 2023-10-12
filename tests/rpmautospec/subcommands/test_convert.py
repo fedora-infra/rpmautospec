@@ -9,9 +9,9 @@ from unittest import mock
 
 import pygit2
 import pytest
+from rpmautospec_core.main import autorelease_re, autochangelog_re
 
 from rpmautospec.subcommands import convert
-from rpmautospec.misc import autorelease_re, autochangelog_re, FileIsModifiedError
 
 release_autorelease_re = re.compile(
     convert.release_re.pattern + autorelease_re.pattern, re.MULTILINE
@@ -43,7 +43,7 @@ def test_init_dirty_tree(specfile, repo):
 
     # The spec file has been modified without committing it:
     specfile.write_text("Modified")
-    with pytest.raises(FileIsModifiedError, match="is modified"):
+    with pytest.raises(convert.FileIsModifiedError, match="is modified"):
         convert.PkgConverter(specfile)
     repo.reset(repo.head.target, pygit2.GIT_RESET_HARD)
 
@@ -52,7 +52,7 @@ def test_init_dirty_tree(specfile, repo):
     dirty.write_text("")
     repo.index.add("dirty")
     repo.index.write()
-    with pytest.raises(FileIsModifiedError, match="is dirty"):
+    with pytest.raises(convert.FileIsModifiedError, match="is dirty"):
         convert.PkgConverter(specfile)
 
 

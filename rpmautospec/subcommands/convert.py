@@ -5,13 +5,17 @@ from shutil import SpecialFileError
 from typing import Optional
 
 import pygit2
-
-from ..misc import autochangelog_re, autorelease_re, changelog_re, FileIsModifiedError
+from rpmautospec_core.main import autochangelog_re, autorelease_re, changelog_re
 
 
 log = logging.getLogger(__name__)
 
 release_re = re.compile(r"^(?P<tag>(?i:Release)\s*:\s*)")
+
+
+class FileIsModifiedError(OSError):
+    "A file under version control has been modified."
+    pass
 
 
 class PkgConverter:

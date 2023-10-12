@@ -6,7 +6,8 @@ import tempfile
 from pathlib import Path
 from typing import Optional, Union
 
-from ..misc import check_specfile_features
+from rpmautospec_core import check_specfile_features
+
 from ..pkg_history import PkgHistoryProcessor
 from ..version import __version__
 

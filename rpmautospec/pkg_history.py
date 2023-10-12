@@ -11,9 +11,9 @@ from tempfile import TemporaryDirectory
 from typing import Any, Optional, Sequence, Union
 
 import pygit2
+from rpmautospec_core import AUTORELEASE_MACRO
 
 from .changelog import ChangelogEntry
-from .misc import AUTORELEASE_MACRO
 
 
 log = logging.getLogger(__name__)

@@ -4,11 +4,11 @@ Installing `rpmautospec`
 
 `rpmautospec` consists of these components:
 
-- a Python library (which includes a small CLI tool)
-- a plugin for Koji builders
-
-Each needs to be correctly installed and configured for `rpmautospec` to
-work properly.
+- This Python package which implements the bulk of the functionality and includes a CLI tool.
+- The [`rpmautospec-core`](https://github.com/fedora-infra/rpmautospec-core) Python package which
+  implements only very basic functionality to detect if an RPM spec file uses rpmautospec or not.
+- The [`rpmautospec-koji`](https://github.com/fedora-infra/rpmautospec-koji`) Python packages which
+  implements a plugin to preprocess RPM spec files on Koji builder nodes.
 
 
 Installing the Python Library
@@ -19,15 +19,3 @@ This Python package is installed using the `poetry` tool. Install a recent versi
 
 .. important:
     The library requires a minimum Python version of 3.9.
-
-
-Installing the Koji Builder Plugin
-----------------------------------
-
-The Koji plugin ``rpmautospec_builder`` is meant to be installed on all the
-Koji builders running the ``buildSRPMFromSCM`` task in:
-``/usr/lib/koji-builder-plugins/``.
-
-The plugin then can be enabled by adding: ``rpmautospec_builder`` in the line
-``plugins`` in the ``/etc/kojid/kojid.conf`` configuration file for the Koji
-builders.

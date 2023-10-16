@@ -1,6 +1,6 @@
 [run]
 branch = True
-source = rpmautospec koji_plugins
+source = rpmautospec
 omit =
 
 [report]

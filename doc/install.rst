@@ -14,10 +14,8 @@ work properly.
 Installing the Python Library
 -----------------------------
 
-The Python library is handled via a traditional ``setup.py`` file. It can
-therefore be installed simply by doing:
-
-``python setup.py install``.
+This Python package is installed using the `poetry` tool. Install a recent version of it and run
+`poetry install` to install it and the command line tool.
 
 .. important:
     The library requires a minimum Python version of 3.9.

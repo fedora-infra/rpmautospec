@@ -24,8 +24,6 @@ packages = [
 ]
 include = [
     { path = "DCO.txt", format = "sdist" },
-    { path = "koji_plugins/__init__.py", format = "sdist" },
-    { path = "koji_plugins/rpmautospec_builder.py", format = "sdist" },
     { path = "python-rpmautospec.spec", format = "sdist" },
     { path = "rpm/macros.d/macros.rpmautospec", format = "sdist" },
     { path = "run-rpmautospec.py", format = "sdist" },
@@ -45,7 +43,6 @@ exclude = [
 python = "^3.9"
 rpmautospec_core = { git = "https://github.com/fedora-infra/rpmautospec-core.git", branch = "main" }
 babel = "^2.9"
-koji = "^1.33.0"
 pygit2 = "^1.2.1"
 
 [tool.poetry.group.dev.dependencies]

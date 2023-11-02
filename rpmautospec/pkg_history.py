@@ -7,7 +7,7 @@ from collections import defaultdict
 from functools import reduce
 from pathlib import Path
 from shutil import SpecialFileError
-from tempfile import TemporaryDirectory
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Optional, Sequence, Union
 
 import pygit2
@@ -104,7 +104,7 @@ class PkgHistoryProcessor:
 
         python_version = str(sys.version_info[0]) + "." + str(sys.version_info[1])
 
-        rpm_cmd = [
+        rpm_cmd_base = (
             "rpm",
             "--define",
             "_invalid_encoding_terminates_build 0",
@@ -123,15 +123,33 @@ class PkgHistoryProcessor:
             "--qf",
             query,
             "--specfile",
-            f"{name}.spec",
-        ]
-
-        call = subprocess.run(
-            rpm_cmd,
-            cwd=path,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
         )
+
+        with specfile.open(mode="rb") as unabridged, NamedTemporaryFile(
+            mode="wb", prefix=f"rpmautospec-abridged-{name}-", suffix=".spec", delete=False
+        ) as abridged:
+            # Attempt to parse a shortened version of the spec file first, to speed up processing in
+            # certain cases. This includes all lines before `%prep`, i.e. in most cases everything
+            # which is needed to make RPM parsing succeed and contain the info we want to extract.
+            for line in unabridged:
+                if line.strip() == b"%prep":
+                    break
+                abridged.write(line)
+            abridged.flush()
+
+            for spec_candidate in (abridged.name, f"{name}.spec"):
+                call = subprocess.run(
+                    rpm_cmd_base + (spec_candidate,),
+                    cwd=path,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                if not call.returncode:
+                    # Parsing this candidate spec file succeeded. In the case of the abridged spec
+                    # file, we don’t need to parse the full spec file. In the case of the latter,
+                    # breaking out explicity doesn’t make a difference.
+                    break
+
         if call.returncode != 0:
             log.debug("rpm query for %r failed: %s", query, call.stderr.decode("utf-8", "replace"))
             return None

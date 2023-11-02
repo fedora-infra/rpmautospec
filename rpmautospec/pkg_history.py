@@ -126,7 +126,7 @@ class PkgHistoryProcessor:
         )
 
         with specfile.open(mode="rb") as unabridged, NamedTemporaryFile(
-            mode="wb", prefix=f"rpmautospec-abridged-{name}-", suffix=".spec", delete=False
+            mode="wb", prefix=f"rpmautospec-abridged-{name}-", suffix=".spec"
         ) as abridged:
             # Attempt to parse a shortened version of the spec file first, to speed up processing in
             # certain cases. This includes all lines before `%prep`, i.e. in most cases everything

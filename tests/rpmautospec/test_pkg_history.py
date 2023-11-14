@@ -219,7 +219,7 @@ class TestPkgHistoryProcessor:
                 assert snippet in top_entry.format()
 
             cal = LocaleTextCalendar(firstweekday=0, locale="C.UTF-8")
-            commit_time = dt.datetime.utcfromtimestamp(head_commit.commit_time)
+            commit_time = dt.datetime.fromtimestamp(head_commit.commit_time, dt.timezone.utc)
             weekdayname = cal.formatweekday(day=commit_time.weekday(), width=3)
             monthname = cal.formatmonthname(
                 theyear=commit_time.year,

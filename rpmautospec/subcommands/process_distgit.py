@@ -68,7 +68,8 @@ def process_distgit(
     if target is None:
         target = processor.specfile
         specfile_mode = stat.S_IMODE(target.stat().st_mode)
-    elif isinstance(target, Path):
+
+    if not isinstance(target, Path):
         target = Path(target)
 
     if enable_caching:

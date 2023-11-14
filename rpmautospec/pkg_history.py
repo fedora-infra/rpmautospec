@@ -381,7 +381,7 @@ class PkgHistoryProcessor:
             {
                 "commit-id": commit.id,
                 "authorblurb": f"{commit.author.name} <{commit.author.email}>",
-                "timestamp": dt.datetime.utcfromtimestamp(commit.commit_time),
+                "timestamp": dt.datetime.fromtimestamp(commit.commit_time, dt.timezone.utc),
                 "commitlog": commit.message,
                 "epoch-version": commit_result["epoch-version"],
                 "release-complete": commit_result["release-complete"],
@@ -751,7 +751,7 @@ class PkgHistoryProcessor:
                     {
                         "commit-id": None,
                         "authorblurb": authorblurb,
-                        "timestamp": dt.datetime.utcnow(),
+                        "timestamp": dt.datetime.now(dt.timezone.utc),
                         "commitlog": "Uncommitted changes",
                         "epoch-version": epoch_version,
                         "release-complete": release_complete,

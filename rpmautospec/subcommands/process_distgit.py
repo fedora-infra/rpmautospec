@@ -65,13 +65,18 @@ def process_distgit(
     """
     processor = PkgHistoryProcessor(spec_or_path)
 
-    specfile_mode = None
     if target is None:
         target = processor.specfile
-        specfile_mode = stat.S_IMODE(target.stat().st_mode)
 
     if not isinstance(target, Path):
         target = Path(target)
+
+    # Preserve mode of the target spec file if it is overwritten, otherwise use that of the
+    # processed spec file. Otherwise it would inherit the 0600 mode of the temporary file.
+    if target.exists():
+        specfile_mode = stat.S_IMODE(target.stat().st_mode)
+    else:
+        specfile_mode = stat.S_IMODE(processor.specfile.stat().st_mode)
 
     if enable_caching:
         features = check_specfile_features(processor.specfile)
@@ -148,8 +153,7 @@ def process_distgit(
 
         # ...and copy it back (potentially across device boundaries)
         shutil.copy2(tmp_specfile.name, target)
-        if specfile_mode is not None:
-            target.chmod(specfile_mode)
+        target.chmod(specfile_mode)
 
 
 def main(args):

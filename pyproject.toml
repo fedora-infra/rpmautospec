@@ -33,6 +33,7 @@ include = [
     { path = "tests/test-data/repodata/dummy-test-package-gloster-git.tar.gz", format = "sdist" },
     { path = "tests/test-data/repodata/dummy-test-package-gloster.spec.expected", format = "sdist" },
     { path = "tests/test-data/test-specfiles/*.spec", format = "sdist" },
+    { path = "tox.ini", format = "sdist" },
 ]
 exclude = [
     "**/.coverage",

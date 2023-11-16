@@ -395,13 +395,13 @@ files = [
 
 [[package]]
 name = "rpmautospec-core"
-version = "0.1.0"
+version = "0.1.1"
 description = "Core functionality for rpmautospec"
 optional = false
 python-versions = ">=3.6,<4.0"
 files = [
-    {file = "rpmautospec_core-0.1.0-py3-none-any.whl", hash = "sha256:76f4deb713e3932cee41bc096ad630bc929bc76cf0527786064dedca98f2e635"},
-    {file = "rpmautospec_core-0.1.0.tar.gz", hash = "sha256:d546052c32963086f4015ffbb277bf747cfce6496064c4426a8e80918c887fae"},
+    {file = "rpmautospec_core-0.1.1-py3-none-any.whl", hash = "sha256:2066aa0075f41c3a4a2e7b8c760ce88566a73a5c83cb6535af1387d117d371c6"},
+    {file = "rpmautospec_core-0.1.1.tar.gz", hash = "sha256:199c8c821e32e8f00f2ab9258d1c4ff62bcac25c9b92b1fa79232b768def8533"},
 ]
 
 [[package]]

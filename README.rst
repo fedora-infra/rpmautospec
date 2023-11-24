@@ -58,6 +58,22 @@ E.g.:
   python run-rpmautospec.py calculate-release bash
 
 
+The ``rpmautospec`` Python module is not thread/multiprocess-safe
+-----------------------------------------------------------------
+
+``rpmautospec`` redefines some RPM macros when parsing spec files or expanding macros.
+Those definitions are only relevant to the current instance
+of the ``rpm`` module imported in Python, they are not persistent.
+``rpmautospec`` cleans those definitions when it is done (by reloading RPM config).
+
+However, if another thread or process running from the same Python interpreter instance
+attempts to change or expand RPM macros in the meantime, the definitions might
+clash and the cleanup might override other changes.
+
+In case this breaks your use case, please open an issue to discuss it.
+We can cooperate on some locking mechanism.
+
+
 Contributing
 ------------
 

@@ -1,7 +1,6 @@
 import datetime as dt
 import logging
 import re
-import subprocess
 import sys
 from collections import defaultdict
 from functools import reduce
@@ -11,6 +10,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Optional, Sequence, Union
 
 import pygit2
+import rpm
 from rpmautospec_core import AUTORELEASE_MACRO
 
 from .changelog import ChangelogEntry
@@ -69,14 +69,7 @@ class PkgHistoryProcessor:
     def _get_rpm_packager() -> str:
         fallback = "John Doe <packager@example.com>"
         try:
-            return (
-                subprocess.check_output(
-                    ("rpm", "--eval", f"%{{?packager}}%{{!?packager:{fallback}}}"),
-                    stderr=subprocess.DEVNULL,
-                )
-                .decode("UTF-8")
-                .strip()
-            )
+            return rpm.expandMacro(f"%{{?packager}}%{{!?packager:{fallback}}}")
         except Exception:
             return fallback
 
@@ -98,63 +91,58 @@ class PkgHistoryProcessor:
 
         query = "%|epoch?{%{epoch}:}:{}|%{version}\n%{release}\n"
 
-        autorelease_definition = (
-            AUTORELEASE_MACRO + " E%{?-e*}_S%{?-s*}_P%{?-p:1}%{!?-p:0}_B%{?-b*}"
-        )
+        autorelease_definition = "E%{?-e*}_S%{?-s*}_P%{?-p:1}%{!?-p:0}_B%{?-b*}"
 
         python_version = str(sys.version_info[0]) + "." + str(sys.version_info[1])
 
-        rpm_cmd_base = (
-            "rpm",
-            "--define",
-            "_invalid_encoding_terminates_build 0",
-            "--define",
-            autorelease_definition,
-            "--define",
-            "autochangelog %nil",
-            "--define",
-            f"__python /usr/bin/python{python_version}",
-            "--define",
-            f"python_sitelib /usr/lib/python{python_version}/site-packages",
-            "--define",
-            f"_sourcedir {path}",
-            "--define",
-            f"_builddir {path}",
-            "--qf",
-            query,
-            "--specfile",
-        )
+        # Note: These calls will alter the results of any subsequent macro expansion
+        # when the rpm Python module is used from within this very same Python instance.
+        # We could call rpm.reloadConfig() immediately after parsing the spec,
+        # but we would redefine them again and again
+        # and it wouldn't be thread/multiprocess-safe anyway.
+        # We will instead call rpm.reloadConfig() when we are finished.
+        # If another thread/process of this interpreter calls RPM Python bindings
+        # in the meantime, they might be surprised a bit, but there's not much we can do.
+        try:
+            rpm.addMacro("_invalid_encoding_terminates_build", "0")
+            rpm.addMacro(AUTORELEASE_MACRO, autorelease_definition)
+            rpm.addMacro("autochangelog", "%nil")
+            rpm.addMacro("__python", f"/usr/bin/python{python_version}")
+            rpm.addMacro("python_sitelib", f"/usr/lib/python{python_version}/site-packages")
+            rpm.addMacro("_sourcedir", f"{path}")
+            rpm.addMacro("_builddir", f"{path}")
 
-        with specfile.open(mode="rb") as unabridged, NamedTemporaryFile(
-            mode="wb", prefix=f"rpmautospec-abridged-{name}-", suffix=".spec"
-        ) as abridged:
-            # Attempt to parse a shortened version of the spec file first, to speed up processing in
-            # certain cases. This includes all lines before `%prep`, i.e. in most cases everything
-            # which is needed to make RPM parsing succeed and contain the info we want to extract.
-            for line in unabridged:
-                if line.strip() == b"%prep":
-                    break
-                abridged.write(line)
-            abridged.flush()
+            with specfile.open(mode="rb") as unabridged, NamedTemporaryFile(
+                mode="wb", prefix=f"rpmautospec-abridged-{name}-", suffix=".spec"
+            ) as abridged:
+                # Attempt to parse a shortened version of the spec file first, to speed up
+                # processing in certain cases. This includes all lines before `%prep`, i.e. in most
+                # cases everything which is needed to make RPM parsing succeed and contain the info
+                # we want to extract.
+                for line in unabridged:
+                    if line.strip() == b"%prep":
+                        break
+                    abridged.write(line)
+                abridged.flush()
 
-            for spec_candidate in (abridged.name, f"{name}.spec"):
-                call = subprocess.run(
-                    rpm_cmd_base + (spec_candidate,),
-                    cwd=path,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                )
-                if not call.returncode:
-                    # Parsing this candidate spec file succeeded. In the case of the abridged spec
-                    # file, we don’t need to parse the full spec file. In the case of the latter,
-                    # breaking out explicity doesn’t make a difference.
-                    break
+                for spec_candidate in (abridged.name, f"{name}.spec"):
+                    try:
+                        spec = rpm.spec(spec_candidate)
+                        output = spec.sourceHeader.format(query)
+                    except Exception as e:
+                        exception = e
+                    else:
+                        # Parsing this candidate spec file succeeded. In the case of the abridged
+                        # spec file, we don’t need to parse the full spec file. In the case of the
+                        # latter, breaking out explicity doesn’t make a difference.
+                        exception = None
+                        break
+        finally:
+            rpm.reloadConfig()
 
-        if call.returncode != 0:
-            log.debug("rpm query for %r failed: %s", query, call.stderr.decode("utf-8", "replace"))
+        if exception:
+            log.debug("rpm query for %r failed: %r", query, exception)
             return None
-
-        output = call.stdout.decode("utf-8").strip()
 
         split_output = output.split("\n")
         epoch_version = split_output[0]

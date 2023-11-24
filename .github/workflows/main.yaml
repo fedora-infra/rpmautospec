@@ -49,6 +49,7 @@ jobs:
           krb5-devel
           libffi-devel
           poetry
+          python3-rpm
           rpm
           rpm-build
 

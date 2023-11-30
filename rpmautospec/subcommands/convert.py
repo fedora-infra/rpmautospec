@@ -7,7 +7,6 @@ from typing import Optional
 import pygit2
 from rpmautospec_core.main import autochangelog_re, autorelease_re, changelog_re
 
-
 log = logging.getLogger(__name__)
 
 release_re = re.compile(r"^(?P<tag>(?i:Release)\s*:\s*)")

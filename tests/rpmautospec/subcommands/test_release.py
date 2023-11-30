@@ -8,7 +8,6 @@ import pytest
 
 from rpmautospec.subcommands import release
 
-
 __here__ = os.path.dirname(__file__)
 
 

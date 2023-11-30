@@ -1,11 +1,9 @@
 import datetime as dt
 import subprocess
 import time
-
 from pathlib import Path
 
 import pytest
-
 
 HERE = Path(__file__).parent
 MACROS_FILE = HERE.parent / "rpm" / "macros.d" / "macros.rpmautospec"

@@ -9,7 +9,7 @@ from unittest import mock
 
 import pygit2
 import pytest
-from rpmautospec_core.main import autorelease_re, autochangelog_re
+from rpmautospec_core.main import autochangelog_re, autorelease_re
 
 from rpmautospec.subcommands import convert
 

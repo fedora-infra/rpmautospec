@@ -2,5 +2,4 @@
 
 from rpmautospec.cli import main
 
-
 main()

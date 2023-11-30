@@ -6,7 +6,6 @@ import pytest
 
 from . import temporary_cd
 
-
 __here__ = os.path.dirname(__file__)
 # We want to have our srcdir in the Python module load path so that
 # we actually import our version of the code and not the installed module.

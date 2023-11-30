@@ -20,7 +20,6 @@ log = logging.getLogger(__name__)
 
 
 class PkgHistoryProcessor:
-
     autorelease_flags_re = re.compile(
         r"^E(?P<extraver>[^_]*)_S(?P<snapinfo>[^_]*)_P(?P<prerelease>[01])_B(?P<base>\d*)$"
     )

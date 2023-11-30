@@ -57,3 +57,9 @@ rpmautospec = "rpmautospec.cli:main"
 
 [tool.black]
 line_length = 100
+
+[tool.ruff]
+select = ["E", "F", "W", "I"]
+line-length = 100
+target-version = "py39"
+allowed-confusables = ["’"]

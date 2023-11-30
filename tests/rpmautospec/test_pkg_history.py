@@ -35,7 +35,6 @@ def setlocale():
 
 
 class TestPkgHistoryProcessor:
-
     version_re = re.compile(r"^Version: .*$", flags=re.MULTILINE)
 
     @pytest.mark.parametrize(

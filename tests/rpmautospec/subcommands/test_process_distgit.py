@@ -2,15 +2,15 @@ import difflib
 import os
 import re
 import shutil
-from subprocess import run, check_output
 import tarfile
 import tempfile
+from subprocess import check_output, run
 
 import pytest
 
 from rpmautospec.subcommands import process_distgit
-from .. import temporary_cd
 
+from .. import temporary_cd
 
 __here__ = os.path.dirname(__file__)
 

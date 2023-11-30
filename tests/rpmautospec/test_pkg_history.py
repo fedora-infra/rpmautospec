@@ -4,7 +4,7 @@ import os
 import re
 import stat
 from calendar import LocaleTextCalendar
-from shutil import rmtree, SpecialFileError
+from shutil import SpecialFileError, rmtree
 from unittest.mock import patch
 
 import pygit2

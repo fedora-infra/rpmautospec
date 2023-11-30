@@ -1,7 +1,6 @@
 import pygit2
 import pytest
 
-
 SPEC_FILE_TEXT = """Summary: Boo
 Name: boo
 Version: 1.0

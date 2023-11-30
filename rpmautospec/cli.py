@@ -6,7 +6,6 @@ import sys
 
 from .subcommands import changelog, convert, process_distgit, release
 
-
 all_subcmds = (changelog, convert, process_distgit, release)
 subcmd_modules_by_name = {}
 

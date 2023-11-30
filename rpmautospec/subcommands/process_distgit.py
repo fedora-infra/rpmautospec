@@ -11,7 +11,6 @@ from rpmautospec_core import check_specfile_features
 from ..pkg_history import PkgHistoryProcessor
 from ..version import __version__
 
-
 log = logging.getLogger(__name__)
 __here__ = os.path.dirname(__file__)
 

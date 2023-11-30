@@ -10,11 +10,11 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Optional, Sequence, Union
 
 import pygit2
-import rpm
 from rpmautospec_core import AUTORELEASE_MACRO
 
-from .changelog import ChangelogEntry
+import rpm
 
+from .changelog import ChangelogEntry
 
 log = logging.getLogger(__name__)
 

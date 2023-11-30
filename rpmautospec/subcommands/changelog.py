@@ -1,7 +1,7 @@
 from typing import Any, Optional, Union
 
-from ..pkg_history import PkgHistoryProcessor
 from .. import pager
+from ..pkg_history import PkgHistoryProcessor
 
 
 def register_subcommand(subparsers):

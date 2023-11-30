@@ -14,6 +14,7 @@ authors = [
     "David Kirwan <dkirwan@redhat.com>",
     "Elliott Sales de Andrade <quantum.analyst@gmail.com>",
     "Zbigniew Jędrzejewski-Szmek <zbyszek@in.waw.pl>",
+    "Miro Hrončok <miro@hroncok.cz>",
 ]
 maintainers = ["Fedora Infrastructure <admin@fedoraproject.org>"]
 license = "MIT"

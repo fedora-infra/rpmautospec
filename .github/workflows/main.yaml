@@ -57,9 +57,5 @@ jobs:
         if: ${{ matrix.pyver >= 312 }}
         run: dnf --releasever=39 -y install libgit2-devel
 
-      - name: Install base Python dependencies
-        run: |
-          python3 -m pip install --upgrade tox
-
       - name: run tests through tox
         run: "tox -e py${{ matrix.pyver }}"

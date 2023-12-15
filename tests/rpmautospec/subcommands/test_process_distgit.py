@@ -163,7 +163,12 @@ def test_process_distgit(
         for member in tar:
             member.uid = os.getuid()
             member.gid = os.getgid()
-        tar.extractall(path=workdir, numeric_owner=True)
+
+        try:
+            tar.extractall(path=workdir, numeric_owner=True, filter="data")
+        except TypeError:
+            # Filtering was introduced in Python 3.12.
+            tar.extractall(path=workdir, numeric_owner=True)
 
     unpacked_repo_dir = os.path.join(workdir, "dummy-test-package-gloster")
     test_spec_file_path = os.path.join(

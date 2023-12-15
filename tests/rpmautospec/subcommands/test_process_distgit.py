@@ -5,10 +5,12 @@ import shutil
 import tarfile
 import tempfile
 from subprocess import check_output, run
+from unittest import mock
 
 import pytest
 
 from rpmautospec.subcommands import process_distgit
+from rpmautospec.version import __version__
 
 from .. import temporary_cd
 
@@ -21,7 +23,7 @@ def _generate_branch_testcase_combinations():
     Only run fuzzing tests on the Rawhide branch because merge
     commits (which it doesn't have) make them fail."""
     valid_combinations = [
-        (branch, autorelease_case, autochangelog_case, remove_changelog_file)
+        (branch, autorelease_case, autochangelog_case, remove_changelog_file, is_processed)
         for branch in ("rawhide", "epel8")
         for autorelease_case in ("unchanged", "with braces", "optional")
         for autochangelog_case in (
@@ -35,6 +37,7 @@ def _generate_branch_testcase_combinations():
             "optional",
         )
         for remove_changelog_file in (False, True)
+        for is_processed in (False, True)
         if branch == "rawhide"
         or autorelease_case == "unchanged"
         and autochangelog_case == "unchanged"
@@ -67,10 +70,23 @@ def relnum_split(release):
     return int(match.group("relnum")), match.group("rest")
 
 
-def fuzz_spec_file(spec_file_path, autorelease_case, autochangelog_case, remove_changelog_file):
+def fuzz_spec_file(
+    spec_file_path, autorelease_case, autochangelog_case, remove_changelog_file, is_processed
+):
     """Fuzz a spec file in ways which (often) shouldn't change the outcome"""
 
     with open(spec_file_path, "r") as orig, open(spec_file_path + ".new", "w") as new:
+        if is_processed:
+            autorelease_blurb = process_distgit.AUTORELEASE_TEMPLATE.format(autorelease_number=15)
+            print(
+                process_distgit.RPMAUTOSPEC_TEMPLATE.format(
+                    version=__version__,
+                    used_features="autorelease, autochangelog",
+                    autorelease_blurb_if_needed=autorelease_blurb,
+                ),
+                file=new,
+            )
+
         encountered_first_after_conversion = False
         for line in orig:
             if remove_changelog_file and encountered_first_after_conversion:
@@ -135,7 +151,7 @@ def run_git_amend(worktree_dir):
 @pytest.mark.parametrize("overwrite_specfile", (False, True))
 @pytest.mark.parametrize("dirty_worktree", (False, True))
 @pytest.mark.parametrize(
-    "branch, autorelease_case, autochangelog_case, remove_changelog_file",
+    "branch, autorelease_case, autochangelog_case, remove_changelog_file, is_processed",
     _generate_branch_testcase_combinations(),
 )
 def test_process_distgit(
@@ -146,6 +162,7 @@ def test_process_distgit(
     autorelease_case,
     autochangelog_case,
     remove_changelog_file,
+    is_processed,
 ):
     """Test the process_distgit() function"""
     workdir = str(tmp_path)
@@ -179,12 +196,13 @@ def test_process_distgit(
     with temporary_cd(unpacked_repo_dir):
         run(["git", "checkout", branch])
 
-    if autorelease_case != "unchanged" or autochangelog_case != "unchanged":
+    if autorelease_case != "unchanged" or autochangelog_case != "unchanged" or is_processed:
         fuzz_spec_file(
             test_spec_file_path,
             autorelease_case,
             autochangelog_case,
             remove_changelog_file,
+            is_processed,
         )
 
     if remove_changelog_file:
@@ -206,9 +224,32 @@ def test_process_distgit(
 
     # Set restrictive umask to check that file mode is preserved.
     old_umask = os.umask(0o077)
-    process_distgit.process_distgit(unpacked_repo_dir, target_spec_file_path)
+    real_cls = process_distgit.PkgHistoryProcessor
+    processor_run = None
+    with mock.patch(
+        "rpmautospec.subcommands.process_distgit.PkgHistoryProcessor",
+    ) as processor_cls:
+
+        def wrap_cls(*args, **kwargs):
+            nonlocal processor_run
+            obj = real_cls(*args, **kwargs)
+            processor_run = obj.run = mock.Mock(wraps=obj.run)
+            return obj
+
+        processor_cls.side_effect = wrap_cls
+        retval = process_distgit.process_distgit(unpacked_repo_dir, target_spec_file_path)
     # And restore previous umask.
     os.umask(old_umask)
+
+    if is_processed:
+        # No processing should be done if the spec file was processed before already.
+        assert not retval
+        processor_run.assert_not_called()
+        return
+
+    # Input spec file was not processed before, should have been processed now.
+    assert retval is not False
+    processor_run.assert_called()
 
     test_spec_file_stat = os.stat(test_spec_file_path)
     attrs = ["mode", "ino", "dev", "uid", "gid"]
@@ -251,6 +292,7 @@ def test_process_distgit(
                 autorelease_case,
                 fuzz_autochangelog_case,
                 remove_changelog_file,
+                is_processed,
             )
 
         rpm_cmd = [

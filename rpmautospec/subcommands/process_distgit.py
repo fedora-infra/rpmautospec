@@ -81,7 +81,7 @@ def process_distgit(
         features = check_specfile_features(processor.specfile)
     else:
         features = check_specfile_features.__wrapped__(processor.specfile)
-    processing_necessary = (
+    processing_necessary = not features.is_processed and (
         features.has_autorelease or features.has_autochangelog or not features.changelog_lineno
     )
     if not processing_necessary:

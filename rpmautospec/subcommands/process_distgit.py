@@ -77,10 +77,7 @@ def process_distgit(
     else:
         specfile_mode = stat.S_IMODE(processor.specfile.stat().st_mode)
 
-    if enable_caching:
-        features = check_specfile_features(processor.specfile)
-    else:
-        features = check_specfile_features.__wrapped__(processor.specfile)
+    features = check_specfile_features(processor.specfile, enable_caching=enable_caching)
     processing_necessary = not features.is_processed and (
         features.has_autorelease or features.has_autochangelog or not features.changelog_lineno
     )

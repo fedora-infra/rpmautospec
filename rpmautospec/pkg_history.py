@@ -24,8 +24,6 @@ class PkgHistoryProcessor:
         r"^E(?P<extraver>[^_]*)_S(?P<snapinfo>[^_]*)_P(?P<prerelease>[01])_B(?P<base>\d*)$"
     )
 
-    specfile_include_re = re.compile(rb"\n%include\s.*")
-
     def __init__(self, spec_or_path: Union[str, Path]):
         if isinstance(spec_or_path, str):
             spec_or_path = Path(spec_or_path)
@@ -73,7 +71,9 @@ class PkgHistoryProcessor:
             return fallback
 
     @classmethod
-    def _get_rpmverflags(cls, path: str, name: Optional[str] = None) -> Optional[str]:
+    def _get_rpmverflags(
+        cls, path: str, name: Optional[str] = None, log_exception: bool = True
+    ) -> Optional[str]:
         """Retrieve the epoch/version and %autorelease flags set in spec file.
 
         Returns None if an error is encountered.
@@ -140,7 +140,8 @@ class PkgHistoryProcessor:
             rpm.reloadConfig()
 
         if exception:
-            log.debug("rpm query for %r failed: %r", query, exception)
+            if log_exception:
+                log.debug("rpm query for %r failed: %r", query, exception)
             return None
 
         split_output = output.split("\n")
@@ -175,6 +176,7 @@ class PkgHistoryProcessor:
             return self._rpmverflags_for_commits[commit]
 
         with TemporaryDirectory(prefix="rpmautospec-") as workdir:
+            # Only unpack spec file at first.
             try:
                 specblob = commit.tree[self.specfile.name]
             except KeyError:
@@ -182,16 +184,19 @@ class PkgHistoryProcessor:
                 return None
 
             specpath = Path(workdir) / self.specfile.name
+            specpath.write_bytes(specblob.data)
 
-            # Filter out any %include directives. They would cause
-            # spec file evaluation to fail.
-            specdata = self.specfile_include_re.sub(b"", specblob.data)
+            rpmverflags = self._get_rpmverflags(workdir, self.name, log_exception=False)
 
-            specpath.write_bytes(specdata)
+            if not rpmverflags:
+                # Provide all files for %include and %load directives.
+                self.repo.checkout_tree(
+                    commit.tree, directory=workdir, strategy=pygit2.GIT_CHECKOUT_FORCE
+                )
+                rpmverflags = self._get_rpmverflags(workdir, self.name)
 
-            self._rpmverflags_for_commits[commit] = self._get_rpmverflags(workdir, self.name)
-
-        return self._rpmverflags_for_commits[commit]
+        self._rpmverflags_for_commits[commit] = rpmverflags
+        return rpmverflags
 
     def release_number_visitor(self, commit: pygit2.Commit, child_info: dict[str, Any]):
         """Visit a commit to determine its release number.

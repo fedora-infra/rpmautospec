@@ -4,6 +4,7 @@ import locale
 import logging
 import sys
 
+from .exc import RpmautospecException
 from .subcommands import changelog, convert, process_distgit, release
 
 all_subcmds = (changelog, convert, process_distgit, release)
@@ -78,6 +79,13 @@ def get_arg_parser() -> CustomArgumentParser:
         help="Enable debugging output",
     )
 
+    parser.add_argument(
+        "--error-on-unparseable-spec",
+        help="Whether to throw an error if the current version of the spec file can’t be parsed",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+
     # parsers for sub-commands
 
     # ArgumentParser.add_subparsers() only accepts the `required` argument from Python 3.7 on.
@@ -121,4 +129,9 @@ def main():
 
     if args.subcommand:
         subcmd_module = subcmd_modules_by_name[args.subcommand]
-        sys.exit(subcmd_module.main(args))
+        try:
+            exit_code = subcmd_module.main(args)
+        except RpmautospecException as exc:
+            logging.error("%s", exc)
+            exit_code = 1
+        sys.exit(exit_code)

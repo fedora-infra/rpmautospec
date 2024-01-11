@@ -1,6 +1,7 @@
 from typing import Any, Optional, Union
 
 from .. import pager
+from ..exc import SpecParseFailure
 from ..pkg_history import PkgHistoryProcessor
 
 
@@ -45,13 +46,18 @@ def collate_changelog(
     return "\n\n".join(entry_strings)
 
 
-def produce_changelog(spec_or_repo):
+def produce_changelog(spec_or_repo, *, error_on_unparseable_spec: bool):
     processor = PkgHistoryProcessor(spec_or_repo)
     result = processor.run(visitors=(processor.release_number_visitor, processor.changelog_visitor))
+    if error_on_unparseable_spec and result["epoch-version"] is None:
+        # If epoch-version is None, this indicates that the spec file couldn’t be parsed.
+        raise SpecParseFailure(f"Couldn’t parse spec file {processor.specfile.name}")
     return collate_changelog(result)
 
 
 def main(args):
     """Main method."""
-    changelog = produce_changelog(args.spec_or_path)
+    changelog = produce_changelog(
+        args.spec_or_path, error_on_unparseable_spec=args.error_on_unparseable_spec
+    )
     pager.page(changelog, enabled=args.pager)

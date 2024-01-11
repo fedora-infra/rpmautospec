@@ -8,6 +8,7 @@ from typing import Optional, Union
 
 from rpmautospec_core import check_specfile_features
 
+from ..exc import SpecParseFailure
 from ..pkg_history import PkgHistoryProcessor
 from ..version import __version__
 
@@ -53,13 +54,15 @@ def process_distgit(
     target: Optional[Union[Path, str]] = None,
     *,
     enable_caching: bool = True,
+    error_on_unparseable_spec: bool = True,
 ) -> bool:
     """Process an RPM spec file in a distgit repository.
 
     :param spec_or_path: the spec file or path of the repository
     :param enable_caching: whether or not spec file feature test results
-                           should be cached (disable in long-running
-                           processes)
+        should be cached (disable in long-running processes)
+    :param error_on_unparseable_spec: Whether or not failure at parsing
+        the current spec file should raise an exception.
     :return: whether or not the spec file needed processing
     """
     processor = PkgHistoryProcessor(spec_or_path)
@@ -94,6 +97,10 @@ def process_distgit(
     if needs_autochangelog:
         visitors.append(processor.changelog_visitor)
     result = processor.run(visitors=visitors)
+
+    if error_on_unparseable_spec and result["epoch-version"] is None:
+        # If epoch-version is None, this indicates that the spec file couldn’t be parsed.
+        raise SpecParseFailure(f"Couldn’t parse spec file {processor.specfile.name}")
 
     autorelease_number = result["release-number"]
 
@@ -155,4 +162,6 @@ def process_distgit(
 def main(args):
     """Main method."""
     spec_or_path = args.spec_or_path.rstrip(os.path.sep)
-    process_distgit(spec_or_path, args.target)
+    process_distgit(
+        spec_or_path, args.target, error_on_unparseable_spec=args.error_on_unparseable_spec
+    )

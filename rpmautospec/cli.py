@@ -53,25 +53,12 @@ def get_arg_parser() -> CustomArgumentParser:
 
     # global arguments
 
-    if hasattr(argparse, "BooleanOptionalAction"):
-        parser.add_argument(
-            "--pager",
-            action=argparse.BooleanOptionalAction,
-            help="Start a pager automatically",
-        )
-    else:  # pragma: no cover
-        # Python < 3.9
-        parser.add_argument(
-            "--pager",
-            action="store_true",
-            help="Start a pager automatically",
-        )
-        parser.add_argument(
-            "--no-pager",
-            dest="pager",
-            action="store_false",
-        )
-    parser.set_defaults(pager=True)
+    parser.add_argument(
+        "--pager",
+        action=argparse.BooleanOptionalAction,
+        help="Start a pager automatically",
+        default=True,
+    )
 
     log_level_group = parser.add_mutually_exclusive_group()
     log_level_group.add_argument(

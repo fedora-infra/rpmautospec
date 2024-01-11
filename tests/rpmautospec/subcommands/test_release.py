@@ -43,7 +43,10 @@ class TestRelease:
             expected_release = "11"
 
             if method_to_test == "calculate_release":
-                assert release.calculate_release(unpacked_repo_dir) == expected_release
+                assert (
+                    release.calculate_release(unpacked_repo_dir, error_on_unparseable_spec=True)
+                    == expected_release
+                )
             else:
                 args = mock.Mock()
                 args.spec_or_path = unpacked_repo_dir

@@ -86,13 +86,6 @@ class ChangelogEntry(dict):
         # (stripped of prefixes and such). Merge these lines into a single one per item.
         return [" ".join(lines) for lines in changelog_items_lines]
 
-    def skip_changelog(self):
-        commitlog = self.get("commitlog", None)
-        if not commitlog:
-            return False
-
-        return any(line.strip() == "[skip changelog]" for line in commitlog.split("\n"))
-
     def format(self, **overrides):
         entry_info = self | overrides
 

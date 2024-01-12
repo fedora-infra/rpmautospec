@@ -4,3 +4,5 @@ The subject
 even further.
 
 Here's more detail, but it should be ignored.
+
+[bump release: 7]

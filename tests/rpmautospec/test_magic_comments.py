@@ -23,7 +23,10 @@ def _read_commitlog_magic_comments_testdata():
         parametrized.append(
             pytest.param(
                 commitlog_path.read_text(),
-                MagicCommentResult(skip_changelog=d.get("skip_changelog", False)),
+                MagicCommentResult(
+                    skip_changelog=d.get("skip_changelog", False),
+                    bump_release=d.get("bump_release", 0),
+                ),
                 id=f"commit-{variant}",
             )
         )

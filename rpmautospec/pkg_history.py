@@ -257,20 +257,21 @@ class PkgHistoryProcessor:
 
         # Find the maximum applicable parent release number and increment by one if the
         # epoch-version can be parsed from the spec file.
+        parent_release_numbers = tuple(
+            res["release-number"]
+            if res
+            and (
+                # Paper over gaps in epoch-versions, these could be simple syntax errors in
+                # the spec file, or a retired, then unretired package.
+                epoch_version is None
+                or res["epoch-version"] is None
+                or epoch_version == res["epoch-version"]
+            )
+            else 0
+            for res in parent_results
+        )
         release_number = max(
-            (
-                res["release-number"]
-                if res
-                and (
-                    # Paper over gaps in epoch-versions, these could be simple syntax errors in
-                    # the spec file, or a retired, then unretired package.
-                    epoch_version is None
-                    or res["epoch-version"] is None
-                    or epoch_version == res["epoch-version"]
-                )
-                else 0
-                for res in parent_results
-            ),
+            (commit_result["magic-comment-result"].bump_release,) + parent_release_numbers,
             default=0,
         )
 

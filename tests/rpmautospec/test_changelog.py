@@ -8,7 +8,7 @@ import yaml
 from rpmautospec.changelog import ChangelogEntry
 
 HERE = Path(__file__).parent
-COMMITLOG_CHANGELOG_DIR = HERE.parent / "test-data" / "commitlog-to-changelog"
+COMMITLOG_CHANGELOG_DIR = HERE.parent / "test-data" / "commitlogs"
 COMMITLOGFILE_RE = re.compile(r"^commit-(?P<variant>.*)\.txt$")
 TESTDATA = {}
 
@@ -27,7 +27,6 @@ def _read_commitlog_changelog_testdata():
                 commitlog_path.read_text(),
                 d["changelog_items"],  # required field
                 chlog_entry_path.read_text(),
-                d.get("skip_changelog", False),  # optional field, defaults to False
             )
     return TESTDATA
 
@@ -49,7 +48,7 @@ def pytest_generate_tests(metafunc):
         if "commitlog_chlogentry" in metafunc.fixturenames:
             metafunc.parametrize(
                 "commitlog_chlogentry",
-                [(val[0], val[2], val[3]) for val in TESTDATA.values()],
+                [(val[0], val[2]) for val in TESTDATA.values()],
                 ids=(f"commitlog-{variant}" for variant in TESTDATA),
             )
 
@@ -94,7 +93,7 @@ class TestChangelogEntry:
         trailing_newline,
         commitlog_chlogentry,
     ):
-        commitlog, expected_changelog_entry, skip_changelog = commitlog_chlogentry
+        commitlog, expected_changelog_entry = commitlog_chlogentry
 
         commitlog = self._parametrize_commitlog(
             commitlog, subject_with_dash=subject_with_dash, trailing_newline=trailing_newline
@@ -128,8 +127,6 @@ class TestChangelogEntry:
 
         formatted_changelog_entry = changelog_entry.format()
         assert formatted_changelog_entry == expected_changelog_entry.rstrip("\n")
-
-        assert changelog_entry.skip_changelog() == skip_changelog
 
     @pytest.mark.parametrize("error", ("string", "list"))
     def test_format_error(self, error):

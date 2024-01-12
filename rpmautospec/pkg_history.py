@@ -15,6 +15,7 @@ from rpmautospec_core import AUTORELEASE_MACRO
 import rpm
 
 from .changelog import ChangelogEntry
+from .magic_comments import parse_magic_comments
 
 log = logging.getLogger(__name__)
 
@@ -246,6 +247,7 @@ class PkgHistoryProcessor:
         commit_result, parent_results = yield {"child_must_continue": child_must_continue}
 
         commit_result["epoch-version"] = epoch_version
+        commit_result["magic-comment-result"] = parse_magic_comments(commit.message)
 
         log.debug("\tepoch_version: %s", epoch_version)
         log.debug(
@@ -380,7 +382,9 @@ class PkgHistoryProcessor:
             }
         )
 
-        skip_for_changelog = changelog_entry.skip_changelog() or not specfile_present
+        skip_for_changelog = (
+            commit_result["magic-comment-result"].skip_changelog or not specfile_present
+        )
 
         if merge_unresolvable:
             log.debug("\tunresolvable merge")

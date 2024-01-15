@@ -68,7 +68,7 @@ def calculate_release(
 def calculate_release_number(
     spec_or_path: Union[str, Path],
     *,
-    error_on_unparseable_spec: bool,
+    error_on_unparseable_spec: bool = True,
 ) -> int:
     """Calculate release number of a package.
 

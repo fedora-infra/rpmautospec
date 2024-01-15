@@ -46,7 +46,7 @@ def collate_changelog(
     return "\n\n".join(entry_strings)
 
 
-def produce_changelog(spec_or_repo, *, error_on_unparseable_spec: bool):
+def produce_changelog(spec_or_repo, *, error_on_unparseable_spec: bool = True):
     processor = PkgHistoryProcessor(spec_or_repo)
     result = processor.run(visitors=(processor.release_number_visitor, processor.changelog_visitor))
     if error_on_unparseable_spec and result["epoch-version"] is None:

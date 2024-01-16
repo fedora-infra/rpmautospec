@@ -270,13 +270,12 @@ class PkgHistoryProcessor:
             else 0
             for res in parent_results
         )
-        release_number = max(
-            (commit_result["magic-comment-result"].bump_release,) + parent_release_numbers,
-            default=0,
-        )
+        release_number = max(parent_release_numbers, default=0)
 
         if self.specfile.name in commit.tree:
             release_number += 1
+
+        release_number = max(release_number, commit_result["magic-comment-result"].bump_release)
 
         commit_result["release-number"] = release_number
 

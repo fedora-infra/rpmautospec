@@ -1,7 +1,6 @@
 import difflib
 import os
 import re
-import shutil
 import tarfile
 import tempfile
 from subprocess import check_output, run
@@ -154,6 +153,7 @@ def run_git_amend(worktree_dir):
     ids=("without-overwrite-specfile", "with-overwrite-specfile"),
 )
 @pytest.mark.parametrize("dirty_worktree", (False, True), ids=("clean-worktree", "dirty-worktree"))
+@pytest.mark.parametrize("bump_release", (0, 15), ids=("without-bump-release", "with-bump-release"))
 @pytest.mark.parametrize(
     "branch, autorelease_case, autochangelog_case, remove_changelog_file, is_processed",
     _generate_branch_testcase_combinations(),
@@ -167,6 +167,7 @@ def test_process_distgit(
     autochangelog_case,
     remove_changelog_file,
     is_processed,
+    bump_release,
 ):
     """Test the process_distgit() function"""
     workdir = str(tmp_path)
@@ -199,6 +200,30 @@ def test_process_distgit(
 
     with temporary_cd(unpacked_repo_dir):
         run(["git", "checkout", branch])
+
+    if bump_release:
+        commit_timestamp = check_output(
+            ["git", "log", "-1", "--pretty=format:%cI"],
+            cwd=unpacked_repo_dir,
+            encoding="ascii",
+        ).strip()
+        # Set name and email explicitly so CI doesn't trip over them being unset.
+        env = os.environ | {
+            "GIT_COMMITTER_NAME": "Test User",
+            "GIT_COMMITTER_EMAIL": "<test@example.com>",
+            "GIT_COMMITTER_DATE": commit_timestamp,
+        }
+        latest_commit_log = check_output(
+            ["git", "log", "-1", "--pretty=format:%B"],
+            cwd=unpacked_repo_dir,
+            encoding="utf-8",
+        )
+        amended_commit_log = latest_commit_log + f"\n\n[bump release: {bump_release}]\n"
+        run(
+            ["git", "commit", "--amend", "--no-edit", "-m", amended_commit_log],
+            cwd=unpacked_repo_dir,
+            env=env,
+        )
 
     if autorelease_case != "unchanged" or autochangelog_case != "unchanged" or is_processed:
         fuzz_spec_file(
@@ -274,8 +299,27 @@ def test_process_distgit(
         "dummy-test-package-gloster.spec.expected",
     )
 
-    with tempfile.NamedTemporaryFile() as tmpspec:
-        shutil.copy2(expected_spec_file_path, tmpspec.name)
+    with tempfile.NamedTemporaryFile(mode="w+") as tmpspec, open(
+        expected_spec_file_path, "r"
+    ) as expspec:
+        # Copy expected spec file and potentially bump release number
+        relnum_seen = None
+        relnumdef_re = re.compile(
+            r"(?P<prefix>^\s*release_number\s*=\s*)(?P<relnum>\d+)(?P<suffix>.*)$"
+        )
+        for line in expspec:
+            if match := relnumdef_re.match(line):
+                relnum_seen = int(match.group("relnum"))
+                if bump_release > relnum_seen:
+                    print(
+                        match.group("prefix") + str(bump_release) + match.group("suffix"),
+                        file=tmpspec,
+                    )
+                    expected_spec_file_path = tmpspec.name
+                    continue
+            tmpspec.write(line)
+        tmpspec.flush()
+
         if (
             autorelease_case != "unchanged"
             or autochangelog_case != "unchanged"
@@ -315,6 +359,8 @@ def test_process_distgit(
         else:
             test_cmd = rpm_cmd + [test_spec_file_path]
         expected_cmd = rpm_cmd + [expected_spec_file_path]
+        if branch == "epel8":
+            expected_cmd += ["--define", "latest_changelog_is_historical 1"]
 
         q_release = ["--qf", "%{release}\n"]
         test_output = check_output(test_cmd + q_release, encoding="utf-8").strip()
@@ -329,8 +375,10 @@ def test_process_distgit(
         ):
             expected_relnum += 1
 
-        if branch == "epel8":
+        if branch == "epel8" and not bump_release:
             expected_relnum += 1
+
+        expected_relnum = max(expected_relnum, bump_release)
 
         assert test_relnum == expected_relnum
 

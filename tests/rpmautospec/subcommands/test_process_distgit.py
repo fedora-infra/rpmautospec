@@ -148,8 +148,12 @@ def run_git_amend(worktree_dir):
     )
 
 
-@pytest.mark.parametrize("overwrite_specfile", (False, True))
-@pytest.mark.parametrize("dirty_worktree", (False, True))
+@pytest.mark.parametrize(
+    "overwrite_specfile",
+    (False, True),
+    ids=("without-overwrite-specfile", "with-overwrite-specfile"),
+)
+@pytest.mark.parametrize("dirty_worktree", (False, True), ids=("clean-worktree", "dirty-worktree"))
 @pytest.mark.parametrize(
     "branch, autorelease_case, autochangelog_case, remove_changelog_file, is_processed",
     _generate_branch_testcase_combinations(),

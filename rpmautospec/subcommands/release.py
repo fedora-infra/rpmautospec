@@ -46,7 +46,7 @@ def calculate_release(
     spec_or_path: Union[str, Path],
     *,
     complete_release: bool = True,
-    error_on_unparseable_spec: bool,
+    error_on_unparseable_spec: bool = True,
 ) -> Union[str, int]:
     """Calculate release value (or number) of a package.
 

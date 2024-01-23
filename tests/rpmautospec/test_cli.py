@@ -1,16 +1,9 @@
-import os
 import subprocess
 import sys
 
 import pytest
 
 from . import temporary_cd
-
-__here__ = os.path.dirname(__file__)
-# We want to have our srcdir in the Python module load path so that
-# we actually import our version of the code and not the installed module.
-# Using run-rpmautospec.py takes care of this for us.
-run_rpmautospec_py = __here__ + "/../../run-rpmautospec.py"
 
 
 def test_main_help():
@@ -34,38 +27,61 @@ def test_main_help():
 
 
 @pytest.mark.parametrize(
-    "release",
-    ["Release: 1%{dist}", "Release: %{autorelease}"],
-    ids=["release1", "autorelease"],
-    indirect=True,
+    "release, changelog",
+    (
+        ("Release: 1%{dist}", "%changelog\n- log line"),
+        ("Release: %{autorelease}", "%changelog\n- log line"),
+        ("Release: 1%{dist}", "%changelog\n%autochangelog"),
+        ("", "%changelog\n- log line"),
+        ("Release: 1%{dist}\nRelease: 1%{dist}", "%changelog\n- log line"),
+        ("Release: 1%{dist}", ""),
+        ("Release: 1%{dist}", "%changelog\n%changelog\n- log line"),
+    ),
+    ids=(
+        "release-changelog",
+        "autorelease-changelog",
+        "release-autochangelog",
+        "norelease-changelog-failure",
+        "doublerelease-changelog-failure",
+        "release-nochangelog-failure",
+        "release-doublechangelog-failure",
+    ),
 )
-@pytest.mark.parametrize(
-    "changelog",
-    ["%changelog\n- log line", "%changelog\n%autochangelog"],
-    ids=["changelog", "autochangelog"],
-    indirect=True,
-)
-def test_main_convert(release, changelog, repo):
+def test_main_convert(release, changelog, repo, request):
     # we do the conversion iff it wasn't done before
-    autorelease = "autorelease" not in release
-    autochangelog = "autochangelog" not in changelog
-    if not (autorelease or autochangelog):
-        pytest.skip("Not testing with a fully converted spec file.")
+    needs_autorelease = "autorelease" not in release
+    needs_autochangelog = "autochangelog" not in changelog
 
     with temporary_cd(repo.workdir):
         completed = subprocess.run(
-            [sys.executable, run_rpmautospec_py, "convert"],
+            [sys.executable, "-c", "from rpmautospec import cli; cli.main()", "convert"],
+            check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             encoding="utf-8",
         )
-        if completed.returncode != 0:
-            print("stderr:", completed.stderr)
-            completed.check_returncode()
 
-    assert "Converted to " in completed.stdout
-    assert ("%autorelease" in completed.stdout) == autorelease
-    assert ("%autochangelog" in completed.stdout) == autochangelog
-    # Warnings end up in stderr
-    assert ("is already using %autorelease" in completed.stderr) != autorelease
-    assert ("is already using %autochangelog" in completed.stderr) != autochangelog
+    if "failure" in request.node.name:
+        assert completed.returncode != 0
+
+        assert completed.stdout == ""
+
+        if "norelease" in request.node.name:
+            assert "unable to locate release tag" in completed.stderr.lower()
+        elif "doublerelease" in request.node.name:
+            assert "found multiple release tags" in completed.stderr.lower()
+        elif "nochangelog" in request.node.name:
+            assert "unable to locate %changelog line" in completed.stderr.lower()
+        elif "doublechangelog" in request.node.name:
+            assert "found multiple %changelog" in completed.stderr.lower()
+        else:
+            assert False, "Not all failure cases covered in test."
+    else:
+        assert completed.returncode == 0
+
+        assert "Converted to " in completed.stdout
+        assert ("%autorelease" in completed.stdout) == needs_autorelease
+        assert ("%autochangelog" in completed.stdout) == needs_autochangelog
+        # Warnings end up in stderr
+        assert ("already uses %autorelease" in completed.stderr) != needs_autorelease
+        assert ("already uses %autochangelog" in completed.stderr) != needs_autochangelog

@@ -4,6 +4,7 @@ Test the rpmautospec.subcommands.converter module
 
 import logging
 import re
+from shutil import SpecialFileError
 from types import SimpleNamespace
 from unittest import mock
 
@@ -11,6 +12,7 @@ import pygit2
 import pytest
 from rpmautospec_core.main import autochangelog_re, autorelease_re
 
+from rpmautospec.exc import SpecParseFailure
 from rpmautospec.subcommands import convert
 
 release_autorelease_re = re.compile(
@@ -18,42 +20,157 @@ release_autorelease_re = re.compile(
 )
 
 
-def test_init_invalid_path(tmp_path):
-    with pytest.raises(FileNotFoundError, match="doesn't exist"):
-        convert.PkgConverter(tmp_path / "nonexistent.spec")
+class TestPkgConverter:
+    def test_init_invalid_path(self, tmp_path):
+        with pytest.raises(FileNotFoundError, match="doesn’t exist"):
+            convert.PkgConverter(tmp_path / "nonexistent.spec")
 
-    dir_no_spec = tmp_path / "dir_no_spec"
-    dir_no_spec.mkdir()
-    with pytest.raises(FileNotFoundError, match="doesn't exist in "):
-        convert.PkgConverter(dir_no_spec)
+        dir_no_spec = tmp_path / "dir_no_spec"
+        dir_no_spec.mkdir()
+        with pytest.raises(FileNotFoundError, match="doesn’t exist in "):
+            convert.PkgConverter(dir_no_spec)
 
-    no_spec_extension = tmp_path / "noext"
-    no_spec_extension.touch()
-    with pytest.raises(ValueError, match="must have '.spec' as an extension"):
-        convert.PkgConverter(no_spec_extension)
+        no_spec_extension = tmp_path / "noext"
+        no_spec_extension.touch()
+        with pytest.raises(ValueError, match="must have '.spec' as an extension"):
+            convert.PkgConverter(no_spec_extension)
 
+    def test_init_not_regular_file(self):
+        spec_or_path = mock.Mock()
+        spec_or_path.absolute.return_value = spec_or_path
+        spec_or_path.is_dir.return_value = False
+        spec_or_path.is_file.return_value = False
 
-def test_init_dirty_tree(specfile, repo):
-    # The changelog file has already been added:
-    changelog = specfile.parent / "changelog"
-    changelog.touch()
-    with pytest.raises(FileExistsError, match="'changelog' is already in the repository"):
+        with pytest.raises(SpecialFileError, match=r"Spec file or path .* is not a regular file"):
+            convert.PkgConverter(spec_or_path)
+
+    def test_init_changelog_exists(self, specfile, repo):
+        # The changelog file has already been added:
+        changelog = specfile.parent / "changelog"
+        changelog.touch()
+        with pytest.raises(FileExistsError, match="'changelog' is already in the repository"):
+            convert.PkgConverter(specfile)
+
+    def test_init_modified_spec_file(self, specfile, repo):
+        # The spec file has been modified without committing it:
+        specfile.write_text("Modified")
+        with pytest.raises(convert.FileModifiedError, match="is modified"):
+            convert.PkgConverter(specfile)
+
+    def test_init_dirty_tree(self, specfile, repo):
+        # Other files have been changed, which may corrupt our commit:
+        dirty = specfile.parent / "dirty"
+        dirty.write_text("")
+        repo.index.add("dirty")
+        repo.index.write()
+        with pytest.raises(convert.FileModifiedError, match="is dirty"):
+            convert.PkgConverter(specfile)
+
+    def test_init_new_file(self, specfile, repo):
+        newfile = specfile.parent / "newfile"
+        newfile.touch()
         convert.PkgConverter(specfile)
-    changelog.unlink()
 
-    # The spec file has been modified without committing it:
-    specfile.write_text("Modified")
-    with pytest.raises(convert.FileIsModifiedError, match="is modified"):
-        convert.PkgConverter(specfile)
-    repo.reset(repo.head.target, pygit2.GIT_RESET_HARD)
+    def test_init_spec_file_untracked(self, specfile, repo):
+        untracked_spec = specfile.parent / "untracked.spec"
+        untracked_spec.touch()
 
-    # Other files have been changed, which may corrupt our commit:
-    dirty = specfile.parent / "dirty"
-    dirty.write_text("")
-    repo.index.add("dirty")
-    repo.index.write()
-    with pytest.raises(convert.FileIsModifiedError, match="is dirty"):
-        convert.PkgConverter(specfile)
+        with pytest.raises(
+            convert.FileUntrackedError,
+            match=r"Spec file '.*' exists in the repository, but is untracked",
+        ):
+            convert.PkgConverter(untracked_spec)
+
+    @pytest.mark.parametrize("for_git", (False, True), ids=("not-for-git", "for-git"))
+    @pytest.mark.parametrize(
+        "converted_release, converted_changelog",
+        ((True, False), (False, True), (True, True)),
+        ids=("converted-release", "converted-changelog", "converted-release-converted-changelog"),
+    )
+    @pytest.mark.parametrize("made_commit", (True, False), ids=("made-commit", "not-made-commit"))
+    def test_describe_changes(
+        self, for_git, converted_release, converted_changelog, made_commit, specfile, repo
+    ):
+        converter = convert.PkgConverter(specfile)
+        converter.converted_release = converted_release
+        converter.converted_changelog = converted_changelog
+        converter.made_commit = made_commit
+
+        description = converter.describe_changes(for_git)
+
+        if for_git:
+            assert description.startswith("Convert to")
+        else:
+            assert description.startswith("Converted to")
+
+        if converted_release:
+            assert "%autorelease" in description
+        else:
+            assert "%autorelease" not in description
+
+        if converted_changelog:
+            assert "%autochangelog" in description
+        else:
+            assert "%autochangelog" not in description
+
+        if not for_git and made_commit:
+            assert "committed to git" in description
+        else:
+            assert "committed to git" not in description
+
+    @pytest.mark.parametrize(
+        "release, changelog",
+        (
+            (
+                "Release: 1",
+                "%changelog\n"
+                + "* Wed Jan 24 2024 Road Runner <roadrunner@desert.place> 1-1\n"
+                + "- Meep meep!\n",
+            ),
+        ),
+        indirect=True,
+    )
+    @pytest.mark.parametrize("with_message", (False, True), ids=("without-message", "with-message"))
+    def test_commit(self, with_message, release, changelog, specfile, repo, caplog):
+        converter = convert.PkgConverter(specfile)
+        converter.load()
+        converter.convert_to_autorelease()
+        converter.convert_to_autochangelog()
+        converter.save()
+
+        message = "The message" if with_message else None
+        converter.commit(message=message)
+
+        head_commit = repo[repo.head.target]
+
+        if message:
+            assert head_commit.message == message
+        else:
+            assert head_commit.message == (
+                "Convert to %autorelease and %autochangelog\n\n[skip changelog]"
+            )
+
+
+def test_register_subcommand():
+    subparsers = mock.Mock()
+    convert_parser = subparsers.add_parser.return_value
+
+    subcmd_name = convert.register_subcommand(subparsers)
+
+    subparsers.add_parser.assert_called_once_with(subcmd_name, help=mock.ANY)
+
+    convert_parser.add_argument.assert_has_calls(
+        (
+            mock.call("spec_or_path", default=".", nargs="?", help=mock.ANY),
+            mock.call("--message", "-m", help=mock.ANY),
+            mock.call("--no-commit", "-n", action="store_true", help=mock.ANY),
+            mock.call("--no-changelog", action="store_true", help=mock.ANY),
+            mock.call("--no-release", action="store_true", help=mock.ANY),
+        ),
+        any_order=True,
+    )
+
+    assert subcmd_name == "convert"
 
 
 @mock.patch("rpmautospec.subcommands.convert.PkgConverter")
@@ -161,7 +278,7 @@ def test_autorelease_already_converted(specfile, caplog):
     caplog.clear()
     converter.convert_to_autorelease()
     assert len(caplog.records) == 1
-    assert "is already using %autorelease" in caplog.records[0].message
+    assert "already uses %autorelease" in caplog.records[0].message
 
 
 @pytest.mark.parametrize(
@@ -179,7 +296,7 @@ def test_autorelease_already_converted(specfile, caplog):
 def test_autorelease_invalid(specfile, expected):
     converter = convert.PkgConverter(specfile)
     converter.load()
-    with pytest.raises(RuntimeError, match=expected):
+    with pytest.raises(SpecParseFailure, match=expected):
         converter.convert_to_autorelease()
 
 
@@ -218,7 +335,7 @@ def test_autochangelog_already_converted(specfile, caplog):
     caplog.clear()
     converter.convert_to_autochangelog()
     assert len(caplog.records) == 1
-    assert "is already using %autochangelog" in caplog.records[0].message
+    assert "already uses %autochangelog" in caplog.records[0].message
 
 
 @pytest.mark.parametrize(
@@ -238,7 +355,7 @@ def test_autochangelog_invalid(specfile, expected):
 
     converter = convert.PkgConverter(specfile)
     converter.load()
-    with pytest.raises(RuntimeError, match=expected):
+    with pytest.raises(SpecParseFailure, match=expected):
         converter.convert_to_autochangelog()
 
 

@@ -95,7 +95,8 @@ def get_arg_parser() -> CustomArgumentParser:
     for subcmd_module in all_subcmds:
         subcmd_name = subcmd_module.register_subcommand(subparsers)
 
-        if subcmd_name in subcmd_modules_by_name:
+        if subcmd_name in subcmd_modules_by_name:  # pragma: no cover
+            # This is unlikely to happen outside of development.
             raise RuntimeError(f"Sub-command specified more than once: {subcmd_name}.")
 
         subcmd_modules_by_name[subcmd_name] = subcmd_module
@@ -127,11 +128,10 @@ def main():
 
     setup_logging(log_level=args.log_level)
 
-    if args.subcommand:
-        subcmd_module = subcmd_modules_by_name[args.subcommand]
-        try:
-            exit_code = subcmd_module.main(args)
-        except RpmautospecException as exc:
-            logging.error("%s", exc)
-            exit_code = 1
-        sys.exit(exit_code)
+    subcmd_module = subcmd_modules_by_name[args.subcommand]
+    try:
+        exit_code = subcmd_module.main(args)
+    except RpmautospecException as exc:
+        logging.error("%s", exc)
+        exit_code = 1
+    sys.exit(exit_code)

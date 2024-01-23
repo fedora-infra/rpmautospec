@@ -7,14 +7,23 @@ from typing import Optional
 import pygit2
 from rpmautospec_core.main import autochangelog_re, autorelease_re, changelog_re
 
+from ..exc import SpecParseFailure
+
 log = logging.getLogger(__name__)
 
 release_re = re.compile(r"^(?P<tag>(?i:Release)\s*:\s*)")
 
 
-class FileIsModifiedError(OSError):
-    "A file under version control has been modified."
-    pass
+class ConversionError(Exception):
+    """Exception specific to repository conversion."""
+
+
+class FileModifiedError(ConversionError):
+    """A file under version control has been modified."""
+
+
+class FileUntrackedError(ConversionError):
+    """A file is not tracked in the repository."""
 
 
 class PkgConverter:
@@ -22,25 +31,21 @@ class PkgConverter:
         spec_or_path = spec_or_path.absolute()
 
         if not spec_or_path.exists():
-            raise FileNotFoundError(f"Spec file or path {str(spec_or_path)!r} doesn't exist")
+            raise FileNotFoundError(f"Spec file or path '{spec_or_path}' doesn’t exist")
         elif spec_or_path.is_dir():
             self.path = spec_or_path
             name = spec_or_path.name
             self.specfile = spec_or_path / f"{name}.spec"
         elif spec_or_path.is_file():
             if spec_or_path.suffix != ".spec":
-                raise ValueError(
-                    f"Spec file {str(spec_or_path)!r} must have '.spec' as an extension"
-                )
+                raise ValueError(f"Spec file '{spec_or_path}' must have '.spec' as an extension")
             self.path = spec_or_path.parent
             self.specfile = spec_or_path
         else:
-            raise SpecialFileError(f"Spec file or path {str(spec_or_path)!r} is not a regular file")
+            raise SpecialFileError(f"Spec file or path '{spec_or_path}' is not a regular file")
 
         if not self.specfile.exists():
-            raise FileNotFoundError(
-                f"Spec file {str(self.specfile)!r} doesn't exist in {str(self.path)!r}"
-            )
+            raise FileNotFoundError(f"Spec file '{self.specfile}' doesn’t exist in '{self.path}'")
 
         log.debug("Working on spec file %s", self.specfile)
 
@@ -52,15 +57,15 @@ class PkgConverter:
             log.debug("Found no repository at %s", self.path)
 
         if self.repo is not None:
-            try:
-                spec_status = self.repo.status_file(self.specfile.relative_to(self.path))
-            except KeyError:
-                raise FileExistsError(
-                    f"Spec file {str(self.specfile)!r} is in a repository, but isn't tracked"
+            spec_status = self.repo.status_file(self.specfile.relative_to(self.path))
+
+            if spec_status == pygit2.GIT_STATUS_WT_NEW:
+                raise FileUntrackedError(
+                    f"Spec file '{self.specfile}' exists in the repository, but is untracked"
                 )
             # Allow converting unmodified, and saved-to-index files.
             if spec_status not in (pygit2.GIT_STATUS_CURRENT, pygit2.GIT_STATUS_INDEX_MODIFIED):
-                raise FileIsModifiedError(f"Spec file {str(self.specfile)!r} is modified")
+                raise FileModifiedError(f"Spec file '{self.specfile}' is modified")
             try:
                 self.repo.status_file("changelog")
             except KeyError:
@@ -73,7 +78,7 @@ class PkgConverter:
                     pygit2.GIT_STATUS_IGNORED,
                     pygit2.GIT_STATUS_WT_NEW,
                 ):
-                    raise FileIsModifiedError(f"Repository '{str(self.path)!r}' is dirty")
+                    raise FileModifiedError(f"Repository '{self.path}' is dirty")
 
         self.changelog_lines = None
         self.spec_lines = None
@@ -123,19 +128,19 @@ class PkgConverter:
         ]
 
         if not release_lines:
-            raise RuntimeError(f"Unable to locate Release tag in spec file {str(self.specfile)!r}")
+            raise SpecParseFailure(f"Unable to locate Release tag in spec file '{self.specfile}'")
 
         if autorelease_lines:
-            log.warning(f"{str(self.specfile)!r} is already using %autorelease")
+            log.warning(f"'{self.specfile}' already uses %autorelease")
             return
 
         line_numbers = ", ".join(f"{i+1}" for i in release_lines)
         log.debug("Found Release tag on line(s) %s", line_numbers)
 
         if len(release_lines) > 1:
-            raise RuntimeError(
+            raise SpecParseFailure(
                 f"Found multiple Release tags on lines {line_numbers} "
-                f"in spec file {str(self.specfile)!r}"
+                + f"in spec file '{self.specfile}'"
             )
 
         # Process the line so the inserted macro is aligned to the previous location of the tag.
@@ -150,18 +155,18 @@ class PkgConverter:
         log.debug("Found %%changelog on line(s) %s", line_numbers)
 
         if not changelog_lines:
-            raise RuntimeError(
-                f"Unable to locate %changelog line in spec file {str(self.specfile)!r}"
+            raise SpecParseFailure(
+                f"Unable to locate %changelog line in spec file '{self.specfile}'"
             )
         elif len(changelog_lines) > 1:
-            raise RuntimeError(
+            raise SpecParseFailure(
                 f"Found multiple %changelog on lines {line_numbers} "
-                f"in spec file {str(self.specfile)!r}"
+                + f"in spec file '{self.specfile}'"
             )
 
         lineno = changelog_lines[0] + 1
         if autochangelog_re.match(self.spec_lines[lineno]):
-            log.warning(f"{str(self.specfile)!r} is already using %autochangelog")
+            log.warning(f"'{self.specfile}' already uses %autochangelog")
             return
         self.changelog_lines = [line.rstrip() for line in self.spec_lines[lineno:]]
         while self.changelog_lines and not self.changelog_lines[-1]:

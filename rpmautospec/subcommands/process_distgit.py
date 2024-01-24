@@ -1,5 +1,4 @@
 import logging
-import os
 import shutil
 import stat
 import tempfile
@@ -13,7 +12,6 @@ from ..pkg_history import PkgHistoryProcessor
 from ..version import __version__
 
 log = logging.getLogger(__name__)
-__here__ = os.path.dirname(__file__)
 
 RPMAUTOSPEC_TEMPLATE = """## START: Set by rpmautospec
 ## (rpmautospec version {version})
@@ -161,7 +159,7 @@ def process_distgit(
 
 def main(args):
     """Main method."""
-    spec_or_path = args.spec_or_path.rstrip(os.path.sep)
+    spec_or_path = Path(args.spec_or_path)
     process_distgit(
         spec_or_path, args.target, error_on_unparseable_spec=args.error_on_unparseable_spec
     )

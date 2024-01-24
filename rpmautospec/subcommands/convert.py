@@ -45,12 +45,7 @@ class PkgConverter:
         log.debug("Working on spec file %s", self.specfile)
 
         try:
-            if hasattr(pygit2, "GIT_REPOSITORY_OPEN_NO_SEARCH"):
-                kwargs = {"flags": pygit2.GIT_REPOSITORY_OPEN_NO_SEARCH}
-            else:
-                # pygit2 < 1.4.0
-                kwargs = {}
-            self.repo = pygit2.Repository(self.path, **kwargs)
+            self.repo = pygit2.Repository(self.path, flags=pygit2.GIT_REPOSITORY_OPEN_NO_SEARCH)
             log.debug("Found repository at %s", self.path)
         except pygit2.GitError:
             self.repo = None

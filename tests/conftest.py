@@ -59,11 +59,7 @@ def specfile(repopath, release, changelog):
 @pytest.fixture
 def repo(repopath, specfile):
     pygit2.init_repository(repopath, initial_head="rawhide")
-    if hasattr(pygit2, "GIT_REPOSITORY_OPEN_NO_SEARCH"):
-        repo = pygit2.Repository(repopath, pygit2.GIT_REPOSITORY_OPEN_NO_SEARCH)
-    else:
-        # pygit2 < 1.4.0
-        repo = pygit2.Repository(repopath)
+    repo = pygit2.Repository(repopath, pygit2.GIT_REPOSITORY_OPEN_NO_SEARCH)
 
     repo.config["user.name"] = "Jane Doe"
     repo.config["user.email"] = "jane.doe@example.com"

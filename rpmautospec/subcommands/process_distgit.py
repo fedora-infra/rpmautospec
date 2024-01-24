@@ -68,8 +68,7 @@ def process_distgit(
 
     if target is None:
         target = processor.specfile
-
-    if not isinstance(target, Path):
+    else:
         target = Path(target)
 
     # Preserve mode of the target spec file if it is overwritten, otherwise use that of the
@@ -80,17 +79,16 @@ def process_distgit(
         specfile_mode = stat.S_IMODE(processor.specfile.stat().st_mode)
 
     features = check_specfile_features(processor.specfile, enable_caching=enable_caching)
-    processing_necessary = not features.is_processed and (
-        features.has_autorelease or features.has_autochangelog or not features.changelog_lineno
-    )
-    if not processing_necessary:
-        return False
-
     needs_autochangelog = (
         features.changelog_lineno is None
         and features.autochangelog_lineno is None
         or features.has_autochangelog
     )
+    processing_necessary = not features.is_processed and (
+        features.has_autorelease or needs_autochangelog
+    )
+    if not processing_necessary:
+        return False
 
     visitors = [processor.release_number_visitor]
     if needs_autochangelog:
@@ -105,29 +103,28 @@ def process_distgit(
 
     with processor.specfile.open("r") as specfile, tempfile.NamedTemporaryFile("w") as tmp_specfile:
         # Process the spec file into a temporary file...
-        if features.has_autorelease or needs_autochangelog:
-            used_features = []
+        used_features = []
 
-            if features.has_autorelease:
-                autorelease_blurb_if_needed = AUTORELEASE_TEMPLATE.format(
-                    autorelease_number=autorelease_number
-                )
-                used_features.append("autorelease")
-            else:
-                autorelease_blurb_if_needed = ""
-
-            if needs_autochangelog:
-                used_features.append("autochangelog")
-
-            # Write %autorelease macro header
-            print(
-                RPMAUTOSPEC_TEMPLATE.format(
-                    version=__version__,
-                    used_features=", ".join(used_features),
-                    autorelease_blurb_if_needed=autorelease_blurb_if_needed,
-                ),
-                file=tmp_specfile,
+        if features.has_autorelease:
+            autorelease_blurb_if_needed = AUTORELEASE_TEMPLATE.format(
+                autorelease_number=autorelease_number
             )
+            used_features.append("autorelease")
+        else:
+            autorelease_blurb_if_needed = ""
+
+        if needs_autochangelog:
+            used_features.append("autochangelog")
+
+        # Write %autorelease macro header
+        print(
+            RPMAUTOSPEC_TEMPLATE.format(
+                version=__version__,
+                used_features=", ".join(used_features),
+                autorelease_blurb_if_needed=autorelease_blurb_if_needed,
+            ),
+            file=tmp_specfile,
+        )
 
         for lineno, line in enumerate(specfile, start=1):
             if features.changelog_lineno:

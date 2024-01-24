@@ -32,6 +32,7 @@ def register_subcommand(subparsers):
 
     process_distgit_parser = subparsers.add_parser(
         subcmd_name,
+        help="Modify the contents of the specfile according to the repo",
     )
 
     process_distgit_parser.add_argument(

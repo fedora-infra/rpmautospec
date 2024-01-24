@@ -3,17 +3,38 @@ import os
 import re
 import tarfile
 import tempfile
+from contextlib import nullcontext
+from pathlib import Path
 from subprocess import check_output, run
 from unittest import mock
 
 import pytest
 
+from rpmautospec.exc import SpecParseFailure
 from rpmautospec.subcommands import process_distgit
 from rpmautospec.version import __version__
 
 from .. import temporary_cd
 
-__here__ = os.path.dirname(__file__)
+__HERE__ = Path(__file__).parent
+
+
+def test_register_subcommand():
+    subparsers = mock.Mock()
+    process_distgit_parser = subparsers.add_parser.return_value
+
+    subcmd_name = process_distgit.register_subcommand(subparsers)
+
+    assert subcmd_name == "process-distgit"
+
+    subparsers.add_parser.assert_called_once_with(subcmd_name, help=mock.ANY)
+
+    process_distgit_parser.add_argument.assert_has_calls(
+        (
+            mock.call("spec_or_path", help=mock.ANY),
+            mock.call("target", help=mock.ANY),
+        ),
+    )
 
 
 def _generate_branch_testcase_combinations():
@@ -24,7 +45,7 @@ def _generate_branch_testcase_combinations():
     valid_combinations = [
         (branch, autorelease_case, autochangelog_case, remove_changelog_file, is_processed)
         for branch in ("rawhide", "epel8")
-        for autorelease_case in ("unchanged", "with braces", "optional")
+        for autorelease_case in ("unchanged", "with braces", "optional", "manual", "broken")
         for autochangelog_case in (
             "unchanged",
             "changelog case insensitive",
@@ -34,6 +55,8 @@ def _generate_branch_testcase_combinations():
             "with braces",
             "missing",
             "optional",
+            "manual",
+            "nochangelog",
         )
         for remove_changelog_file in (False, True)
         for is_processed in (False, True)
@@ -47,7 +70,7 @@ def _generate_branch_testcase_combinations():
 
 autorelease_autochangelog_cases = [
     (autorelease_case, autochangelog_case)
-    for autorelease_case in ("unchanged", "with braces", "optional")
+    for autorelease_case in ("unchanged", "with braces", "optional", "manual", "broken")
     for autochangelog_case in (
         "unchanged",
         "changelog case insensitive",
@@ -57,6 +80,8 @@ autorelease_autochangelog_cases = [
         "with braces",
         "missing",
         "optional",
+        "manual",
+        "nochangelog",
     )
 ]
 
@@ -70,11 +95,15 @@ def relnum_split(release):
 
 
 def fuzz_spec_file(
-    spec_file_path, autorelease_case, autochangelog_case, remove_changelog_file, is_processed
+    spec_file_path: Path,
+    autorelease_case: str,
+    autochangelog_case: str,
+    remove_changelog_file: bool,
+    is_processed: bool,
 ):
     """Fuzz a spec file in ways which (often) shouldn't change the outcome"""
-
-    with open(spec_file_path, "r") as orig, open(spec_file_path + ".new", "w") as new:
+    new_spec_file_path = spec_file_path.with_name(spec_file_path.name + ".new")
+    with spec_file_path.open("r") as orig, new_spec_file_path.open("w") as new:
         if is_processed:
             autorelease_blurb = process_distgit.AUTORELEASE_TEMPLATE.format(autorelease_number=15)
             print(
@@ -95,6 +124,11 @@ def fuzz_spec_file(
                     print("Release:        %{autorelease}", file=new)
                 elif autorelease_case == "optional":
                     print("Release:        %{?autorelease}", file=new)
+                elif autorelease_case == "manual":
+                    print("Release:        1", file=new)
+                elif autorelease_case == "broken":
+                    # So you expected a release line? Hahahaha!
+                    print("Version:        %autorelease", file=new)
                 else:
                     raise ValueError(f"Unknown autorelease_case: {autorelease_case}")
             elif line.strip() == "%changelog" and autochangelog_case != "unchanged":
@@ -117,6 +151,17 @@ def fuzz_spec_file(
                 elif autochangelog_case == "optional":
                     print("%changelog\n%{?autochangelog}", file=new)
                     break
+                elif autochangelog_case == "manual":
+                    print(
+                        "%changelog\n"
+                        + "* Wed Jan 24 2024 Jabberwocky <jabber@wocky.not.wookie> 0-1\n"
+                        + "- Burble.\n",
+                        file=new,
+                    )
+                    break
+                elif autochangelog_case == "nochangelog":
+                    print("%autochangelog", file=new)
+                    break
                 else:
                     raise ValueError(f"Unknown autochangelog_case: {autochangelog_case}")
             else:
@@ -124,7 +169,7 @@ def fuzz_spec_file(
                     encountered_first_after_conversion = True
                 print(line, file=new, end="")
 
-    os.rename(spec_file_path + ".new", spec_file_path)
+    new_spec_file_path.replace(spec_file_path)
 
 
 def run_git_amend(worktree_dir):
@@ -170,16 +215,9 @@ def test_process_distgit(
     bump_release,
 ):
     """Test the process_distgit() function"""
-    workdir = str(tmp_path)
+    workdir = tmp_path
     with tarfile.open(
-        os.path.join(
-            __here__,
-            os.path.pardir,
-            os.path.pardir,
-            "test-data",
-            "repodata",
-            "dummy-test-package-gloster-git.tar.gz",
-        )
+        __HERE__.parent.parent / "test-data" / "repodata" / "dummy-test-package-gloster-git.tar.gz"
     ) as tar:
         # Ensure unpackaged files are owned by user
         for member in tar:
@@ -192,11 +230,8 @@ def test_process_distgit(
             # Filtering was introduced in Python 3.12.
             tar.extractall(path=workdir, numeric_owner=True)
 
-    unpacked_repo_dir = os.path.join(workdir, "dummy-test-package-gloster")
-    test_spec_file_path = os.path.join(
-        unpacked_repo_dir,
-        "dummy-test-package-gloster.spec",
-    )
+    unpacked_repo_dir = workdir / "dummy-test-package-gloster"
+    test_spec_file_path = unpacked_repo_dir / "dummy-test-package-gloster.spec"
 
     with temporary_cd(unpacked_repo_dir):
         run(["git", "checkout", branch])
@@ -235,7 +270,7 @@ def test_process_distgit(
         )
 
     if remove_changelog_file:
-        os.unlink(os.path.join(unpacked_repo_dir, "changelog"))
+        (unpacked_repo_dir / "changelog").unlink()
 
     if (
         autorelease_case != "unchanged"
@@ -247,9 +282,16 @@ def test_process_distgit(
     if overwrite_specfile:
         target_spec_file_path = None
     else:
-        target_spec_file_path = os.path.join(workdir, "test-this-specfile-please.spec")
+        target_spec_file_path = workdir / "test-this-specfile-please.spec"
 
-    orig_test_spec_file_stat = os.stat(test_spec_file_path)
+    orig_test_spec_file_stat = test_spec_file_path.stat()
+
+    if autorelease_case == "broken" and not is_processed:
+        catch_exception = pytest.raises(
+            SpecParseFailure, match=rf"Couldn’t parse spec file {test_spec_file_path.name}"
+        )
+    else:
+        catch_exception = nullcontext()
 
     # Set restrictive umask to check that file mode is preserved.
     old_umask = os.umask(0o077)
@@ -266,12 +308,19 @@ def test_process_distgit(
             return obj
 
         processor_cls.side_effect = wrap_cls
-        retval = process_distgit.process_distgit(unpacked_repo_dir, target_spec_file_path)
+        with catch_exception as excinfo:
+            retval = process_distgit.process_distgit(
+                unpacked_repo_dir, target_spec_file_path, enable_caching=False
+            )
+
+        if excinfo:
+            return
     # And restore previous umask.
     os.umask(old_umask)
 
-    if is_processed:
-        # No processing should be done if the spec file was processed before already.
+    if is_processed or autorelease_case == "manual" and autochangelog_case == "manual":
+        # No processing should be done if the spec file was processed before already, or doesn’t
+        # need processing.
         assert not retval
         processor_run.assert_not_called()
         return
@@ -290,13 +339,11 @@ def test_process_distgit(
             orig_test_spec_file_stat, "st_" + attr
         )
 
-    expected_spec_file_path = os.path.join(
-        __here__,
-        os.path.pardir,
-        os.path.pardir,
-        "test-data",
-        "repodata",
-        "dummy-test-package-gloster.spec.expected",
+    expected_spec_file_path = (
+        __HERE__.parent.parent
+        / "test-data"
+        / "repodata"
+        / "dummy-test-package-gloster.spec.expected"
     )
 
     with tempfile.NamedTemporaryFile(mode="w+") as tmpspec, open(
@@ -315,7 +362,7 @@ def test_process_distgit(
                         match.group("prefix") + str(bump_release) + match.group("suffix"),
                         file=tmpspec,
                     )
-                    expected_spec_file_path = tmpspec.name
+                    expected_spec_file_path = Path(tmpspec.name)
                     continue
             tmpspec.write(line)
         tmpspec.flush()
@@ -328,13 +375,14 @@ def test_process_distgit(
             if autochangelog_case not in (
                 "changelog case insensitive",
                 "changelog trailing garbage",
+                "manual",
             ):
                 # "%changelog", "%ChAnGeLoG", ... stay verbatim, trick fuzz_spec_file() to
                 # leave the rest of the cases as is, the %autorelease macro is expanded.
                 fuzz_autochangelog_case = "unchanged"
             else:
                 fuzz_autochangelog_case = autochangelog_case
-            expected_spec_file_path = tmpspec.name
+            expected_spec_file_path = Path(tmpspec.name)
             fuzz_spec_file(
                 expected_spec_file_path,
                 autorelease_case,
@@ -368,17 +416,25 @@ def test_process_distgit(
         expected_output = check_output(expected_cmd + q_release, encoding="utf-8").strip()
         expected_relnum, expected_rest = relnum_split(expected_output)
 
-        if dirty_worktree and (
-            autorelease_case != "unchanged"
-            or autochangelog_case != "unchanged"
-            or remove_changelog_file
+        if autorelease_case == "manual":
+            expected_relnum = 1
+
+        if (
+            dirty_worktree
+            and autorelease_case != "manual"
+            and (
+                autorelease_case != "unchanged"
+                or autochangelog_case != "unchanged"
+                or remove_changelog_file
+            )
         ):
             expected_relnum += 1
 
         if branch == "epel8" and not bump_release:
             expected_relnum += 1
 
-        expected_relnum = max(expected_relnum, bump_release)
+        if autorelease_case != "manual":
+            expected_relnum = max(expected_relnum, bump_release)
 
         assert test_relnum == expected_relnum
 
@@ -388,20 +444,42 @@ def test_process_distgit(
         test_output = check_output(test_cmd + q_changelog, encoding="utf-8")
         expected_output = check_output(expected_cmd + q_changelog, encoding="utf-8")
 
-        if dirty_worktree and (
-            autorelease_case != "unchanged"
-            or autochangelog_case != "unchanged"
-            or remove_changelog_file
+        if (
+            dirty_worktree
+            and autochangelog_case != "manual"
+            and (
+                autorelease_case != "unchanged"
+                or autochangelog_case != "unchanged"
+                or remove_changelog_file
+            )
         ):
             diff = list(difflib.ndiff(expected_output.splitlines(), test_output.splitlines()))
-            # verify entry for uncommitted changes
-            assert all(line.startswith("+ ") for line in diff[:3])
-            assert diff[0].endswith(f"-{expected_relnum}")
-            assert diff[1] == "+ - Uncommitted changes"
-            assert diff[2] == "+ "
+            if autorelease_case != "manual":
+                # verify entry for uncommitted changes
+                assert all(line.startswith("+ ") for line in diff[:3])
+                assert diff[0].endswith(f"-{expected_relnum}")
+
+            diffoffset = 0 if autochangelog_case != "manual" else 2
+
+            assert diff[diffoffset + 1] == "+ - Uncommitted changes"
+            assert diff[diffoffset + 2] == "+ "
 
             # verify the rest is the expected changelog
-            assert all(line.startswith("  ") for line in diff[3:])
-            assert expected_output.splitlines() == [line[2:] for line in diff[3:]]
+            assert all(line.startswith("  ") for line in diff[diffoffset + 3 :])
+
+            expected_output_offset = 0 if autochangelog_case != "manual" else 3
+            assert expected_output.splitlines()[expected_output_offset:] == [
+                line[2:] for line in diff[diffoffset + 3 :]
+            ]
         else:
             assert test_output == expected_output
+
+
+def test_main():
+    args = mock.Mock(spec_or_path="/boo")
+    with mock.patch.object(process_distgit, "process_distgit") as process_distgit_fn:
+        process_distgit.main(args)
+
+    process_distgit_fn.assert_called_once_with(
+        Path("/boo"), args.target, error_on_unparseable_spec=args.error_on_unparseable_spec
+    )

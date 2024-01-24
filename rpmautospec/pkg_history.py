@@ -52,12 +52,7 @@ class PkgHistoryProcessor:
             raise FileNotFoundError(f"Spec file '{self.specfile}' doesn't exist in '{self.path}'.")
 
         try:
-            if hasattr(pygit2, "GIT_REPOSITORY_OPEN_NO_SEARCH"):
-                kwargs = {"flags": pygit2.GIT_REPOSITORY_OPEN_NO_SEARCH}
-            else:
-                # pygit2 < 1.4.0
-                kwargs = {}
-            self.repo = pygit2.Repository(self.path, **kwargs)
+            self.repo = pygit2.Repository(self.path, flags=pygit2.GIT_REPOSITORY_OPEN_NO_SEARCH)
         except pygit2.GitError:
             self.repo = None
 
@@ -258,16 +253,18 @@ class PkgHistoryProcessor:
         # Find the maximum applicable parent release number and increment by one if the
         # epoch-version can be parsed from the spec file.
         parent_release_numbers = tuple(
-            res["release-number"]
-            if res
-            and (
-                # Paper over gaps in epoch-versions, these could be simple syntax errors in
-                # the spec file, or a retired, then unretired package.
-                epoch_version is None
-                or res["epoch-version"] is None
-                or epoch_version == res["epoch-version"]
+            (
+                res["release-number"]
+                if res
+                and (
+                    # Paper over gaps in epoch-versions, these could be simple syntax errors in
+                    # the spec file, or a retired, then unretired package.
+                    epoch_version is None
+                    or res["epoch-version"] is None
+                    or epoch_version == res["epoch-version"]
+                )
+                else 0
             )
-            else 0
             for res in parent_results
         )
         release_number = max(parent_release_numbers, default=0)
@@ -724,9 +721,9 @@ class PkgHistoryProcessor:
             if base is None:
                 base = 1
             release_number_with_base = release_number + base - 1
-            worktree_result[
-                "release-complete"
-            ] = release_complete = f"{prerel_str}{release_number_with_base}{tag_string}"
+            worktree_result["release-complete"] = release_complete = (
+                f"{prerel_str}{release_number_with_base}{tag_string}"
+            )
 
             # Mimic the bottom half of the changelog visitor for a generic entry
             if not self.specfile.exists():

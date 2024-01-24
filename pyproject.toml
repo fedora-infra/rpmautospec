@@ -44,7 +44,7 @@ exclude = [
 python = "^3.9"
 rpmautospec_core = "^0.1.4"
 babel = "^2.9"
-pygit2 = "^1.2.1"
+pygit2 = "^1.4.0"
 rpm = "*"
 
 [tool.poetry.group.dev.dependencies]

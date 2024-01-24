@@ -5,7 +5,7 @@ omit =
 
 [report]
 precision = 2
-#fail_under = 99
+fail_under = 100
 exclude_also =
     def __repr__
     if log.isEnabledFor\([^\)]*\):

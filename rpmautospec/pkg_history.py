@@ -695,17 +695,14 @@ class PkgHistoryProcessor:
 
             verflags = self._get_rpmverflags(self.path, name=self.name)
             if not verflags:
-                # assume same as head commit, not ideal but hey
-                verflags = self._get_rpmverflags_for_commit(self.repo[self.repo.head.target])
-                if not verflags:
-                    # cringe, head was unparseable, too
-                    verflags = {
-                        "epoch-version": None,
-                        "prerelease": False,
-                        "extraver": None,
-                        "snapinfo": None,
-                        "base": 1,
-                    }
+                # cringe, but what can you do?
+                verflags = {
+                    "epoch-version": None,
+                    "prerelease": False,
+                    "extraver": None,
+                    "snapinfo": None,
+                    "base": 1,
+                }
 
             # Mimic the bottom half of release_number_visitor
             worktree_result["epoch-version"] = epoch_version = verflags["epoch-version"]

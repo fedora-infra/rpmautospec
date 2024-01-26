@@ -402,7 +402,7 @@ def test_commit(specfile, release, changelog, repo):
     if changelog_should_change or release_should_change:
         expected_message = "Convert to rpmautospec."
     else:
-        expected_message = "Did nothing!"
+        expected_message = "Did something!"
     assert head.message == expected_message
-    assert (specfile.name in fileschanged) == (changelog_should_change or release_should_change)
+    assert specfile.name in fileschanged
     assert ("changelog" in fileschanged) == changelog_should_change

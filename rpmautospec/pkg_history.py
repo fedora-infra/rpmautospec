@@ -122,7 +122,7 @@ class PkgHistoryProcessor:
                     abridged.write(line)
                 abridged.flush()
 
-                for spec_candidate in (abridged.name, f"{name}.spec"):
+                for spec_candidate in (abridged.name, str(specfile)):
                     try:
                         spec = rpm.spec(spec_candidate)
                         output = spec.sourceHeader.format(query)

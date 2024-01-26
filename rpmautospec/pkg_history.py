@@ -129,11 +129,11 @@ class PkgHistoryProcessor:
                     except Exception as e:
                         exception = e
                     else:
-                        # Parsing this candidate spec file succeeded. In the case of the abridged
-                        # spec file, we don’t need to parse the full spec file. In the case of the
-                        # latter, breaking out explicity doesn’t make a difference.
                         exception = None
-                        break
+                        # Parsing this candidate spec file succeeded. In the case of the abridged
+                        # spec file, we can skip parsing the full spec file.
+                        if spec_candidate == abridged.name:
+                            break
         finally:
             rpm.reloadConfig()
 
@@ -150,7 +150,7 @@ class PkgHistoryProcessor:
         if match:
             extraver = match.group("extraver") or None
             snapinfo = match.group("snapinfo") or None
-            prerelease = match.group("prerelease") == "1"
+            prerelease = match.group("prerelease") == "1" or None
             base = match.group("base")
             if base:
                 base = int(base)
@@ -286,16 +286,6 @@ class PkgHistoryProcessor:
 
         yield commit_result
 
-    @staticmethod
-    def _files_changed_in_diff(diff: pygit2.Diff):
-        files = set()
-        for delta in diff.deltas:
-            if delta.old_file:
-                files.add(delta.old_file.path)
-            if delta.new_file:
-                files.add(delta.new_file.path)
-        return files
-
     def changelog_visitor(self, commit: pygit2.Commit, child_info: dict[str, Any]):
         """Visit a commit to generate changelog entries for it and its parents.
 
@@ -429,6 +419,7 @@ class PkgHistoryProcessor:
 
     @staticmethod
     def _merge_info(f1: dict[str, Any], f2: dict[str, Any]) -> dict[str, Any]:
+        """Merge dicts containing info of previously run visitors."""
         mf = f1.copy()
         for k, v2 in f2.items():
             try:
@@ -518,8 +509,8 @@ class PkgHistoryProcessor:
                         branch_heads.append(commit)
 
                         if not snippet:
-                            # Don't keep empty snippets on the stack.
-                            snippets.pop()
+                            # Don't keep empty snippets on the stack. Unsure if this can be reached.
+                            snippets.pop()  # pragma: no cover
 
                         if log.isEnabledFor(logging.DEBUG):
                             log.debug(
@@ -549,7 +540,7 @@ class PkgHistoryProcessor:
                         for vindex, v in enumerate(visitors)
                     ]
 
-                    keep_processing = keep_processing and any(
+                    keep_processing = keep_processing and any(  # pragma: no branch
                         info["child_must_continue"] for info in children_visitors_info
                     )
 

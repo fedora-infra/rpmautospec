@@ -61,7 +61,7 @@ def test_produce_changelog(repo):
     result = changelog.produce_changelog(repo.workdir)
     assert "Jane Doe <jane.doe@example.com> - 1.0-2" in result
     assert "Jane Doe <jane.doe@example.com> - 1.0-1" in result
-    assert "- Did nothing!" in result
+    assert "- Did something!" in result
     assert "- Initial commit" in result
 
 

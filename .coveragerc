@@ -6,7 +6,7 @@ omit =
 [report]
 precision = 2
 #fail_under = 99
-exclude_lines =
-    pragma: no cover
+exclude_also =
     def __repr__
+    if log.isEnabledFor\([^\)]*\):
 show_missing = True

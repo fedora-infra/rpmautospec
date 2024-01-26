@@ -82,6 +82,7 @@ class PkgHistoryProcessor:
         specfile = path / f"{name}.spec"
 
         if not specfile.exists():
+            log.debug("spec file missing: %s", specfile)
             return None
 
         query = "%|epoch?{%{epoch}:}:{}|%{version}\n%{release}\n"

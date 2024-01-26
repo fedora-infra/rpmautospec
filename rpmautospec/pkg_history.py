@@ -101,7 +101,8 @@ class PkgHistoryProcessor:
         # in the meantime, they might be surprised a bit, but there's not much we can do.
         try:
             rpm.addMacro("_invalid_encoding_terminates_build", "0")
-            rpm.addMacro(AUTORELEASE_MACRO, autorelease_definition)
+            # rpm.addMacro() doesn’t work for parametrized macros
+            rpm.expandMacro(f"%define {AUTORELEASE_MACRO} {autorelease_definition}")
             rpm.addMacro("autochangelog", "%nil")
             rpm.addMacro("__python", f"/usr/bin/python{python_version}")
             rpm.addMacro("python_sitelib", f"/usr/lib/python{python_version}/site-packages")

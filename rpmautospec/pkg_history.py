@@ -69,7 +69,7 @@ class PkgHistoryProcessor:
     @classmethod
     def _get_rpmverflags(
         cls, path: str, name: Optional[str] = None, log_exception: bool = True
-    ) -> Optional[str]:
+    ) -> Optional[dict[str, Union[str, int]]]:
         """Retrieve the epoch/version and %autorelease flags set in spec file.
 
         Returns None if an error is encountered.

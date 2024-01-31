@@ -21,10 +21,9 @@ the different portions of the release field:
 
 * ``-b <baserelease>``: Allows specifying a custom base release number (the default is 1).
 
-  One use case for this would be, if a sub-package is split out into its own component and its
-  release number sequence should not be reset. E.g. if the last release number while it was still a
-  sub-package was 4, use ``-b 5`` here to let the sequence continue seamlessly (remember to remove
-  the option when bumping the version the next time).
+  For instance, this can be used to keep release numbers on older Fedora releases way lower than on
+  newer ones for the same package version.
+
 * ``-n``: Don’t render the dist tag, e.g. for use in macros, if the dist tag is added later.
 
 .. important::
@@ -35,6 +34,28 @@ the different portions of the release field:
     In the prototype version the macro was named ``%autorel``. To make its purpose more obvious, it is
     ``%autorelease`` now.
 
+
+One-off bumping release numbers
+===============================
+
+You can bump the release to a higher value in a commit by adding a magic comment like this to the
+commit log (one its own line)::
+
+  [bump release: <number>]
+
+This would ensure that the release number is at minimum the specified number (if it were higher
+anyway, it would not change anything).
+
+One use case for this would be, if a sub-package is split out into its own component and its release
+number sequence should not be reset. E.g. if the last release number while it was still a
+sub-package was 4, add ``[bump release: 5]`` to the commit log to let the sequence continue
+seamlessly.
+
+You don’t have to undo this later, when the version changes, the release will be reset to 1 (or the
+value specified by ``%autorelease -b …``).
+
+Examples
+========
 
 .. _simple example:
 

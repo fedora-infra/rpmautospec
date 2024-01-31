@@ -26,7 +26,6 @@ packages = [
 include = [
     { path = "DCO.txt", format = "sdist" },
     { path = "rpm/macros.d/macros.rpmautospec", format = "sdist" },
-    { path = "run-rpmautospec.py", format = "sdist" },
     { path = "tests/**/*.py", format = "sdist" },
     { path = "tests/test-data/commitlogs/commit*.txt", format = "sdist" },
     { path = "tests/test-data/commitlogs/expected*.txt", format = "sdist" },

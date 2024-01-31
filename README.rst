@@ -1,16 +1,14 @@
-Python Package for Automatic Generation of RPM Release Fields and Changelogs
-============================================================================
+Automatically Maintain RPM Release Fields and Changelogs
+========================================================
 
 .. note::
 
    Documentation is available at
    https://fedora-infra.github.io/rpmautospec-docs/
 
-This project hosts the ``rpmautospec`` python package and script, which has these functions:
-
-- Attempt to automatically calculate release numbers and generate an RPM changelog from the dist-git
-  repository of a package.
-- Tag commits in a dist-git repository with build NEVRs (quoting certain special characters).
+This project hosts the ``rpmautospec`` python package and command line tool, which automatically
+calculates release numbers and generates the changelog for RPM packages from their dist-git
+repository.
 
 Dependencies:
 
@@ -20,42 +18,45 @@ Dependencies:
 General
 -------
 
-The script ``run-rpmautospec.py`` allows testing the various algorithms for automatic release and
-changelog generation. It accepts normal CLI options, run ``python run-rpmautospec.py --help`` for
-more information.
-
-Generating a Changelog
-----------------------
-
-This is how you can use it:
-
-* Clone a dist-git repository
-
-::
-
-  fedpkg clone -a guake
-
-* Generating the changelog, pointing it to the repository cloned above
-
-::
-
-  python run-rpmautospec.py generate-changelog guake
+The command line tool ``rpmautospec`` can calculate the release and generate the changelog from the
+spec file of an RPM package and its git history, as well as process that spec file into a form which
+can be consumed by rpmbuild, and convert traditional spec files to using these automatic features.
 
 
-Calculating the Next Value for the Release Field
-------------------------------------------------
+Running the Examples
+--------------------
 
-Calculate the value for the RPM release field by running the script this way:
+To run the examples with the ``rpmautospec`` command line tool from this repository (as opposed to a
+version that may be installed system-wide), you can install it into a Python virtualenv, managed
+either manually or by the ``poetry`` tool. For the latter, substitute running ``rpmautospec`` by
+running ``poetry run rpmautospec`` below.
 
-::
+To install the package, run this (optionally, within an activated virtualenv)::
 
-  python run-rpmautospec.py calculate-release <pkgname>
+  poetry install
 
-E.g.:
+The examples work with the ``guake`` package. Clone its dist-git repository this way, in a location
+of your choice, and then change into the repository worktree::
 
-::
+  fedpkg clone guake
+  cd guake
 
-  python run-rpmautospec.py calculate-release bash
+
+Generate the Changelog
+^^^^^^^^^^^^^^^^^^^^^^
+
+This will generate the changelog from the contents of the repository and the history::
+
+  rpmautospec generate-changelog
+
+
+Calculate the Release Field Value
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This will generate the numerical value for the release field from the number of commits since the
+``Version`` field was last updated::
+
+  rpmautospec calculate-release
 
 
 The ``rpmautospec`` Python module is not thread/multiprocess-safe

@@ -12,8 +12,14 @@ repository.
 
 Dependencies:
 
-* python3
-* python3-pygit2
+* Python >= 3.9
+* babel >= 2.8
+* pygit2 >= 1.4
+* rpmautospec-core >= 0.1.4
+
+Optional dependencies:
+
+* poetry >= 1.2 (if using poetry to install)
 
 General
 -------

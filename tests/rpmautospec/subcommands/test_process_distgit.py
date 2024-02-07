@@ -128,7 +128,9 @@ def fuzz_spec_file(
 ):
     """Fuzz a spec file in ways which (often) shouldn't change the outcome"""
     new_spec_file_path = spec_file_path.with_name(spec_file_path.name + ".new")
-    with spec_file_path.open("r") as orig, new_spec_file_path.open("w") as new:
+    with spec_file_path.open("r", encoding="utf-8") as orig, new_spec_file_path.open(
+        "w", encoding="utf-8"
+    ) as new:
         if is_processed:
             autorelease_blurb = process_distgit.AUTORELEASE_TEMPLATE.format(autorelease_number=15)
             print(
@@ -218,6 +220,9 @@ def run_git_amend(worktree_dir):
 
 
 @pytest.mark.parametrize(
+    "override_locale", (False, "C", "de_DE.UTF-8"), ids=("locale-unset", "locale-C", "locale-de")
+)
+@pytest.mark.parametrize(
     "overwrite_specfile",
     (False, True),
     ids=("without-overwrite-specfile", "with-overwrite-specfile"),
@@ -229,7 +234,7 @@ def run_git_amend(worktree_dir):
     _generate_branch_testcase_combinations(),
 )
 def test_process_distgit(
-    tmp_path,
+    override_locale,
     overwrite_specfile,
     branch,
     dirty_worktree,
@@ -238,8 +243,13 @@ def test_process_distgit(
     remove_changelog_file,
     is_processed,
     bump_release,
+    locale,
+    tmp_path,
 ):
     """Test the process_distgit() function"""
+    if override_locale:
+        locale.setlocale(locale.LC_ALL, override_locale)
+
     unpacked_repo_dir, test_spec_file_path = gen_testrepo(tmp_path, branch)
 
     if bump_release:
@@ -352,8 +362,8 @@ def test_process_distgit(
         / "dummy-test-package-gloster.spec.expected"
     )
 
-    with tempfile.NamedTemporaryFile(mode="w+") as tmpspec, open(
-        expected_spec_file_path, "r"
+    with tempfile.NamedTemporaryFile(mode="w+", encoding="utf8") as tmpspec, open(
+        expected_spec_file_path, "r", encoding="utf-8"
     ) as expspec:
         # Copy expected spec file and potentially bump release number
         relnum_seen = None
@@ -481,11 +491,17 @@ def test_process_distgit(
             assert test_output == expected_output
 
 
-def test_main(tmp_path):
+@pytest.mark.parametrize(
+    "override_locale", (False, "C", "de_DE.UTF-8"), ids=("locale-unset", "locale-C", "locale-de")
+)
+def test_main(override_locale, tmp_path, locale):
     output_spec_file = tmp_path / "test.spec"
     unpacked_repo_dir, test_spec_file_path = gen_testrepo(tmp_path, "rawhide")
 
     args = mock.Mock(spec_or_path=test_spec_file_path, target=output_spec_file)
+
+    if override_locale:
+        locale.setlocale(locale.LC_ALL, override_locale)
 
     with mock.patch.object(
         process_distgit, "process_distgit", wraps=process_distgit.process_distgit

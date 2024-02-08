@@ -17,6 +17,31 @@ from rpmautospec.version import __version__
 from .. import temporary_cd
 
 __HERE__ = Path(__file__).parent
+TESTREPO_TARBALL = (
+    __HERE__.parent.parent / "test-data" / "repodata" / "dummy-test-package-gloster-git.tar.gz"
+)
+
+
+def gen_testrepo(path: Path, branch: str):
+    with tarfile.open(TESTREPO_TARBALL) as tar:
+        # Ensure unpackaged files are owned by user
+        for member in tar:
+            member.uid = os.getuid()
+            member.gid = os.getgid()
+
+        try:
+            tar.extractall(path=path, numeric_owner=True, filter="data")
+        except TypeError:
+            # Filtering was introduced in Python 3.12.
+            tar.extractall(path=path, numeric_owner=True)
+
+    unpacked_repo_dir = path / "dummy-test-package-gloster"
+    test_spec_file_path = unpacked_repo_dir / "dummy-test-package-gloster.spec"
+
+    with temporary_cd(unpacked_repo_dir):
+        run(["git", "checkout", branch])
+
+    return unpacked_repo_dir, test_spec_file_path
 
 
 def test_register_subcommand():
@@ -215,26 +240,7 @@ def test_process_distgit(
     bump_release,
 ):
     """Test the process_distgit() function"""
-    workdir = tmp_path
-    with tarfile.open(
-        __HERE__.parent.parent / "test-data" / "repodata" / "dummy-test-package-gloster-git.tar.gz"
-    ) as tar:
-        # Ensure unpackaged files are owned by user
-        for member in tar:
-            member.uid = os.getuid()
-            member.gid = os.getgid()
-
-        try:
-            tar.extractall(path=workdir, numeric_owner=True, filter="data")
-        except TypeError:
-            # Filtering was introduced in Python 3.12.
-            tar.extractall(path=workdir, numeric_owner=True)
-
-    unpacked_repo_dir = workdir / "dummy-test-package-gloster"
-    test_spec_file_path = unpacked_repo_dir / "dummy-test-package-gloster.spec"
-
-    with temporary_cd(unpacked_repo_dir):
-        run(["git", "checkout", branch])
+    unpacked_repo_dir, test_spec_file_path = gen_testrepo(tmp_path, branch)
 
     if bump_release:
         commit_timestamp = check_output(
@@ -282,7 +288,7 @@ def test_process_distgit(
     if overwrite_specfile:
         target_spec_file_path = None
     else:
-        target_spec_file_path = workdir / "test-this-specfile-please.spec"
+        target_spec_file_path = tmp_path / "test-this-specfile-please.spec"
 
     orig_test_spec_file_stat = test_spec_file_path.stat()
 

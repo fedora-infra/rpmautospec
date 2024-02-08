@@ -1,5 +1,4 @@
 import datetime as dt
-import locale
 import os
 import re
 import stat
@@ -18,21 +17,6 @@ from rpmautospec import pkg_history
 def processor(repo):
     processor = pkg_history.PkgHistoryProcessor(repo.workdir)
     return processor
-
-
-@pytest.fixture
-def setlocale():
-    """Allow temporary modification of locale settings."""
-    saved_locale_settings = {
-        category: locale.getlocale(getattr(locale, category))
-        for category in dir(locale)
-        if category.startswith("LC_") and category != "LC_ALL"
-    }
-
-    yield locale.setlocale
-
-    for category, locale_settings in saved_locale_settings.items():
-        locale.setlocale(getattr(locale, category), locale_settings)
 
 
 class TestPkgHistoryProcessor:
@@ -342,9 +326,9 @@ class TestPkgHistoryProcessor:
         ),
     )
     @pytest.mark.repo_config(converted=True)
-    def test_run(self, testcase, specfile, specfile_content, repo, processor, setlocale):
+    def test_run(self, testcase, specfile, specfile_content, repo, processor, locale):
         if testcase == "locale-set":
-            setlocale(locale.LC_ALL, "de_DE.UTF-8")
+            locale.setlocale(locale.LC_ALL, "de_DE.UTF-8")
 
         all_results = "all-results" in testcase
 

@@ -1,3 +1,4 @@
+import locale as locale_mod
 from pathlib import Path
 
 import pygit2
@@ -35,6 +36,23 @@ def git_empty_config():
             pygit2.settings.search_path[level] = "/dev/null"
         except ValueError:
             pass
+
+
+@pytest.fixture(autouse=True)
+def locale():
+    """Ensure consistent locale and that modifications stay isolated."""
+    saved_locale_settings = {
+        category: locale_mod.getlocale(getattr(locale_mod, category))
+        for category in dir(locale_mod)
+        if category.startswith("LC_") and category != "LC_ALL"
+    }
+
+    locale_mod.setlocale(locale_mod.LC_ALL, "C.UTF-8")
+
+    yield locale_mod
+
+    for category, locale_settings in saved_locale_settings.items():
+        locale_mod.setlocale(getattr(locale_mod, category), locale_settings)
 
 
 @pytest.fixture

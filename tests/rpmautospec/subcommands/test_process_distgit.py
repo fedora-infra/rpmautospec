@@ -481,11 +481,19 @@ def test_process_distgit(
             assert test_output == expected_output
 
 
-def test_main():
-    args = mock.Mock(spec_or_path="/boo")
-    with mock.patch.object(process_distgit, "process_distgit") as process_distgit_fn:
+def test_main(tmp_path):
+    output_spec_file = tmp_path / "test.spec"
+    unpacked_repo_dir, test_spec_file_path = gen_testrepo(tmp_path, "rawhide")
+
+    args = mock.Mock(spec_or_path=test_spec_file_path, target=output_spec_file)
+
+    with mock.patch.object(
+        process_distgit, "process_distgit", wraps=process_distgit.process_distgit
+    ) as process_distgit_fn:
         process_distgit.main(args)
 
     process_distgit_fn.assert_called_once_with(
-        Path("/boo"), args.target, error_on_unparseable_spec=args.error_on_unparseable_spec
+        test_spec_file_path,
+        output_spec_file,
+        error_on_unparseable_spec=args.error_on_unparseable_spec,
     )

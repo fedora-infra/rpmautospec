@@ -16,6 +16,7 @@ from rpmautospec import pkg_history
 @pytest.fixture
 def processor(repo):
     processor = pkg_history.PkgHistoryProcessor(repo.workdir)
+    processor.repo = repo
     return processor
 
 

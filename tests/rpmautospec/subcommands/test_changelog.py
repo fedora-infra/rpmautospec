@@ -68,13 +68,15 @@ def test_produce_changelog(repo):
 def test_produce_changelog_error():
     with mock.patch.object(changelog, "PkgHistoryProcessor") as PkgHistoryProcessor:
         processor = PkgHistoryProcessor.return_value
-        processor.run.return_value = {"epoch-version": None}
+        processor.run.return_value = {
+            "verflags": {"error": "specfile-parse-error", "error-detail": "BOOP"}
+        }
         processor.specfile.name = "test.spec"
 
         with pytest.raises(SpecParseFailure) as excinfo:
             changelog.produce_changelog("test")
 
-    assert str(excinfo.value) == "Couldn’t parse spec file test.spec"
+    assert str(excinfo.value) == "Couldn’t parse spec file test.spec:\nBOOP"
 
 
 def test_main():

@@ -180,7 +180,7 @@ class TestPkgHistoryProcessor:
             result = processor._get_rpmverflags(specfile.parent, name=name, log_error=log_error)
 
         if specfile_missing or specfile_broken:
-            assert result is None
+            assert "error" in result
         else:
             assert result == {
                 "epoch-version": "1.0",
@@ -189,6 +189,11 @@ class TestPkgHistoryProcessor:
                 "prerelease": None,
                 "base": base,
             }
+
+        if specfile_missing:
+            assert result["error"] == "specfile-missing"
+        elif specfile_broken:
+            assert result["error"] == "specfile-parse-error"
 
         if log_error:
             if specfile_missing:
@@ -241,7 +246,7 @@ class TestPkgHistoryProcessor:
         ) as repo_checkout_tree:
             side_effect = [mock.DEFAULT]
             if needs_full_repo:
-                side_effect.insert(0, None)
+                side_effect.insert(0, {"error": "specfile-parse-error"})
             _get_rpmverflags.side_effect = side_effect
 
             calls_in_order = mock.Mock()
@@ -251,7 +256,7 @@ class TestPkgHistoryProcessor:
             result = processor._get_rpmverflags_for_commit(head_commit)
 
         if no_spec_file:
-            assert result is None
+            assert result["error"] == "specfile-missing"
             _get_rpmverflags.assert_not_called()
             repo_checkout_tree.assert_not_called()
         else:
@@ -276,17 +281,26 @@ class TestPkgHistoryProcessor:
         head_commit = repo[repo.head.target]
 
         with mock.patch.object(processor, "_get_rpmverflags") as _get_rpmverflags:
-            _get_rpmverflags.return_value = sentinel = object()
+            _get_rpmverflags.return_value = retval = {}
 
-            assert processor._get_rpmverflags_for_commit(head_commit) is sentinel
+            if testcase == "needs-full-repo":
+                retval["error"] = "specfile-parse-error"
 
-            _get_rpmverflags.assert_called_once_with(mock.ANY, processor.name, log_error=False)
+            assert processor._get_rpmverflags_for_commit(head_commit) is retval
+
+            if testcase == "needs-full-repo":
+                assert _get_rpmverflags.call_args_list == [
+                    mock.call(mock.ANY, processor.name, log_error=False),
+                    mock.call(mock.ANY, processor.name),
+                ]
+            else:
+                _get_rpmverflags.assert_called_once_with(mock.ANY, processor.name, log_error=False)
 
             # Check that value is cached
 
             _get_rpmverflags.reset_mock()
 
-            assert processor._get_rpmverflags_for_commit(head_commit) is sentinel
+            assert processor._get_rpmverflags_for_commit(head_commit) is retval
 
             _get_rpmverflags.assert_not_called()
 

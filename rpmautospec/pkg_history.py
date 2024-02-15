@@ -70,11 +70,8 @@ class PkgHistoryProcessor:
     @classmethod
     def _get_rpmverflags(
         cls, path: str, name: Optional[str] = None, log_error: bool = True
-    ) -> Optional[dict[str, Union[str, int]]]:
-        """Retrieve the epoch/version and %autorelease flags set in spec file.
-
-        Returns None if an error is encountered.
-        """
+    ) -> dict[str, Union[str, int]]:
+        """Retrieve the epoch/version and %autorelease flags set in spec file."""
         path = Path(path)
 
         if not name:
@@ -84,7 +81,7 @@ class PkgHistoryProcessor:
 
         if not specfile.exists():
             log.debug("spec file missing: %s", specfile)
-            return None
+            return {"error": "specfile-missing", "error-detail": "Spec file is missing."}
 
         query = "%|epoch?{%{epoch}:}:{}|%{version}\n%{release}\n"
 
@@ -150,7 +147,7 @@ class PkgHistoryProcessor:
         if error:
             if log_error:
                 log.debug("rpm query for %r failed: %s", query, rpmerr_out)
-            return None
+            return {"error": "specfile-parse-error", "error-detail": rpmerr_out}
 
         split_output = output.split("\n")
         epoch_version = split_output[0]
@@ -179,7 +176,8 @@ class PkgHistoryProcessor:
 
         return result
 
-    def _get_rpmverflags_for_commit(self, commit):
+    def _get_rpmverflags_for_commit(self, commit: pygit2.Commit) -> dict[str, Union[str, int]]:
+        print(f"{commit=} {self._rpmverflags_for_commits=}")
         if commit in self._rpmverflags_for_commits:
             return self._rpmverflags_for_commits[commit]
 
@@ -189,14 +187,16 @@ class PkgHistoryProcessor:
                 specblob = commit.tree[self.specfile.name]
             except KeyError:
                 # no spec file
-                return None
+                error = {"error": "specfile-missing", "error-detail": "Spec file is missing."}
+                self._rpmverflags_for_commits[commit] = error
+                return error
 
             specpath = Path(workdir) / self.specfile.name
             specpath.write_bytes(specblob.data)
 
             rpmverflags = self._get_rpmverflags(workdir, self.name, log_error=False)
 
-            if not rpmverflags:
+            if "error" in rpmverflags:
                 # Provide all files for %include and %load directives.
                 self.repo.checkout_tree(
                     commit.tree, directory=workdir, strategy=pygit2.GIT_CHECKOUT_FORCE
@@ -219,7 +219,7 @@ class PkgHistoryProcessor:
         """
         verflags = self._get_rpmverflags_for_commit(commit)
 
-        if verflags:
+        if "error" not in verflags:
             epoch_version = verflags["epoch-version"]
             prerelease = verflags["prerelease"]
             base = verflags["base"]
@@ -237,7 +237,7 @@ class PkgHistoryProcessor:
             epoch_versions_to_check = []
             for p in commit.parents:
                 verflags = self._get_rpmverflags_for_commit(p)
-                if not verflags:
+                if "error" in verflags:
                     child_must_continue = True
                     break
                 epoch_versions_to_check.append(verflags["epoch-version"])
@@ -253,6 +253,7 @@ class PkgHistoryProcessor:
         # for this commit and parent results as dictionaries on resume.
         commit_result, parent_results = yield {"child_must_continue": child_must_continue}
 
+        commit_result["verflags"] = verflags
         commit_result["epoch-version"] = epoch_version
         commit_result["magic-comment-result"] = parse_magic_comments(commit.message)
 
@@ -697,9 +698,9 @@ class PkgHistoryProcessor:
             worktree_result = {}
 
             verflags = self._get_rpmverflags(self.path, name=self.name)
-            if not verflags:
+            if "error" in verflags:
                 # cringe, but what can you do?
-                verflags = {
+                verflags |= {
                     "epoch-version": None,
                     "prerelease": False,
                     "extraver": None,
@@ -708,6 +709,7 @@ class PkgHistoryProcessor:
                 }
 
             # Mimic the bottom half of release_number_visitor
+            worktree_result["verflags"] = verflags
             worktree_result["epoch-version"] = epoch_version = verflags["epoch-version"]
             if head_result and epoch_version == head_result["epoch-version"]:
                 release_number = head_result["release-number"] + 1

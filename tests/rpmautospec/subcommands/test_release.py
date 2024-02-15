@@ -77,18 +77,19 @@ class TestRelease:
 
             expected_release = "11"
 
-            if method_to_test == "calculate_release":
-                assert (
-                    release.calculate_release(unpacked_repo_dir, error_on_unparseable_spec=True)
-                    == expected_release
-                )
-            else:
-                args = mock.Mock()
-                args.spec_or_path = unpacked_repo_dir
-                release.main(args)
+            with mock.patch("rpm.setLogFile"):
+                if method_to_test == "calculate_release":
+                    assert (
+                        release.calculate_release(unpacked_repo_dir, error_on_unparseable_spec=True)
+                        == expected_release
+                    )
+                else:
+                    args = mock.Mock()
+                    args.spec_or_path = unpacked_repo_dir
+                    release.main(args)
 
-                captured = capsys.readouterr()
-                assert f"Calculated release number: {expected_release}" in captured.out
+                    captured = capsys.readouterr()
+                    assert f"Calculated release number: {expected_release}" in captured.out
 
     def test_calculate_release_error(self):
         with mock.patch.object(release, "PkgHistoryProcessor") as PkgHistoryProcessor:

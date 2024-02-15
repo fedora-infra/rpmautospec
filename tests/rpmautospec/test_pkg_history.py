@@ -127,7 +127,7 @@ class TestPkgHistoryProcessor:
             "with-name",
             "specfile-missing",
             "specfile-broken",
-            "specfile-broken-without-log-exception",
+            "specfile-broken-without-log-error",
         ),
     )
     @pytest.mark.parametrize(
@@ -157,7 +157,7 @@ class TestPkgHistoryProcessor:
         with_name = "with-name" in testcase
         specfile_missing = "specfile-missing" in testcase
         specfile_broken = "specfile-broken" in testcase
-        log_exception = "without-log-exception" not in testcase
+        log_error = "without-log-error" not in testcase
         manual = "%autorelease" not in release
         if not manual:
             base = 5 if "-b" in release else 1
@@ -177,9 +177,7 @@ class TestPkgHistoryProcessor:
             specfile.touch()
 
         with caplog.at_level("DEBUG"):
-            result = processor._get_rpmverflags(
-                specfile.parent, name=name, log_exception=log_exception
-            )
+            result = processor._get_rpmverflags(specfile.parent, name=name, log_error=log_error)
 
         if specfile_missing or specfile_broken:
             assert result is None
@@ -192,7 +190,7 @@ class TestPkgHistoryProcessor:
                 "base": base,
             }
 
-        if log_exception:
+        if log_error:
             if specfile_missing:
                 assert "spec file missing" in caplog.text
             elif specfile_broken:
@@ -260,14 +258,12 @@ class TestPkgHistoryProcessor:
             assert result["epoch-version"] == "1.0"
 
             if not needs_full_repo:
-                _get_rpmverflags.assert_called_once_with(
-                    mock.ANY, processor.name, log_exception=False
-                )
+                _get_rpmverflags.assert_called_once_with(mock.ANY, processor.name, log_error=False)
                 repo_checkout_tree.assert_not_called()
             else:
                 calls_in_order.assert_has_calls(
                     (
-                        mock.call._get_rpmverflags(mock.ANY, processor.name, log_exception=False),
+                        mock.call._get_rpmverflags(mock.ANY, processor.name, log_error=False),
                         mock.call.repo_checkout_tree(
                             head_commit.tree, directory=mock.ANY, strategy=pygit2.GIT_CHECKOUT_FORCE
                         ),
@@ -284,7 +280,7 @@ class TestPkgHistoryProcessor:
 
             assert processor._get_rpmverflags_for_commit(head_commit) is sentinel
 
-            _get_rpmverflags.assert_called_once_with(mock.ANY, processor.name, log_exception=False)
+            _get_rpmverflags.assert_called_once_with(mock.ANY, processor.name, log_error=False)
 
             # Check that value is cached
 

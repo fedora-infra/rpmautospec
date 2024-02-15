@@ -2,6 +2,7 @@ import datetime as dt
 import logging
 import re
 import sys
+import tempfile
 from collections import defaultdict
 from functools import reduce
 from pathlib import Path
@@ -68,7 +69,7 @@ class PkgHistoryProcessor:
 
     @classmethod
     def _get_rpmverflags(
-        cls, path: str, name: Optional[str] = None, log_exception: bool = True
+        cls, path: str, name: Optional[str] = None, log_error: bool = True
     ) -> Optional[dict[str, Union[str, int]]]:
         """Retrieve the epoch/version and %autorelease flags set in spec file.
 
@@ -123,23 +124,32 @@ class PkgHistoryProcessor:
                 abridged.flush()
 
                 for spec_candidate in (abridged.name, str(specfile)):
-                    try:
-                        spec = rpm.spec(spec_candidate)
-                        output = spec.sourceHeader.format(query)
-                    except Exception as e:
-                        exception = e
-                    else:
-                        exception = None
-                        # Parsing this candidate spec file succeeded. In the case of the abridged
-                        # spec file, we can skip parsing the full spec file.
-                        if spec_candidate == abridged.name:
-                            break
+                    with tempfile.NamedTemporaryFile(
+                        mode="w", prefix="rpmautospec-rpmerr-"
+                    ) as rpmerr:
+                        rpm.setLogFile(rpmerr)
+                        try:
+                            spec = rpm.spec(spec_candidate)
+                            output = spec.sourceHeader.format(query)
+                        except Exception:
+                            error = True
+                            if spec_candidate == str(specfile):
+                                with open(rpmerr.name, "r", errors="replace") as rpmerr_read:
+                                    rpmerr_out = rpmerr_read.read()
+                        else:
+                            error = False
+                            rpmerr_out = None
+                            # Parsing this candidate spec file succeeded. In the case of the
+                            # abridged spec file, we can skip parsing the full spec file.
+                            if spec_candidate == abridged.name:
+                                break
         finally:
+            rpm.setLogFile(sys.stderr)
             rpm.reloadConfig()
 
-        if exception:
-            if log_exception:
-                log.debug("rpm query for %r failed: %r", query, exception)
+        if error:
+            if log_error:
+                log.debug("rpm query for %r failed: %s", query, rpmerr_out)
             return None
 
         split_output = output.split("\n")
@@ -184,7 +194,7 @@ class PkgHistoryProcessor:
             specpath = Path(workdir) / self.specfile.name
             specpath.write_bytes(specblob.data)
 
-            rpmverflags = self._get_rpmverflags(workdir, self.name, log_exception=False)
+            rpmverflags = self._get_rpmverflags(workdir, self.name, log_error=False)
 
             if not rpmverflags:
                 # Provide all files for %include and %load directives.

@@ -95,9 +95,12 @@ def process_distgit(
         visitors.append(processor.changelog_visitor)
     result = processor.run(visitors=visitors)
 
-    if error_on_unparseable_spec and result["epoch-version"] is None:
-        # If epoch-version is None, this indicates that the spec file couldn’t be parsed.
-        raise SpecParseFailure(f"Couldn’t parse spec file {processor.specfile.name}")
+    error = result["verflags"].get("error")
+    if error and error_on_unparseable_spec:
+        error_detail = result["verflags"]["error-detail"]
+        raise SpecParseFailure(
+            f"Couldn’t parse spec file {processor.specfile.name}", code=error, detail=error_detail
+        )
 
     autorelease_number = result["release-number"]
 

@@ -94,13 +94,15 @@ class TestRelease:
     def test_calculate_release_error(self):
         with mock.patch.object(release, "PkgHistoryProcessor") as PkgHistoryProcessor:
             processor = PkgHistoryProcessor.return_value
-            processor.run.return_value = {"epoch-version": None}
+            processor.run.return_value = {
+                "verflags": {"error": "specfile-parse-error", "error-detail": "HAHA"}
+            }
             processor.specfile.name = "test.spec"
 
             with pytest.raises(SpecParseFailure) as excinfo:
                 release.calculate_release("test")
 
-        assert str(excinfo.value) == "Couldn’t parse spec file test.spec"
+        assert str(excinfo.value) == "Couldn’t parse spec file test.spec:\nHAHA"
 
     def test_calculate_release_number(self):
         with mock.patch.object(release, "calculate_release") as calculate_release:

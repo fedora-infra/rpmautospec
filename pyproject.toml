@@ -69,3 +69,4 @@ allowed-confusables = ["’"]
 
 [tool.pytest.ini_options]
 addopts = "--cov --cov-config .coveragerc --cov-report term --cov-report xml --cov-report html"
+tmp_path_retention_policy = "failed"

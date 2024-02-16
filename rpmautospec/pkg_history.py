@@ -177,7 +177,6 @@ class PkgHistoryProcessor:
         return result
 
     def _get_rpmverflags_for_commit(self, commit: pygit2.Commit) -> dict[str, Union[str, int]]:
-        print(f"{commit=} {self._rpmverflags_for_commits=}")
         if commit in self._rpmverflags_for_commits:
             return self._rpmverflags_for_commits[commit]
 

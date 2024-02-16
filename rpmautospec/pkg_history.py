@@ -1,11 +1,12 @@
 import datetime as dt
 import logging
 import re
+import stat
 import sys
 import tempfile
 from collections import defaultdict
 from functools import reduce
-from pathlib import Path
+from pathlib import Path, PurePath
 from shutil import SpecialFileError
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Optional, Sequence, Union
@@ -19,6 +20,32 @@ from .changelog import ChangelogEntry
 from .magic_comments import parse_magic_comments
 
 log = logging.getLogger(__name__)
+
+
+def _checkout_tree_files(
+    commit: pygit2.Commit, tree: pygit2.Tree, topdir: Path, reldir: PurePath = PurePath(".")
+) -> None:
+    """Check out files, but don’t manipulate git status.
+
+    :param commit:  The GIT commit being processed.
+    :param tree:    The (sub)tree to check out files for.
+    :param topdir:  The top directory for the contents to be checked out.
+    :param reldir:  The relative directory being processed.
+    """
+    curdir = topdir / reldir
+    curdir.mkdir(parents=True, exist_ok=True)
+    for entry in tree:
+        relpath = reldir / entry.name
+        if isinstance(entry, pygit2.Tree):
+            _checkout_tree_files(commit, entry, topdir, relpath)
+        else:  # isinstance(entry, pygit2.Blob)
+            fpath = curdir / entry.name
+            if stat.S_ISLNK(entry.filemode):
+                fpath.symlink_to(entry.data)
+            else:  # stat.S_ISREG(entry.filemode)
+                with pygit2.BlobIO(entry, as_path=str(relpath), commit_id=commit.id) as f:
+                    fpath.write_bytes(f.read())
+                fpath.chmod(stat.S_IMODE(entry.filemode))
 
 
 class PkgHistoryProcessor:
@@ -181,6 +208,8 @@ class PkgHistoryProcessor:
             return self._rpmverflags_for_commits[commit]
 
         with TemporaryDirectory(prefix="rpmautospec-") as workdir:
+            workdir = Path(workdir)
+
             # Only unpack spec file at first.
             try:
                 specblob = commit.tree[self.specfile.name]
@@ -190,16 +219,14 @@ class PkgHistoryProcessor:
                 self._rpmverflags_for_commits[commit] = error
                 return error
 
-            specpath = Path(workdir) / self.specfile.name
+            specpath = workdir / self.specfile.name
             specpath.write_bytes(specblob.data)
 
             rpmverflags = self._get_rpmverflags(workdir, self.name, log_error=False)
 
             if "error" in rpmverflags:
                 # Provide all files for %include and %load directives.
-                self.repo.checkout_tree(
-                    commit.tree, directory=workdir, strategy=pygit2.GIT_CHECKOUT_FORCE
-                )
+                _checkout_tree_files(commit, commit.tree, workdir)
                 rpmverflags = self._get_rpmverflags(workdir, self.name)
 
         self._rpmverflags_for_commits[commit] = rpmverflags

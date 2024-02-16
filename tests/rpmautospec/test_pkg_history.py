@@ -13,6 +13,44 @@ import pytest
 from rpmautospec import pkg_history
 
 
+def test__checkout_tree_files(repopath, specfile, repo, tmp_path):
+    # Add a symlink in a new commit
+    symlink = repopath / "symlink"
+    symlink.symlink_to(specfile.name)
+
+    index = repo.index
+    index.add(symlink.name)
+    index.write()
+
+    tree = index.write_tree()
+
+    parent, ref = repo.resolve_refish(repo.head.name)
+
+    oid = repo.create_commit(
+        ref.name,
+        repo.default_signature,
+        repo.default_signature,
+        "Added a symlink!",
+        tree,
+        [parent.id],
+    )
+
+    head_commit = repo[oid]
+
+    # Now check out the files elsewhere
+    elsewhere = tmp_path / "elsewhere"
+
+    pkg_history._checkout_tree_files(head_commit, head_commit.tree, elsewhere)
+
+    specfile_dst = elsewhere / specfile.name
+    with specfile.open("r") as src, specfile_dst.open("r") as dst:
+        assert src.read() == dst.read()
+
+    symlink_dst = elsewhere / symlink.name
+    assert symlink_dst.is_symlink()
+    assert symlink_dst.resolve() == specfile_dst
+
+
 @pytest.fixture
 def processor(repo):
     processor = pkg_history.PkgHistoryProcessor(repo.workdir)
@@ -233,17 +271,11 @@ class TestPkgHistoryProcessor:
                 )
             ]
 
-        # Don’t make pygit2/libgit2 trip over mocked objects.
-        real_repo_checkout_tree = processor.repo.checkout_tree
-
-        def wrap_repo_checkout_tree(treeish, *args, **kwargs):
-            return real_repo_checkout_tree(processor.repo[treeish.id], *args, **kwargs)
-
         with mock.patch.object(
             processor, "_get_rpmverflags", wraps=processor._get_rpmverflags
         ) as _get_rpmverflags, mock.patch.object(
-            processor.repo, "checkout_tree", side_effect=wrap_repo_checkout_tree
-        ) as repo_checkout_tree:
+            pkg_history, "_checkout_tree_files", side_effect=pkg_history._checkout_tree_files
+        ) as _checkout_tree_files:
             side_effect = [mock.DEFAULT]
             if needs_full_repo:
                 side_effect.insert(0, {"error": "specfile-parse-error"})
@@ -251,27 +283,25 @@ class TestPkgHistoryProcessor:
 
             calls_in_order = mock.Mock()
             calls_in_order.attach_mock(_get_rpmverflags, "_get_rpmverflags")
-            calls_in_order.attach_mock(repo_checkout_tree, "repo_checkout_tree")
+            calls_in_order.attach_mock(_checkout_tree_files, "_checkout_tree_files")
 
             result = processor._get_rpmverflags_for_commit(head_commit)
 
         if no_spec_file:
             assert result["error"] == "specfile-missing"
             _get_rpmverflags.assert_not_called()
-            repo_checkout_tree.assert_not_called()
+            _checkout_tree_files.assert_not_called()
         else:
             assert result["epoch-version"] == "1.0"
 
             if not needs_full_repo:
                 _get_rpmverflags.assert_called_once_with(mock.ANY, processor.name, log_error=False)
-                repo_checkout_tree.assert_not_called()
+                _checkout_tree_files.assert_not_called()
             else:
                 calls_in_order.assert_has_calls(
                     (
                         mock.call._get_rpmverflags(mock.ANY, processor.name, log_error=False),
-                        mock.call.repo_checkout_tree(
-                            head_commit.tree, directory=mock.ANY, strategy=pygit2.GIT_CHECKOUT_FORCE
-                        ),
+                        mock.call._checkout_tree_files(head_commit, head_commit.tree, mock.ANY),
                         mock.call._get_rpmverflags(mock.ANY, processor.name),
                     )
                 )

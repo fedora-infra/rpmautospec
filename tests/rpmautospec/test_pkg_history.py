@@ -510,3 +510,10 @@ class TestPkgHistoryProcessor:
                 )
 
         assert all("error" not in entry for entry in changelog)
+
+        verflags = res["verflags"]
+        assert verflags["base"] == 1
+        assert verflags["epoch-version"] == "1.0"
+        assert verflags["extraver"] is None
+        assert verflags["prerelease"] is None
+        assert verflags["snapinfo"] is None

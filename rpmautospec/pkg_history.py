@@ -248,7 +248,7 @@ class PkgHistoryProcessor:
         execution to process these and finally yield back the results for this
         commit.
         """
-        verflags = self._get_rpmverflags_for_commit(commit)
+        commit_verflags = verflags = self._get_rpmverflags_for_commit(commit)
 
         if "error" not in verflags:
             epoch_version = verflags["epoch-version"]
@@ -284,7 +284,7 @@ class PkgHistoryProcessor:
         # for this commit and parent results as dictionaries on resume.
         commit_result, parent_results = yield {"child_must_continue": child_must_continue}
 
-        commit_result["verflags"] = verflags
+        commit_result["verflags"] = commit_verflags
         commit_result["epoch-version"] = epoch_version
         commit_result["magic-comment-result"] = parse_magic_comments(commit.message)
 

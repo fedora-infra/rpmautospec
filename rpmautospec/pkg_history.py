@@ -12,6 +12,11 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Optional, Sequence, Union
 
 import pygit2
+
+try:
+    from pygit2 import BlobIO
+except ImportError:  # pragma: no cover
+    from .compat import MinimalBlobIO as BlobIO
 from rpmautospec_core import AUTORELEASE_MACRO
 
 import rpm
@@ -43,7 +48,7 @@ def _checkout_tree_files(
             if stat.S_ISLNK(entry.filemode):
                 fpath.symlink_to(entry.data)
             else:  # stat.S_ISREG(entry.filemode)
-                with pygit2.BlobIO(entry, as_path=str(relpath), commit_id=commit.id) as f:
+                with BlobIO(entry, as_path=str(relpath), commit_id=commit.id) as f:
                     fpath.write_bytes(f.read())
                 fpath.chmod(stat.S_IMODE(entry.filemode))
 

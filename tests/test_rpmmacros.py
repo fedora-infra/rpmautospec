@@ -52,7 +52,8 @@ def test_autorelease(braces, extra, snapshot, prerelease, base, nodisttag):
         subprocess.check_output(
             (
                 "rpm",
-                "--load",
+                # `rpm --load ...` needs at least rpm-4.15
+                "--macros",
                 str(MACROS_FILE.absolute()),
                 "--define",
                 "%dist .DIST",
@@ -72,7 +73,8 @@ def test_autorelease(braces, extra, snapshot, prerelease, base, nodisttag):
 def test_autochangelog(packager, epoch):
     rpm_params = (
         "rpm",
-        "--load",
+        # `rpm --load ...` needs at least rpm-4.15
+        "--macros",
         str(MACROS_FILE.absolute()),
         "--define",
         "%version 1",

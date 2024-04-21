@@ -53,7 +53,7 @@ pytest-cov = "^4.0.0"
 pytest-xdist = "^2.5.0 || ^3"
 coverage = "^7.2.0"
 black = "^24.1.0"
-ruff = "^0.2.0 || ^0.3.0"
+ruff = "^0.2.0 || ^0.3.0 || ^0.4.0"
 
 [tool.poetry.scripts]
 rpmautospec = "rpmautospec.cli:main"

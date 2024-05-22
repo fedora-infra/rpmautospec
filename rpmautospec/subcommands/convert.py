@@ -202,7 +202,7 @@ class PkgConverter:
         )
         if self.repo.diff(tree, parent, cached=True).patch:
             oid = self.repo.create_commit(
-                ref.name, signature, signature, message, tree, [parent.oid]
+                ref.name, signature, signature, message, tree, [parent.id]
             )
             log.debug("Committed %s to repository", oid)
             self.made_commit = True

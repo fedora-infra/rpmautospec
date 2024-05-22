@@ -209,7 +209,7 @@ def repo(repopath, specfile, specfile_content, _repo_config):
             repo.default_signature,
             "Update to 0.9\n\nConvert to rpmautospec.",
             tree,
-            [parent.oid],
+            [parent.id],
         )
     else:
         # … starting out as %autorelease/%autochangelog
@@ -240,7 +240,7 @@ def repo(repopath, specfile, specfile_content, _repo_config):
         repo.default_signature,
         "Did something!",
         tree,
-        [parent.oid],
+        [parent.id],
     )
 
     yield repo

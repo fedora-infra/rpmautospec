@@ -267,7 +267,7 @@ class TestPkgHistoryProcessor:
                     repo.default_signature,
                     "Be gone, spec file!",
                     tree,
-                    [parent.oid],
+                    [parent.id],
                 )
             ]
 
@@ -400,7 +400,7 @@ class TestPkgHistoryProcessor:
                     pygit2.Signature("The Great Pretender", "ohyes@i.am"),
                     "Bow before my white space!",
                     tree,
-                    [parent.oid],
+                    [parent.id],
                 )
             ]
 
@@ -413,8 +413,8 @@ class TestPkgHistoryProcessor:
                     pygit2.Signature("The Great Pretender", "ohyes@i.am"),
                     pygit2.Signature("The Great Pretender", "ohyes@i.am"),
                     "Rebuild for fun and giggles",
-                    parent_commit.tree.oid,
-                    [head_commit.oid, parent_commit.oid],
+                    parent_commit.tree.id,
+                    [head_commit.id, parent_commit.id],
                 )
             ]
 
@@ -436,7 +436,7 @@ class TestPkgHistoryProcessor:
 
         if "with-commit" in testcase:
             # Pass as string
-            args = [head_commit.hex]
+            args = [str(head_commit.id)]
         elif "with-merge" in testcase:
             # Pass the commit object
             args = [head_commit]

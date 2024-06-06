@@ -31,9 +31,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pyver: [39, 310, 311, 312]
+        include:
+          - pyver: 39
+            fedver: f38
+          - pyver: 310
+            fedver: f38
+          - pyver: 311
+            fedver: f38
+          - pyver: 312
+            fedver: latest
     runs-on: ubuntu-latest
-    container: fedorapython/fedora-python-tox:latest
+    container: "fedorapython/fedora-python-tox:${{ matrix.fedver }}"
     steps:
       - uses: actions/checkout@v4
 
@@ -55,7 +63,7 @@ jobs:
 
       - name: Install libgit2-devel 1.7 package
         if: ${{ matrix.pyver >= 312 }}
-        run: dnf --releasever=39 -y install libgit2-devel
+        run: dnf -y install libgit2-devel
 
       - name: run tests through tox
         run: "tox -e py${{ matrix.pyver }}"

@@ -61,6 +61,9 @@ ruff = "^0.2.0 || ^0.3.0 || ^0.4.0"
 [tool.poetry.scripts]
 rpmautospec = "rpmautospec.cli:main"
 
+[tool.poetry.build]
+generate-setup-file = true
+
 [tool.black]
 line_length = 100
 

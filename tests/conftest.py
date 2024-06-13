@@ -131,7 +131,11 @@ def specfile(repopath, specfile_content) -> Path:
 
 @pytest.fixture
 def _repo_config(request):
-    config = {"converted": False}
+    config = {
+        "uses_rpmautospec": True,
+        "converted": False,
+        "add_commit": True,
+    }
     for node in request.node.listchain():
         for mark in node.own_markers:
             if mark.name == "repo_config":
@@ -142,6 +146,11 @@ def _repo_config(request):
 @pytest.fixture
 def repo(repopath, specfile, specfile_content, _repo_config):
     converted = _repo_config["converted"]
+    if converted:
+        uses_rpmautospec = False
+    else:
+        uses_rpmautospec = _repo_config["uses_rpmautospec"]
+    add_commit = _repo_config["add_commit"]
 
     pygit2.init_repository(repopath, initial_head="rawhide")
     repo = pygit2.Repository(repopath, pygit2.GIT_REPOSITORY_OPEN_NO_SEARCH)
@@ -151,7 +160,7 @@ def repo(repopath, specfile, specfile_content, _repo_config):
     author_blurb = f"{repo.config['user.name']} <{repo.config['user.email']}>"
 
     # create root commit in "rawhide" branch
-    if converted:
+    if not uses_rpmautospec:
         # … with manual release and changelog
         specfile.write_text(
             SPEC_FILE_TEMPLATE.format(
@@ -163,40 +172,34 @@ def repo(repopath, specfile, specfile_content, _repo_config):
         )
 
         create_commit(
-            repo,
-            reference_name=None,
-            message="Initial commit",
-            parents=[],
-            create_branch="rawhide",
+            repo, reference_name=None, message="Initial commit", parents=[], create_branch="rawhide"
         )
 
-        # add another commit, converting to %autorelease/%autochangelog
-        changelog = specfile.parent / "changelog"
-        changelog.write_text(f"* {author_blurb} 0.8-1\n- Initial commit\n")
+        if converted:
+            # add another commit, converting to %autorelease/%autochangelog
+            changelog = specfile.parent / "changelog"
+            changelog.write_text(f"* {author_blurb} 0.8-1\n- Initial commit\n")
 
-        specfile.write_text(
-            SPEC_FILE_TEMPLATE.format(
-                version="Version: 0.9",
-                release="Release: %autorelease",
-                prep="%prep",
-                changelog="%changelog\n%autochangelog",
+            specfile.write_text(
+                SPEC_FILE_TEMPLATE.format(
+                    version="Version: 0.9",
+                    release="Release: %autorelease",
+                    prep="%prep",
+                    changelog="%changelog\n%autochangelog",
+                )
             )
-        )
 
-        create_commit(repo, message="Update to 0.9\n\nConvert to rpmautospec.")
+            create_commit(repo, message="Update to 0.9\n\nConvert to rpmautospec.")
     else:
         # … starting out as %autorelease/%autochangelog
         create_commit(
-            repo,
-            reference_name=None,
-            message="Initial commit",
-            parents=[],
-            create_branch="rawhide",
+            repo, reference_name=None, message="Initial commit", parents=[], create_branch="rawhide"
         )
 
-    # add a last commit, tweaking the spec file
-    specfile.write_text(specfile_content + "\n")
+    if add_commit:
+        # add a last commit, tweaking the spec file
+        specfile.write_text(specfile_content + "\n")
 
-    create_commit(repo, message="Did something!")
+        create_commit(repo, message="Did something!")
 
     yield repo

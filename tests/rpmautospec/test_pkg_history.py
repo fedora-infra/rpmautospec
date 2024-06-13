@@ -12,6 +12,8 @@ import pytest
 
 from rpmautospec import pkg_history
 
+from ..common import create_commit
+
 
 def test__checkout_tree_files(repopath, specfile, repo, tmp_path):
     # Add a symlink in a new commit
@@ -382,44 +384,32 @@ class TestPkgHistoryProcessor:
         else:
             head_commit = repo[repo.head.target]
 
+        signature = pygit2.Signature("The Great Pretender", "ohyes@i.am")
+
         if "with-merge" in testcase:
             # Mess a bit with the spec file …
             specfile.write_text(specfile_content + "\n\n")
 
-            index = repo.index
-            index.add(specfile.name)
-            index.write()
-
-            tree = index.write_tree()
-
-            parent, ref = repo.resolve_refish(repo.head.name)
-            head_commit = repo[
-                repo.create_commit(
-                    ref.name,
-                    pygit2.Signature("The Great Pretender", "ohyes@i.am"),
-                    pygit2.Signature("The Great Pretender", "ohyes@i.am"),
-                    "Bow before my white space!",
-                    tree,
-                    [parent.id],
-                )
-            ]
+            result = create_commit(
+                repo,
+                author=signature,
+                committer=signature,
+                message="Bow before my white space!",
+            )
+            head_commit = result["commit"]
 
             # … and then revert by a merge using the previous tree. Seriously.
             parent_commit = head_commit.parents[0]
+            result = create_commit(
+                repo,
+                author=signature,
+                committer=signature,
+                message="Rebuild for fun and giggles",
+                tree_id=parent_commit.tree.id,
+                parents=[head_commit.id, parent_commit.id],
+            )
 
-            head_commit = repo[
-                repo.create_commit(
-                    repo.head.name,
-                    pygit2.Signature("The Great Pretender", "ohyes@i.am"),
-                    pygit2.Signature("The Great Pretender", "ohyes@i.am"),
-                    "Rebuild for fun and giggles",
-                    parent_commit.tree.id,
-                    [head_commit.id, parent_commit.id],
-                )
-            ]
-
-            repo.checkout_tree(head_commit.tree, strategy=pygit2.GIT_CHECKOUT_FORCE)
-
+            head_commit = result["commit"]
             expected_release += 2
 
         if "missing-specfile" in testcase:

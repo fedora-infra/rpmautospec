@@ -4,19 +4,7 @@ from pathlib import Path
 import pygit2
 import pytest
 
-SPEC_FILE_TEXT = """Summary: Boo
-Name: boo
-{version}
-{release}
-License: CC0
-
-%description
-Boo
-
-{prep}
-
-{changelog}
-"""
+from .common import SPEC_FILE_TEMPLATE, create_commit
 
 
 def pytest_configure(config):
@@ -113,7 +101,9 @@ def specfile_content(version, release, prep, changelog) -> str:
     The changelog will be replaced by the *changelog* fixture, if defined, or
     else will be filled by %autochangelog.
     """
-    return SPEC_FILE_TEXT.format(version=version, release=release, prep=prep, changelog=changelog)
+    return SPEC_FILE_TEMPLATE.format(
+        version=version, release=release, prep=prep, changelog=changelog
+    )
 
 
 @pytest.fixture
@@ -164,7 +154,7 @@ def repo(repopath, specfile, specfile_content, _repo_config):
     if converted:
         # … with manual release and changelog
         specfile.write_text(
-            SPEC_FILE_TEXT.format(
+            SPEC_FILE_TEMPLATE.format(
                 version="Version: 0.8",
                 release="Release: 1%{?dist}",
                 prep="%prep",
@@ -172,75 +162,41 @@ def repo(repopath, specfile, specfile_content, _repo_config):
             )
         )
 
-        index = repo.index
-        index.add(specfile.name)
-        index.write()
-
-        tree = index.write_tree()
-
-        oid = repo.create_commit(
-            None, repo.default_signature, repo.default_signature, "Initial commit", tree, []
+        create_commit(
+            repo,
+            reference_name=None,
+            message="Initial commit",
+            parents=[],
+            create_branch="rawhide",
         )
-        repo.branches.local.create("rawhide", repo[oid])
 
         # add another commit, converting to %autorelease/%autochangelog
         changelog = specfile.parent / "changelog"
         changelog.write_text(f"* {author_blurb} 0.8-1\n- Initial commit\n")
 
         specfile.write_text(
-            SPEC_FILE_TEXT.format(
+            SPEC_FILE_TEMPLATE.format(
                 version="Version: 0.9",
                 release="Release: %autorelease",
                 prep="%prep",
                 changelog="%changelog\n%autochangelog",
             )
         )
-        index = repo.index
-        index.add_all()
-        index.add(changelog.name)
-        index.write()
 
-        tree = index.write_tree()
-
-        parent, ref = repo.resolve_refish(repo.head.name)
-        repo.create_commit(
-            ref.name,
-            repo.default_signature,
-            repo.default_signature,
-            "Update to 0.9\n\nConvert to rpmautospec.",
-            tree,
-            [parent.id],
-        )
+        create_commit(repo, message="Update to 0.9\n\nConvert to rpmautospec.")
     else:
         # … starting out as %autorelease/%autochangelog
-        index = repo.index
-        index.add(specfile.name)
-        index.write()
-
-        tree = index.write_tree()
-
-        oid = repo.create_commit(
-            None, repo.default_signature, repo.default_signature, "Initial commit", tree, []
+        create_commit(
+            repo,
+            reference_name=None,
+            message="Initial commit",
+            parents=[],
+            create_branch="rawhide",
         )
-        repo.branches.local.create("rawhide", repo[oid])
 
     # add a last commit, tweaking the spec file
     specfile.write_text(specfile_content + "\n")
 
-    index = repo.index
-    index.add_all()
-    index.write()
-
-    tree = index.write_tree()
-
-    parent, ref = repo.resolve_refish(repo.head.name)
-    repo.create_commit(
-        ref.name,
-        repo.default_signature,
-        repo.default_signature,
-        "Did something!",
-        tree,
-        [parent.id],
-    )
+    create_commit(repo, message="Did something!")
 
     yield repo

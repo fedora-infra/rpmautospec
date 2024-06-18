@@ -4,6 +4,7 @@ import re
 import stat
 from calendar import LocaleTextCalendar
 from contextlib import nullcontext
+from pathlib import Path
 from shutil import SpecialFileError, rmtree
 from unittest import mock
 
@@ -12,7 +13,7 @@ import pytest
 
 from rpmautospec import pkg_history
 
-from ..common import create_commit
+from ..common import SPEC_FILE_TEMPLATE, create_commit
 
 
 def test__checkout_tree_files(repopath, specfile, repo, tmp_path):
@@ -507,3 +508,159 @@ class TestPkgHistoryProcessor:
         assert verflags["extraver"] is None
         assert verflags["prerelease"] is None
         assert verflags["snapinfo"] is None
+
+    @pytest.mark.repo_config(uses_rpmautospec=False, converted=False, add_commit=False)
+    def test_run__with_wonky_history(self, repo, processor):
+        workdir = Path(repo.workdir)
+        specfile = workdir / "test.spec"
+
+        # This takes some setting up, starting with two non-rpmautospec commits
+
+        rawhide_tmpl_args = {
+            "version": "Version: 0.8",
+            "release": "Release: 2%{?dist}",
+            "prep": "%prep",
+            "changelog": "%changelog\n"
+            + "* Jane Doe <jane.doe@example.com> - 0.8-2\n- Do the thing\n\n"
+            + "* Jane Doe <jane.doe@example.com> - 0.8-1\n- Import the package\n",
+        }
+        specfile.write_text(SPEC_FILE_TEMPLATE.format(**rawhide_tmpl_args))
+        epel_tip = create_commit(repo, message="Do the thing", create_branch="epel")["oid"]
+
+        # Simulate activity
+        rawhide_tmpl_args["prep"] = "%prep\necho Hello\n\n"
+        rawhide_tmpl_args["release"] = "Release: 3%{?dist}"
+        rawhide_tmpl_args["changelog"] = rawhide_tmpl_args["changelog"].replace(
+            "%changelog\n",
+            "%changelog\n" + "* Jane Doe <jane.doe@example.com> - 0.8-3\n" + "- Hello\n\n",
+        )
+        specfile.write_text(SPEC_FILE_TEMPLATE.format(**rawhide_tmpl_args))
+        create_commit(repo, message="Hello")
+
+        # Bump version and convert to rpmautospec
+        changelogfile = workdir / "changelog"
+        changelogfile.write_text(
+            rawhide_tmpl_args["changelog"].replace(
+                "%changelog\n",
+                "* Jane Doe <jane.doe@example.com> - 0.9-1\n- Update to version 0.9\n\n",
+            )
+        )
+        rawhide_tmpl_args |= {
+            "version": "Version: 0.9",
+            "release": "Release: %autorelease",
+            "changelog": "%changelog\n%autochangelog\n",
+        }
+        specfile.write_text(SPEC_FILE_TEMPLATE.format(**rawhide_tmpl_args))
+        result = create_commit(
+            repo,
+            reference_name="refs/heads/rawhide",
+            message="Update to version 0.9\n\nConvert to rpmautospec.\n",
+        )
+        rawhide_tip = result["oid"]
+        rawhide_tree = result["commit"].tree
+
+        ### epel
+        repo.checkout("refs/heads/epel")
+
+        # Merge rawhide into epel
+        epel_tip = create_commit(
+            repo,
+            message="Merge branch rawhide into epel",
+            tree_id=rawhide_tree.id,
+            parents=[epel_tip, rawhide_tip],
+        )["oid"]
+
+        ### rawhide
+        repo.checkout("refs/heads/rawhide")
+
+        # Bump the version and screw up rpmautospec
+        rawhide_tmpl_args["version"] = "Version: 1.0"
+        rawhide_tmpl_args["release"] = "Release: 1%{?dist}"
+        rawhide_tmpl_args["changelog"] = (
+            "%changelog\n"
+            + "* Jane Doe <jane.doe@example.com> - 1.0-1\n"
+            + "- Update to version 1.0\n\n"
+            + "%autochangelog\n"
+        )
+        specfile.write_text(SPEC_FILE_TEMPLATE.format(**rawhide_tmpl_args))
+        create_commit(repo, message="Update to version 1.0")
+
+        # Bump again
+        rawhide_tmpl_args["version"] = "Version: 1.1"
+        rawhide_tmpl_args["changelog"] = rawhide_tmpl_args["changelog"].replace(
+            "%changelog\n",
+            "%changelog\n"
+            + "* Jane Doe <jane.doe@example.com> - 1.1-1\n"
+            + "- Update to version 1.1\n\n",
+        )
+        specfile.write_text(SPEC_FILE_TEMPLATE.format(**rawhide_tmpl_args))
+        result = create_commit(repo, message="Update to version 1.1")
+        rawhide_tip = result["oid"]
+        rawhide_tree = result["commit"].tree
+
+        ### epel
+        repo.checkout("refs/heads/epel")
+
+        # Merge rawhide into epel
+        epel_tip = create_commit(
+            repo,
+            message="Merge branch rawhide into epel",
+            tree_id=rawhide_tree.id,
+            parents=[epel_tip, rawhide_tip],
+        )["oid"]
+
+        ### rawhide
+        repo.checkout("refs/heads/rawhide")
+
+        # Fix rpmautospec
+        rawhide_tmpl_args["release"] = "Release: %autorelease"
+        changelogfile.write_text(
+            rawhide_tmpl_args["changelog"]
+            .replace("%changelog\n", "")
+            .replace("%autochangelog\n", "")
+            + changelogfile.read_text()
+        )
+        rawhide_tmpl_args["changelog"] = "%changelog\n%autochangelog\n"
+        specfile.write_text(SPEC_FILE_TEMPLATE.format(**rawhide_tmpl_args))
+        result = create_commit(repo, message="Fix using rpmautospec")
+        rawhide_tip = result["oid"]
+        rawhide_tree = result["commit"].tree
+
+        ### epel
+        repo.checkout("refs/heads/epel")
+
+        # Merge rawhide into epel
+        create_commit(
+            repo,
+            message="Merge branch rawhide into epel",
+            tree_id=rawhide_tree.id,
+            parents=[epel_tip, rawhide_tip],
+        )
+
+        res = processor.run(
+            visitors=[processor.release_number_visitor, processor.changelog_visitor],
+        )
+
+        assert res["epoch-version"] == "1.1"
+        assert res["release-complete"] == "3"
+        assert (
+            res["changelog"][0]["data"]
+            == """* Jane Doe <jane.doe@example.com> - 1.1-1
+- Update to version 1.1
+
+* Jane Doe <jane.doe@example.com> - 1.0-1
+- Update to version 1.0
+
+* Jane Doe <jane.doe@example.com> - 0.9-1
+- Update to version 0.9
+
+* Jane Doe <jane.doe@example.com> - 0.8-3
+- Hello
+
+* Jane Doe <jane.doe@example.com> - 0.8-2
+- Do the thing
+
+* Jane Doe <jane.doe@example.com> - 0.8-1
+- Import the package
+"""
+        )

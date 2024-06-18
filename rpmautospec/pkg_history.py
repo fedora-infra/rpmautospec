@@ -443,6 +443,8 @@ class PkgHistoryProcessor:
                     log.debug("\tno parent to follow")
                 previous_changelog = ()
                 for candidate in parent_results:
+                    if not candidate:
+                        continue
                     if candidate["commit-id"] == parent_to_follow.id:
                         previous_changelog = candidate.get("changelog", ())
                         skip_for_changelog = True

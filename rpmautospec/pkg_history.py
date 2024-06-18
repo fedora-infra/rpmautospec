@@ -582,6 +582,11 @@ class PkgHistoryProcessor:
                         for vindex, v in enumerate(visitors)
                     ]
 
+                    log.debug(
+                        "children_visitors_info[]['child_must_continue']: %s",
+                        [info["child_must_continue"] for info in children_visitors_info],
+                    )
+
                     keep_processing = keep_processing and any(  # pragma: no branch
                         info["child_must_continue"] for info in children_visitors_info
                     )
@@ -589,6 +594,7 @@ class PkgHistoryProcessor:
                 snippet.append(commit)
 
                 if keep_processing:
+                    log.debug("Keep processing: commit %s", commit.id)
                     # Create visitor coroutines for the commit from the functions passed into this
                     # method. Pass the ordered list of "is there a child whose coroutine of the same
                     # visitor wants to continue" into it.
@@ -603,6 +609,7 @@ class PkgHistoryProcessor:
                     # Only traverse this commit. Traversal is important if parent commits are the
                     # root of branches that affect the results (computed release number and
                     # generated changelog).
+                    log.debug("Only traversing: commit %s", commit.id)
                     commit_coroutines[commit] = coroutines = None
                     commit_coroutines_info[commit] = [
                         {"child_must_continue": False} for v in visitors
@@ -657,7 +664,7 @@ class PkgHistoryProcessor:
                 if commit_coroutines[commit] is None:
                     # Only traverse, but don't process this commit. Ancestral commits might have to
                     # be taken into account again, so we can’t simply stop here.
-                    log.debug("\tonly traverse")
+                    log.debug("\tonly traverse: %s", commit.id)
                     continue
 
                 for p in commit.parents:

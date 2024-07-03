@@ -46,7 +46,7 @@ def test_handle_expected_exceptions(exception_cls):
             if exception_cls:
                 raise exception_cls("BOO")
 
-    if exception_cls != OSError:
+    if exception_cls is not OSError:
         sys_exit.assert_not_called()
     else:
         sys_exit.assert_called_once_with("error: BOO")

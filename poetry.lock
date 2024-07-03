@@ -554,13 +554,13 @@ testing = ["tox"]
 
 [[package]]
 name = "rpmautospec-core"
-version = "0.1.4"
+version = "0.1.5"
 description = "Core functionality for rpmautospec"
 optional = false
-python-versions = ">=3.6,<4.0"
+python-versions = "<4.0,>=3.6"
 files = [
-    {file = "rpmautospec_core-0.1.4-py3-none-any.whl", hash = "sha256:6688a50bfa3152eb5bae09f942376c522fc5c3c3947db82d0db9bd1e62575636"},
-    {file = "rpmautospec_core-0.1.4.tar.gz", hash = "sha256:8f632722e75459241b77e24f4d631cafb969fe7e885e815fe0ab7d96a44f2783"},
+    {file = "rpmautospec_core-0.1.5-py3-none-any.whl", hash = "sha256:778c48624fc110b75ef1c14982f33f25435687b9e1c75daf3d697eef643f8363"},
+    {file = "rpmautospec_core-0.1.5.tar.gz", hash = "sha256:c0acf19ed013355d02c1e28220ad9d6f9088f7f61b4a29d16d5364298bc6e6f3"},
 ]
 
 [[package]]

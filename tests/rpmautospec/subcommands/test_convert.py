@@ -193,55 +193,47 @@ def test_main_invalid_args(specfile):
 
 
 @mock.patch("rpmautospec.subcommands.convert.PkgConverter")
-def test_main_valid_args(PkgConverter, specfile):
+@pytest.mark.parametrize(
+    "with_release, with_changelog",
+    ((True, True), (True, False), (False, True)),
+    ids=(
+        "with-release-with-changelog",
+        "with-release-without-changelog",
+        "without-release-without-changelog",
+    ),
+)
+@pytest.mark.parametrize("with_commit", (True, False), ids=("with-commit", "without-commit"))
+def test_main_valid_args(PkgConverter, with_release, with_changelog, with_commit, specfile):
     PkgConverter.return_value = pkg_converter = mock.MagicMock()
 
-    # No Release change.
     args = SimpleNamespace(
         spec_or_path=specfile,
         message="message",
-        no_commit=False,
-        no_changelog=False,
-        no_release=True,
+        no_commit=not with_commit,
+        no_changelog=not with_changelog,
+        no_release=not with_release,
     )
+
     convert.main(args)
+
     pkg_converter.load.assert_called_once()
-    pkg_converter.convert_to_autochangelog.assert_called_once()
-    pkg_converter.convert_to_autorelease.assert_not_called()
+
+    if with_changelog:
+        pkg_converter.convert_to_autochangelog.assert_called_once_with()
+    else:
+        pkg_converter.convert_to_autochangelog.assert_not_called()
+
+    if with_release:
+        pkg_converter.convert_to_autorelease.assert_called_once_with()
+    else:
+        pkg_converter.convert_to_autorelease.assert_not_called()
+
     pkg_converter.save.assert_called()
-    pkg_converter.commit.assert_called_once_with("message")
 
-    # No %changelog change.
-    pkg_converter.reset_mock()
-    args = SimpleNamespace(
-        spec_or_path=specfile,
-        message="message",
-        no_commit=False,
-        no_changelog=True,
-        no_release=False,
-    )
-    convert.main(args)
-    pkg_converter.load.assert_called_once()
-    pkg_converter.convert_to_autochangelog.assert_not_called()
-    pkg_converter.convert_to_autorelease.assert_called_once()
-    pkg_converter.save.assert_called_once()
-    pkg_converter.commit.assert_called_once_with("message")
-
-    # No git commit.
-    pkg_converter.reset_mock()
-    args = SimpleNamespace(
-        spec_or_path=specfile,
-        message="message",
-        no_commit=True,
-        no_changelog=False,
-        no_release=False,
-    )
-    convert.main(args)
-    pkg_converter.load.assert_called_once()
-    pkg_converter.convert_to_autochangelog.assert_called_once()
-    pkg_converter.convert_to_autorelease.assert_called_once()
-    pkg_converter.save.assert_called_once()
-    pkg_converter.commit.assert_not_called()
+    if with_commit:
+        pkg_converter.commit.assert_called_once_with("message")
+    else:
+        pkg_converter.commit.assert_not_called()
 
 
 @pytest.mark.parametrize(

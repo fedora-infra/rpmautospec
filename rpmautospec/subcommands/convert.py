@@ -176,13 +176,18 @@ class PkgConverter:
         log.debug("Split %d lines to 'changelog' file", len(self.changelog_lines))
         self.converted_changelog = True
 
-    def commit(self, message: Optional[str] = None):
+    def commit(self, message: Optional[str] = None, signoff: bool = False):
         if self.repo is None:
             log.debug("Unable to open repository at '%s'", self.path)
             return
 
         if message is None:
             message = self.describe_changes(for_git=True) + "\n\n[skip changelog]"
+
+        signature = self.repo.default_signature
+
+        if signoff:
+            message += f"\n\nSigned-off-by: {signature.name} <{signature.email}>"
 
         index = self.repo.index
         index.add(self.specfile.relative_to(self.path))
@@ -192,7 +197,6 @@ class PkgConverter:
         tree = index.write_tree()
 
         parent, ref = self.repo.resolve_refish(refish=self.repo.head.name)
-        signature = self.repo.default_signature
         log.debug(
             "Committing tree %s with author '%s <%s>' on branch '%s'",
             tree,
@@ -250,6 +254,13 @@ def register_subcommand(subparsers):
         help="Don't convert the Release field",
     )
 
+    convert_parser.add_argument(
+        "--signoff",
+        "-s",
+        action="store_true",
+        help="Add Signed-off-by: line to commit log",
+    )
+
     return subcmd_name
 
 
@@ -269,7 +280,7 @@ def main(args):
         pkg.convert_to_autorelease()
     pkg.save()
     if not args.no_commit:
-        pkg.commit(args.message)
+        pkg.commit(message=args.message, signoff=args.signoff)
 
     # print final report so the user knows what happened
     log.info(pkg.describe_changes(for_git=False))

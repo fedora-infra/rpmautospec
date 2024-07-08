@@ -130,25 +130,29 @@ class TestPkgConverter:
         ),
         indirect=True,
     )
+    @pytest.mark.parametrize("signoff", (False, True), ids=("signoff", "no-signoff"))
     @pytest.mark.parametrize("with_message", (False, True), ids=("without-message", "with-message"))
-    def test_commit(self, with_message, release, changelog, specfile, repo, caplog):
+    def test_commit(self, with_message, signoff, release, changelog, specfile, repo, caplog):
         converter = convert.PkgConverter(specfile)
         converter.load()
         converter.convert_to_autorelease()
         converter.convert_to_autochangelog()
         converter.save()
 
-        message = "The message" if with_message else None
-        converter.commit(message=message)
+        if with_message:
+            expected_message = message = "The message"
+        else:
+            message = None
+            expected_message = "Convert to %autorelease and %autochangelog\n\n[skip changelog]"
+
+        if signoff:
+            expected_message += "\n\nSigned-off-by: Jane Doe <jane.doe@example.com>"
+
+        converter.commit(message=message, signoff=signoff)
 
         head_commit = repo[repo.head.target]
 
-        if message:
-            assert head_commit.message == message
-        else:
-            assert head_commit.message == (
-                "Convert to %autorelease and %autochangelog\n\n[skip changelog]"
-            )
+        assert head_commit.message == expected_message
 
 
 def test_register_subcommand():
@@ -176,7 +180,12 @@ def test_register_subcommand():
 @mock.patch("rpmautospec.subcommands.convert.PkgConverter")
 def test_main_invalid_args(specfile):
     args = SimpleNamespace(
-        spec_or_path=specfile, message="", no_commit=False, no_changelog=False, no_release=False
+        spec_or_path=specfile,
+        message="",
+        signoff=None,
+        no_commit=False,
+        no_changelog=False,
+        no_release=False,
     )
     with pytest.raises(ValueError, match="Commit message cannot be empty"):
         convert.main(args)
@@ -184,6 +193,7 @@ def test_main_invalid_args(specfile):
     args = SimpleNamespace(
         spec_or_path=specfile,
         message="message",
+        signoff=None,
         no_commit=False,
         no_changelog=True,
         no_release=True,
@@ -202,13 +212,20 @@ def test_main_invalid_args(specfile):
         "without-release-without-changelog",
     ),
 )
-@pytest.mark.parametrize("with_commit", (True, False), ids=("with-commit", "without-commit"))
-def test_main_valid_args(PkgConverter, with_release, with_changelog, with_commit, specfile):
+@pytest.mark.parametrize(
+    "with_commit, with_signoff",
+    ((True, False), (True, True), (False, False)),
+    ids=("with-commit-without-signoff", "with-commit-with-signoff", "without-commit"),
+)
+def test_main_valid_args(
+    PkgConverter, with_release, with_changelog, with_commit, with_signoff, specfile
+):
     PkgConverter.return_value = pkg_converter = mock.MagicMock()
 
     args = SimpleNamespace(
         spec_or_path=specfile,
         message="message",
+        signoff=with_signoff,
         no_commit=not with_commit,
         no_changelog=not with_changelog,
         no_release=not with_release,
@@ -231,7 +248,7 @@ def test_main_valid_args(PkgConverter, with_release, with_changelog, with_commit
     pkg_converter.save.assert_called()
 
     if with_commit:
-        pkg_converter.commit.assert_called_once_with("message")
+        pkg_converter.commit.assert_called_once_with(message="message", signoff=with_signoff)
     else:
         pkg_converter.commit.assert_not_called()
 

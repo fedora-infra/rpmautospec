@@ -3,12 +3,14 @@ import shutil
 import stat
 import tempfile
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
+import click
 from rpmautospec_core import check_specfile_features
 
 from ..exc import SpecParseFailure
 from ..pkg_history import PkgHistoryProcessor
+from ..util import handle_expected_exceptions
 from ..version import __version__
 
 log = logging.getLogger(__name__)
@@ -27,28 +29,7 @@ AUTORELEASE_TEMPLATE = """
 }}%{{?-e:.%{{-e*}}}}%{{?-s:.%{{-s*}}}}%{{!?-n:%{{?dist}}}}"""  # noqa: E501
 
 
-def register_subcommand(subparsers):
-    subcmd_name = "process-distgit"
-
-    process_distgit_parser = subparsers.add_parser(
-        subcmd_name,
-        help="Modify the contents of the specfile according to the repo",
-    )
-
-    process_distgit_parser.add_argument(
-        "spec_or_path",
-        help="Path to package worktree or the spec file within",
-    )
-
-    process_distgit_parser.add_argument(
-        "target",
-        help="Path where to write processed spec file",
-    )
-
-    return subcmd_name
-
-
-def process_distgit(
+def do_process_distgit(
     spec_or_path: Union[Path, str],
     target: Optional[Union[Path, str]] = None,
     *,
@@ -162,9 +143,13 @@ def process_distgit(
         target.chmod(specfile_mode)
 
 
-def main(args):
-    """Main method."""
-    spec_or_path = Path(args.spec_or_path)
-    process_distgit(
-        spec_or_path, args.target, error_on_unparseable_spec=args.error_on_unparseable_spec
+@click.command()
+@click.argument("spec_or_path", type=click.Path())
+@click.argument("target", type=click.Path())
+@click.pass_obj
+@handle_expected_exceptions
+def process_distgit(obj: dict[str, Any], spec_or_path: Path, target: Path) -> None:
+    """Work repository history and commit logs into a spec file"""
+    do_process_distgit(
+        spec_or_path, target, error_on_unparseable_spec=obj["error_on_unparseable_spec"]
     )

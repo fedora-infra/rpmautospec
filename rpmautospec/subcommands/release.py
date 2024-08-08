@@ -1,48 +1,14 @@
 from pathlib import Path
-from typing import Union
+from typing import Any, Union
+
+import click
 
 from ..exc import SpecParseFailure
 from ..pkg_history import PkgHistoryProcessor
+from ..util import handle_expected_exceptions
 
 
-def register_subcommand(subparsers):
-    subcmd_name = "calculate-release"
-
-    calc_release_parser = subparsers.add_parser(
-        subcmd_name,
-        help="Calculate the next release tag for a package build",
-    )
-
-    calc_release_parser.add_argument(
-        "spec_or_path",
-        default=".",
-        nargs="?",
-        help="Path to package worktree or the spec file within",
-    )
-
-    complete_release_group = calc_release_parser.add_mutually_exclusive_group()
-
-    complete_release_group.add_argument(
-        "-c",
-        "--complete-release",
-        action="store_true",
-        default=True,
-        help="Print the complete release with flags (without dist tag)",
-    )
-
-    complete_release_group.add_argument(
-        "-n",
-        "--number-only",
-        action="store_false",
-        dest="complete_release",
-        default=False,
-        help="Print only the calculated release number",
-    )
-
-    return subcmd_name
-
-
-def calculate_release(
+def do_calculate_release(
     spec_or_path: Union[str, Path],
     *,
     complete_release: bool = True,
@@ -68,7 +34,7 @@ def calculate_release(
     return result["release-complete" if complete_release else "release-number"]
 
 
-def calculate_release_number(
+def do_calculate_release_number(
     spec_or_path: Union[str, Path],
     *,
     error_on_unparseable_spec: bool = True,
@@ -83,16 +49,28 @@ def calculate_release_number(
         the current spec file should raise an exception.
     :return: the release number
     """
-    return calculate_release(
+    return do_calculate_release(
         spec_or_path, complete_release=False, error_on_unparseable_spec=error_on_unparseable_spec
     )
 
 
-def main(args):
-    """Main method."""
-    release = calculate_release(
-        args.spec_or_path,
-        complete_release=args.complete_release,
-        error_on_unparseable_spec=args.error_on_unparseable_spec,
+@click.command()
+@click.option(
+    "--complete-release/--number-only",
+    "-c/-n",
+    default=True,
+    help="Print the complete release with flags (without dist tag) or only the calculated release"
+    + " number",
+    show_default=True,
+)
+@click.argument("spec_or_path", type=click.Path(), default=".")
+@click.pass_obj
+@handle_expected_exceptions
+def calculate_release(obj: dict[str, Any], complete_release: bool, spec_or_path: Path) -> None:
+    """Calculate the next release tag for a package build"""
+    release = do_calculate_release(
+        spec_or_path,
+        complete_release=complete_release,
+        error_on_unparseable_spec=obj["error_on_unparseable_spec"],
     )
     print("Calculated release number:", release)

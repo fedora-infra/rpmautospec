@@ -45,6 +45,8 @@ rpmautospec_core = "^0.1.4"
 babel = "^2.8"
 pygit2 = "^1.4.0"
 rpm = "*"
+click = "^8"
+click-plugins = "^1.1.1"
 
 [tool.poetry.group.dev.dependencies]
 pyyaml = "^5.3.1 || ^6"
@@ -59,7 +61,13 @@ black = "^24.1.0"
 ruff = "^0.2.0 || ^0.3.0 || ^0.4.0 || ^0.5.0"
 
 [tool.poetry.scripts]
-rpmautospec = "rpmautospec.cli:main"
+rpmautospec = "rpmautospec.cli:cli"
+
+[tool.poetry.plugins."rpmautospec.cli"]
+"calculate-release" = "rpmautospec.subcommands.release:calculate_release"
+"convert" = "rpmautospec.subcommands.convert:convert"
+"generate-changelog" = "rpmautospec.subcommands.changelog:generate_changelog"
+"process-distgit" = "rpmautospec.subcommands.process_distgit:process_distgit"
 
 [tool.poetry.build]
 generate-setup-file = true

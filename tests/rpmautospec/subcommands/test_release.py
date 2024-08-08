@@ -15,42 +15,8 @@ __here__ = os.path.dirname(__file__)
 class TestRelease:
     """Test the rpmautospec.subcommands.release module"""
 
-    def test_register_subcommand(self):
-        subparsers = mock.Mock()
-        calc_release_parser = subparsers.add_parser.return_value
-        complete_release_group = calc_release_parser.add_mutually_exclusive_group.return_value
-
-        subcmd_name = release.register_subcommand(subparsers)
-
-        assert subcmd_name == "calculate-release"
-        subparsers.add_parser.assert_called_once_with(subcmd_name, help=mock.ANY)
-        calc_release_parser.add_argument.assert_called_once_with(
-            "spec_or_path", default=".", nargs="?", help=mock.ANY
-        )
-        calc_release_parser.add_mutually_exclusive_group.assert_called_once_with()
-        complete_release_group.add_argument.assert_has_calls(
-            (
-                mock.call(
-                    "-c",
-                    "--complete-release",
-                    action="store_true",
-                    default=True,
-                    help=mock.ANY,
-                ),
-                mock.call(
-                    "-n",
-                    "--number-only",
-                    action="store_false",
-                    dest="complete_release",
-                    default=False,
-                    help=mock.ANY,
-                ),
-            ),
-            any_order=True,
-        )
-
-    @pytest.mark.parametrize("method_to_test", ("calculate_release", "main"))
-    def test_calculate_release(self, method_to_test, capsys):
+    @pytest.mark.parametrize("method_to_test", ("do_calculate_release", "calculate_release"))
+    def test_calculate_release(self, method_to_test, cli_runner):
         with tempfile.TemporaryDirectory() as workdir:
             with tarfile.open(
                 os.path.join(
@@ -78,20 +44,26 @@ class TestRelease:
             expected_release = "11"
 
             with mock.patch("rpm.setLogFile"):
-                if method_to_test == "calculate_release":
+                if method_to_test == "do_calculate_release":
                     assert (
-                        release.calculate_release(unpacked_repo_dir, error_on_unparseable_spec=True)
+                        release.do_calculate_release(
+                            unpacked_repo_dir, error_on_unparseable_spec=True
+                        )
                         == expected_release
                     )
                 else:
-                    args = mock.Mock()
-                    args.spec_or_path = unpacked_repo_dir
-                    release.main(args)
+                    args = [str(unpacked_repo_dir)]
+                    result = cli_runner.invoke(
+                        release.calculate_release,
+                        args,
+                        obj={"error_on_unparseable_spec": True},
+                    )
 
-                    captured = capsys.readouterr()
-                    assert f"Calculated release number: {expected_release}" in captured.out
+                    assert result.exit_code == 0
 
-    def test_calculate_release_error(self):
+                    assert f"Calculated release number: {expected_release}" in result.stdout
+
+    def test_do_calculate_release_error(self, cli_runner):
         with mock.patch.object(release, "PkgHistoryProcessor") as PkgHistoryProcessor:
             processor = PkgHistoryProcessor.return_value
             processor.run.return_value = {
@@ -100,18 +72,17 @@ class TestRelease:
             processor.specfile.name = "test.spec"
 
             with pytest.raises(SpecParseFailure) as excinfo:
-                release.calculate_release("test")
+                release.do_calculate_release("test")
 
         assert str(excinfo.value) == "Couldn’t parse spec file test.spec:\nHAHA"
 
-    def test_calculate_release_number(self):
-        with mock.patch.object(release, "calculate_release") as calculate_release:
-            calculate_release.return_value = retval_sentinel = object()
-            spec_or_path = object()
+    def test_do_calculate_release_number(self):
+        with mock.patch.object(release, "do_calculate_release") as do_calculate_release:
+            do_calculate_release.return_value = retval_sentinel = object()
 
-            result = release.calculate_release_number(spec_or_path)
+            result = release.do_calculate_release_number("some.spec")
 
             assert result is retval_sentinel
-            calculate_release.assert_called_once_with(
-                spec_or_path, complete_release=False, error_on_unparseable_spec=True
+            do_calculate_release.assert_called_once_with(
+                "some.spec", complete_release=False, error_on_unparseable_spec=True
             )

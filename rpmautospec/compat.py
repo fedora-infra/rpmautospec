@@ -1,3 +1,4 @@
+from importlib.metadata import EntryPoint, entry_points
 from io import BytesIO
 
 import pygit2
@@ -17,3 +18,14 @@ class MinimalBlobIO:
 
     def __exit__(self, exc_type, exc_value, traceback):
         pass
+
+
+def cli_plugin_entry_points() -> tuple[EntryPoint]:
+    """Find entry points for CLI plugins.
+
+    :return: Entry points implementing CLI commands
+    """
+    try:
+        return entry_points(group="rpmautospec.cli")
+    except TypeError:
+        return entry_points()["rpmautospec.cli"]

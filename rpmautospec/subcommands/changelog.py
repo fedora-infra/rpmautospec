@@ -1,27 +1,12 @@
 from pathlib import Path
 from typing import Any, Union
 
+import click
+
 from .. import pager
 from ..exc import SpecParseFailure
 from ..pkg_history import PkgHistoryProcessor
-
-
-def register_subcommand(subparsers):
-    subcmd_name = "generate-changelog"
-
-    gen_changelog_parser = subparsers.add_parser(
-        subcmd_name,
-        help="Generate changelog entries from git commit logs",
-    )
-
-    gen_changelog_parser.add_argument(
-        "spec_or_path",
-        default=".",
-        nargs="?",
-        help="Path to package worktree or the spec file within",
-    )
-
-    return subcmd_name
+from ..util import handle_expected_exceptions
 
 
 def _coerce_to_str(str_or_bytes: Union[str, bytes]) -> str:
@@ -34,10 +19,10 @@ def collate_changelog(processor_results: dict[str, Any]) -> str:
     return "\n\n".join(_coerce_to_str(entry.format()) for entry in processor_results["changelog"])
 
 
-def produce_changelog(
-    spec_or_repo: Union[Path, str], *, error_on_unparseable_spec: bool = True
+def do_generate_changelog(
+    spec_or_path: Union[Path, str], *, error_on_unparseable_spec: bool = True
 ) -> str:
-    processor = PkgHistoryProcessor(spec_or_repo)
+    processor = PkgHistoryProcessor(spec_or_path)
     result = processor.run(visitors=(processor.release_number_visitor, processor.changelog_visitor))
     error = result["verflags"].get("error")
     if error and error_on_unparseable_spec:
@@ -48,9 +33,13 @@ def produce_changelog(
     return collate_changelog(result)
 
 
-def main(args):
-    """Main method."""
-    changelog = produce_changelog(
-        args.spec_or_path, error_on_unparseable_spec=args.error_on_unparseable_spec
+@click.command()
+@click.argument("spec_or_path", type=click.Path(), default=".")
+@click.pass_obj
+@handle_expected_exceptions
+def generate_changelog(obj: dict[str, Any], spec_or_path: Path) -> None:
+    """Generate changelog entries from git commit logs"""
+    changelog = do_generate_changelog(
+        spec_or_path, error_on_unparseable_spec=obj["error_on_unparseable_spec"]
     )
-    pager.page(changelog, enabled=args.pager)
+    pager.page(changelog, enabled=obj["pager"])

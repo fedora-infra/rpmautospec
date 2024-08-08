@@ -5,7 +5,6 @@ Test the rpmautospec.subcommands.converter module
 import logging
 import re
 from shutil import SpecialFileError
-from types import SimpleNamespace
 from unittest import mock
 
 import pygit2
@@ -155,51 +154,22 @@ class TestPkgConverter:
         assert head_commit.message == expected_message
 
 
-def test_register_subcommand():
-    subparsers = mock.Mock()
-    convert_parser = subparsers.add_parser.return_value
-
-    subcmd_name = convert.register_subcommand(subparsers)
-
-    subparsers.add_parser.assert_called_once_with(subcmd_name, help=mock.ANY)
-
-    convert_parser.add_argument.assert_has_calls(
-        (
-            mock.call("spec_or_path", default=".", nargs="?", help=mock.ANY),
-            mock.call("--message", "-m", help=mock.ANY),
-            mock.call("--no-commit", "-n", action="store_true", help=mock.ANY),
-            mock.call("--no-changelog", action="store_true", help=mock.ANY),
-            mock.call("--no-release", action="store_true", help=mock.ANY),
-        ),
-        any_order=True,
-    )
-
-    assert subcmd_name == "convert"
-
-
-@mock.patch("rpmautospec.subcommands.convert.PkgConverter")
-def test_main_invalid_args(specfile):
-    args = SimpleNamespace(
-        spec_or_path=specfile,
-        message="",
-        signoff=None,
-        no_commit=False,
-        no_changelog=False,
-        no_release=False,
-    )
+@mock.patch.object(convert, "PkgConverter")
+def test_convert_empty_commit_message(PkgConverter, cli_runner, specfile):
     with pytest.raises(ValueError, match="Commit message cannot be empty"):
-        convert.main(args)
+        cli_runner.invoke(
+            convert.convert, ["--commit", "--message=", str(specfile)], catch_exceptions=False
+        )
 
-    args = SimpleNamespace(
-        spec_or_path=specfile,
-        message="message",
-        signoff=None,
-        no_commit=False,
-        no_changelog=True,
-        no_release=True,
-    )
+
+@mock.patch.object(convert, "PkgConverter")
+def test_convert_no_changes(PkgConverter, cli_runner, specfile):
     with pytest.raises(ValueError, match="All changes are disabled"):
-        convert.main(args)
+        cli_runner.invoke(
+            convert.convert,
+            ["--no-changelog", "--no-release", str(specfile)],
+            catch_exceptions=False,
+        )
 
 
 @mock.patch("rpmautospec.subcommands.convert.PkgConverter")
@@ -217,21 +187,23 @@ def test_main_invalid_args(specfile):
     ((True, False), (True, True), (False, False)),
     ids=("with-commit-without-signoff", "with-commit-with-signoff", "without-commit"),
 )
-def test_main_valid_args(
-    PkgConverter, with_release, with_changelog, with_commit, with_signoff, specfile
+def test_convert_valid_args(
+    PkgConverter, with_release, with_changelog, with_commit, with_signoff, specfile, cli_runner
 ):
     PkgConverter.return_value = pkg_converter = mock.MagicMock()
 
-    args = SimpleNamespace(
-        spec_or_path=specfile,
-        message="message",
-        signoff=with_signoff,
-        no_commit=not with_commit,
-        no_changelog=not with_changelog,
-        no_release=not with_release,
-    )
+    args = [
+        "--release" if with_release else "--no-release",
+        "--changelog" if with_changelog else "--no-changelog",
+        "--commit" if with_commit else "--no-commit",
+        "--signoff" if with_signoff else "--no-signoff",
+        "--message=message",
+        str(specfile),
+    ]
 
-    convert.main(args)
+    result = cli_runner.invoke(convert.convert, args)
+
+    assert result.exit_code == 0
 
     pkg_converter.load.assert_called_once()
 

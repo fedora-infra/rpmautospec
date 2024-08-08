@@ -4,10 +4,12 @@ from pathlib import Path
 from shutil import SpecialFileError
 from typing import Optional
 
+import click
 import pygit2
 from rpmautospec_core.main import autochangelog_re, autorelease_re, changelog_re
 
 from ..exc import SpecParseFailure
+from ..util import handle_expected_exceptions
 
 log = logging.getLogger(__name__)
 
@@ -214,73 +216,55 @@ class PkgConverter:
             log.warning("Nothing to commit")
 
 
-def register_subcommand(subparsers):
-    subcmd_name = "convert"
+@click.command()
+@click.option(
+    "--message", "-m", required=False, help="Override message to use when committing changes"
+)
+@click.option(
+    "--commit/--no-commit",
+    " /-n",
+    default=True,
+    help="Commit after making changes",
+    show_default=True,
+)
+@click.option(
+    "--changelog/--no-changelog", default=True, help="Convert the RPM changelog", show_default=True
+)
+@click.option(
+    "--release/--no-release", default=True, help="Convert the RPM release field", show_default=True
+)
+@click.option(
+    "--signoff/--no-signoff",
+    default=False,
+    help="Whether or not to add a Signed-off-by: line to the commit log",
+    show_default=True,
+)
+@click.argument("spec_or_path", type=click.Path(), default=".")
+@handle_expected_exceptions
+def convert(
+    message: Optional[str],
+    commit: bool,
+    changelog: bool,
+    release: bool,
+    signoff: bool,
+    spec_or_path: Path,
+) -> None:
+    """Convert a package repository to use rpmautospec"""
+    if commit and message == "":
+        raise ValueError("Commit message cannot be empty")
 
-    convert_parser = subparsers.add_parser(
-        subcmd_name,
-        help="Convert a package repository to use rpmautospec",
-    )
-
-    convert_parser.add_argument(
-        "spec_or_path",
-        default=".",
-        nargs="?",
-        help="Path to package worktree or spec file",
-    )
-
-    convert_parser.add_argument(
-        "--message",
-        "-m",
-        help="Override message to use when committing changes",
-    )
-
-    convert_parser.add_argument(
-        "--no-commit",
-        "-n",
-        action="store_true",
-        help="Don't commit after making changes",
-    )
-
-    convert_parser.add_argument(
-        "--no-changelog",
-        action="store_true",
-        help="Don't convert the %%changelog",
-    )
-
-    convert_parser.add_argument(
-        "--no-release",
-        action="store_true",
-        help="Don't convert the Release field",
-    )
-
-    convert_parser.add_argument(
-        "--signoff",
-        "-s",
-        action="store_true",
-        help="Add Signed-off-by: line to commit log",
-    )
-
-    return subcmd_name
-
-
-def main(args):
-    """Main method."""
-    if not args.no_commit:
-        if args.message == "":
-            raise ValueError("Commit message cannot be empty")
-    if args.no_changelog and args.no_release:
+    if not changelog and not release:
         raise ValueError("All changes are disabled")
 
-    pkg = PkgConverter(Path(args.spec_or_path))
+    pkg = PkgConverter(spec_or_path)
     pkg.load()
-    if not args.no_changelog:
+    if changelog:
         pkg.convert_to_autochangelog()
-    if not args.no_release:
+    if release:
         pkg.convert_to_autorelease()
     pkg.save()
-    if not args.no_commit:
-        pkg.commit(message=args.message, signoff=args.signoff)
+    if commit:
+        pkg.commit(message=message, signoff=signoff)
 
     # print final report so the user knows what happened
     log.info(pkg.describe_changes(for_git=False))

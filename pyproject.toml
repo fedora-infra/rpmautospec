@@ -75,6 +75,9 @@ target-version = "py39"
 select = ["E", "F", "W", "I"]
 allowed-confusables = ["’"]
 
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]
+
 [tool.pytest.ini_options]
 addopts = "--cov --cov-config .coveragerc --cov-report term --cov-report xml --cov-report html"
 tmp_path_retention_policy = "failed"

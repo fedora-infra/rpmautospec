@@ -2,7 +2,7 @@ import logging
 import re
 from pathlib import Path
 from shutil import SpecialFileError
-from typing import Optional
+from typing import Optional, Union
 
 import click
 import pygit2
@@ -29,7 +29,10 @@ class FileUntrackedError(ConversionError):
 
 
 class PkgConverter:
-    def __init__(self, spec_or_path: Path):
+    def __init__(self, spec_or_path: Union[Path, str]):
+        if isinstance(spec_or_path, str):
+            spec_or_path = Path(spec_or_path)
+
         spec_or_path = spec_or_path.absolute()
 
         if not spec_or_path.exists():

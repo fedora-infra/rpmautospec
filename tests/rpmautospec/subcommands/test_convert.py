@@ -4,6 +4,7 @@ Test the rpmautospec.subcommands.converter module
 
 import logging
 import re
+from pathlib import Path
 from shutil import SpecialFileError
 from unittest import mock
 
@@ -65,10 +66,11 @@ class TestPkgConverter:
         with pytest.raises(convert.FileModifiedError, match="is dirty"):
             convert.PkgConverter(specfile)
 
-    def test_init_new_file(self, specfile, repo):
+    @pytest.mark.parametrize("param_type", (Path, str))
+    def test_init_new_file(self, param_type, specfile, repo):
         newfile = specfile.parent / "newfile"
         newfile.touch()
-        convert.PkgConverter(specfile)
+        convert.PkgConverter(param_type(specfile))
 
     def test_init_spec_file_untracked(self, specfile, repo):
         untracked_spec = specfile.parent / "untracked.spec"

@@ -2,6 +2,9 @@
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
+[project]
+requires-python = ">=3.9"
+
 [tool.poetry]
 name = "rpmautospec"
 version = "0.7.1"
@@ -57,7 +60,6 @@ pytest-xdist = [
     { version = "^2.5.0 || ^3", python = "^3.12" }
 ]
 coverage = "^7.2.0"
-black = "^24.1.0"
 ruff = "^0.2.0 || ^0.3.0 || ^0.4.0 || ^0.5.0 || ^0.6.0"
 
 [tool.poetry.scripts]
@@ -71,9 +73,6 @@ rpmautospec = "rpmautospec.cli:cli"
 
 [tool.poetry.build]
 generate-setup-file = true
-
-[tool.black]
-line_length = 100
 
 [tool.ruff]
 line-length = 100
@@ -89,3 +88,6 @@ allowed-confusables = ["’"]
 [tool.pytest.ini_options]
 addopts = "--cov --cov-config .coveragerc --cov-report term --cov-report xml --cov-report html"
 tmp_path_retention_policy = "failed"
+
+[tool.black]
+line_length = 100

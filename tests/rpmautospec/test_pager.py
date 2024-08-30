@@ -15,9 +15,10 @@ def test_page(testcase):
     else:
         os.environ.pop("RPMAUTOSPEC_LESS", None)
 
-    with mock.patch.object(pager.pydoc, "pager") as pydoc_pager, mock.patch.object(
-        pager, "print"
-    ) as print:
+    with (
+        mock.patch.object(pager.pydoc, "pager") as pydoc_pager,
+        mock.patch.object(pager, "print") as print,
+    ):
         pager.page("Hello!", enabled="enabled" in testcase)
 
     if "disabled" in testcase:

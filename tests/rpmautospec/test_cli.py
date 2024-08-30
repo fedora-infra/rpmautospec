@@ -12,9 +12,11 @@ def test_setup_logging(log_level_name):
     """Test the setup_logging() function."""
     log_level = getattr(logging, log_level_name)
 
-    with mock.patch.object(cli.logging, "StreamHandler") as StreamHandler, mock.patch.object(
-        cli.logging, "lastResort"
-    ) as lastResort, mock.patch.object(cli.logging, "basicConfig") as basicConfig:
+    with (
+        mock.patch.object(cli.logging, "StreamHandler") as StreamHandler,
+        mock.patch.object(cli.logging, "lastResort") as lastResort,
+        mock.patch.object(cli.logging, "basicConfig") as basicConfig,
+    ):
         info_handler = StreamHandler.return_value
         cli.setup_logging(log_level)
 

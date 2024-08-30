@@ -119,9 +119,10 @@ def fuzz_spec_file(
 ):
     """Fuzz a spec file in ways which (often) shouldn't change the outcome"""
     new_spec_file_path = spec_file_path.with_name(spec_file_path.name + ".new")
-    with spec_file_path.open("r", encoding="utf-8") as orig, new_spec_file_path.open(
-        "w", encoding="utf-8"
-    ) as new:
+    with (
+        spec_file_path.open("r", encoding="utf-8") as orig,
+        new_spec_file_path.open("w", encoding="utf-8") as new,
+    ):
         if is_processed:
             autorelease_blurb = process_distgit.AUTORELEASE_TEMPLATE.format(autorelease_number=15)
             print(
@@ -353,9 +354,10 @@ def test_do_process_distgit(
         / "dummy-test-package-gloster.spec.expected"
     )
 
-    with tempfile.NamedTemporaryFile(mode="w+", encoding="utf8") as tmpspec, open(
-        expected_spec_file_path, "r", encoding="utf-8"
-    ) as expspec:
+    with (
+        tempfile.NamedTemporaryFile(mode="w+", encoding="utf8") as tmpspec,
+        open(expected_spec_file_path, "r", encoding="utf-8") as expspec,
+    ):
         # Copy expected spec file and potentially bump release number
         relnum_seen = None
         relnumdef_re = re.compile(

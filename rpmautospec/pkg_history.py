@@ -139,9 +139,12 @@ class PkgHistoryProcessor:
             rpm.addMacro("_sourcedir", f"{path}")
             rpm.addMacro("_builddir", f"{path}")
 
-            with specfile.open(mode="rb") as unabridged, NamedTemporaryFile(
-                mode="wb", prefix=f"rpmautospec-abridged-{name}-", suffix=".spec"
-            ) as abridged:
+            with (
+                specfile.open(mode="rb") as unabridged,
+                NamedTemporaryFile(
+                    mode="wb", prefix=f"rpmautospec-abridged-{name}-", suffix=".spec"
+                ) as abridged,
+            ):
                 # Attempt to parse a shortened version of the spec file first, to speed up
                 # processing in certain cases. This includes all lines before `%prep`, i.e. in most
                 # cases everything which is needed to make RPM parsing succeed and contain the info

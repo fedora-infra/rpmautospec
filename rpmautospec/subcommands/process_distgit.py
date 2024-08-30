@@ -85,11 +85,12 @@ def do_process_distgit(
 
     autorelease_number = result["release-number"]
 
-    with processor.specfile.open(
-        "r", encoding="utf-8", errors="surrogateescape"
-    ) as specfile, tempfile.NamedTemporaryFile(
-        "w", encoding="utf-8", errors="surrogateescape"
-    ) as tmp_specfile:
+    with (
+        processor.specfile.open("r", encoding="utf-8", errors="surrogateescape") as specfile,
+        tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", errors="surrogateescape"
+        ) as tmp_specfile,
+    ):
         # Process the spec file into a temporary file...
         used_features = []
 

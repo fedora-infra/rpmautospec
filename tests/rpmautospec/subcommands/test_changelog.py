@@ -69,9 +69,10 @@ def test_do_generate_changelog_error():
 
 
 def test_generate_changelog(cli_runner):
-    with mock.patch.object(
-        changelog, "do_generate_changelog"
-    ) as do_generate_changelog, mock.patch.object(changelog, "pager") as pager:
+    with (
+        mock.patch.object(changelog, "do_generate_changelog") as do_generate_changelog,
+        mock.patch.object(changelog, "pager") as pager,
+    ):
         generated_changelog = do_generate_changelog.return_value
 
         pager_sentinel = object()

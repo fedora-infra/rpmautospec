@@ -274,11 +274,14 @@ class TestPkgHistoryProcessor:
                 )
             ]
 
-        with mock.patch.object(
-            processor, "_get_rpmverflags", wraps=processor._get_rpmverflags
-        ) as _get_rpmverflags, mock.patch.object(
-            pkg_history, "_checkout_tree_files", side_effect=pkg_history._checkout_tree_files
-        ) as _checkout_tree_files:
+        with (
+            mock.patch.object(
+                processor, "_get_rpmverflags", wraps=processor._get_rpmverflags
+            ) as _get_rpmverflags,
+            mock.patch.object(
+                pkg_history, "_checkout_tree_files", side_effect=pkg_history._checkout_tree_files
+            ) as _checkout_tree_files,
+        ):
             side_effect = [mock.DEFAULT]
             if needs_full_repo:
                 side_effect.insert(0, {"error": "specfile-parse-error"})

@@ -7,7 +7,7 @@ requires-python = ">=3.9"
 
 [tool.poetry]
 name = "rpmautospec"
-version = "0.7.1"
+version = "0.7.2"
 description = "A package and CLI tool to generate RPM release fields and changelogs."
 authors = [
     "Pierre-Yves Chibon <pingou@pingoured.fr>",

@@ -208,4 +208,4 @@ def repo(repopath, specfile, specfile_content, _repo_config):
 
 @pytest.fixture
 def cli_runner() -> CliRunner:
-    return CliRunner()
+    return CliRunner(mix_stderr=False)

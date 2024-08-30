@@ -254,17 +254,30 @@ def convert(
 ) -> None:
     """Convert a package repository to use rpmautospec"""
     if commit and message == "":
-        raise ValueError("Commit message cannot be empty")
+        raise click.UsageError("Commit message cannot be empty")
 
     if not changelog and not release:
-        raise ValueError("All changes are disabled")
+        raise click.UsageError("All changes are disabled")
 
-    pkg = PkgConverter(spec_or_path)
+    try:
+        pkg = PkgConverter(spec_or_path)
+    except (
+        ValueError,
+        FileNotFoundError,
+        SpecialFileError,
+        FileUntrackedError,
+        FileModifiedError,
+    ) as exc:
+        raise click.ClickException(*exc.args) from exc
+
     pkg.load()
-    if changelog:
-        pkg.convert_to_autochangelog()
-    if release:
-        pkg.convert_to_autorelease()
+    try:
+        if changelog:
+            pkg.convert_to_autochangelog()
+        if release:
+            pkg.convert_to_autorelease()
+    except SpecParseFailure as exc:
+        raise click.ClickException(*exc.args) from exc
     pkg.save()
     if commit:
         pkg.commit(message=message, signoff=signoff)

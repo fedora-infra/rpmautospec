@@ -158,20 +158,22 @@ class TestPkgConverter:
 
 @mock.patch.object(convert, "PkgConverter")
 def test_convert_empty_commit_message(PkgConverter, cli_runner, specfile):
-    with pytest.raises(ValueError, match="Commit message cannot be empty"):
-        cli_runner.invoke(
-            convert.convert, ["--commit", "--message=", str(specfile)], catch_exceptions=False
-        )
+    # with pytest.raises(click.UsageError, match="Commit message cannot be empty"):
+    result = cli_runner.invoke(
+        convert.convert, ["--commit", "--message=", str(specfile)], catch_exceptions=False
+    )
+    assert result.exit_code != 0
+    assert "Error: Commit message cannot be empty" in result.stderr
 
 
 @mock.patch.object(convert, "PkgConverter")
 def test_convert_no_changes(PkgConverter, cli_runner, specfile):
-    with pytest.raises(ValueError, match="All changes are disabled"):
-        cli_runner.invoke(
-            convert.convert,
-            ["--no-changelog", "--no-release", str(specfile)],
-            catch_exceptions=False,
-        )
+    # with pytest.raises(ValueError, match="All changes are disabled"):
+    result = cli_runner.invoke(
+        convert.convert, ["--no-changelog", "--no-release", str(specfile)], catch_exceptions=False
+    )
+    assert result.exit_code != 0
+    assert "Error: All changes are disabled" in result.stderr
 
 
 @mock.patch("rpmautospec.subcommands.convert.PkgConverter")
@@ -389,3 +391,28 @@ def test_commit(specfile, release, changelog, repo):
     assert head.message == expected_message
     assert specfile.name in fileschanged
     assert ("changelog" in fileschanged) == changelog_should_change
+
+
+@pytest.mark.parametrize(
+    "method, exception",
+    (
+        ("__init__", ValueError),
+        ("__init__", FileNotFoundError),
+        ("__init__", SpecialFileError),
+        ("__init__", convert.FileUntrackedError),
+        ("__init__", convert.FileModifiedError),
+        ("convert_to_autorelease", SpecParseFailure),
+        ("convert_to_autochangelog", SpecParseFailure),
+    ),
+)
+@mock.patch.object(convert, "PkgConverter")
+def test_rewrap_exceptions(PkgConverter, method, exception, cli_runner, specfile):
+    if method == "__init__":
+        PkgConverter.side_effect = exception("BOOP")
+    else:
+        obj = PkgConverter.return_value
+        getattr(obj, method).side_effect = exception("BOOP")
+
+    result = cli_runner.invoke(convert.convert, str(specfile))
+    assert result.exit_code != 0
+    assert "Error: BOOP" in result.stderr

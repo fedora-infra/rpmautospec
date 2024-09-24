@@ -171,10 +171,7 @@ class PkgHistoryProcessor:
                         else:
                             error = False
                             rpmerr_out = None
-                            # Parsing this candidate spec file succeeded. In the case of the
-                            # abridged spec file, we can skip parsing the full spec file.
-                            if spec_candidate == abridged.name:
-                                break
+                            break
         finally:
             rpm.setLogFile(sys.stderr)
             rpm.reloadConfig()

@@ -194,7 +194,7 @@ class TestPkgHistoryProcessor:
         ids=("with-prep", "without-prep", "with-prep-inadequate"),
         indirect=True,
     )
-    def test__get_rpm_verflags(self, testcase, release, prep, specfile, processor, caplog):
+    def test__get_rpmverflags(self, testcase, release, prep, specfile, processor, caplog):
         with_name = "with-name" in testcase
         specfile_missing = "specfile-missing" in testcase
         specfile_broken = "specfile-broken" in testcase

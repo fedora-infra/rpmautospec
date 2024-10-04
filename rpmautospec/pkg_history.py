@@ -121,61 +121,58 @@ class PkgHistoryProcessor:
 
         python_version = str(sys.version_info[0]) + "." + str(sys.version_info[1])
 
-        # Note: These calls will alter the results of any subsequent macro expansion
-        # when the rpm Python module is used from within this very same Python instance.
-        # We could call rpm.reloadConfig() immediately after parsing the spec,
-        # but we would redefine them again and again
-        # and it wouldn't be thread/multiprocess-safe anyway.
-        # We will instead call rpm.reloadConfig() when we are finished.
-        # If another thread/process of this interpreter calls RPM Python bindings
-        # in the meantime, they might be surprised a bit, but there's not much we can do.
-        try:
-            rpm.addMacro("_invalid_encoding_terminates_build", "0")
-            # rpm.addMacro() doesn’t work for parametrized macros
-            rpm.expandMacro(f"%define {AUTORELEASE_MACRO} {autorelease_definition}")
-            rpm.addMacro("autochangelog", "%nil")
-            rpm.addMacro("__python", f"/usr/bin/python{python_version}")
-            rpm.addMacro("python_sitelib", f"/usr/lib/python{python_version}/site-packages")
-            rpm.addMacro("_sourcedir", f"{path}")
-            rpm.addMacro("_builddir", f"{path}")
+        with (
+            specfile.open(mode="rb") as unabridged,
+            NamedTemporaryFile(
+                mode="wb", prefix=f"rpmautospec-abridged-{name}-", suffix=".spec"
+            ) as abridged,
+        ):
+            # Attempt to parse a shortened version of the spec file first, to speed up
+            # processing in certain cases. This includes all lines before `%prep`, i.e. in most
+            # cases everything which is needed to make RPM parsing succeed and contain the info
+            # we want to extract.
+            for line in unabridged:
+                if line.strip() == b"%prep":
+                    break
+                abridged.write(line)
+            abridged.flush()
 
-            with (
-                specfile.open(mode="rb") as unabridged,
-                NamedTemporaryFile(
-                    mode="wb", prefix=f"rpmautospec-abridged-{name}-", suffix=".spec"
-                ) as abridged,
-            ):
-                # Attempt to parse a shortened version of the spec file first, to speed up
-                # processing in certain cases. This includes all lines before `%prep`, i.e. in most
-                # cases everything which is needed to make RPM parsing succeed and contain the info
-                # we want to extract.
-                for line in unabridged:
-                    if line.strip() == b"%prep":
-                        break
-                    abridged.write(line)
-                abridged.flush()
-
-                for spec_candidate in (abridged.name, str(specfile)):
-                    with tempfile.NamedTemporaryFile(
-                        mode="w", prefix="rpmautospec-rpmerr-"
-                    ) as rpmerr:
+            for spec_candidate in (abridged.name, str(specfile)):
+                with tempfile.NamedTemporaryFile(mode="w", prefix="rpmautospec-rpmerr-") as rpmerr:
+                    try:
+                        # Note: These calls will alter the results of any subsequent macro expansion
+                        # when the rpm Python module is used from
+                        # within this very same Python instance.
+                        # We call rpm.reloadConfig() immediately after parsing the spec,
+                        # but it is likely not thread/multiprocess-safe.
+                        # If another thread/process of this interpreter calls RPM Python bindings
+                        # in the meantime, they might be surprised a bit,
+                        # but there's not much we can do.
                         rpm.setLogFile(rpmerr)
-                        try:
-                            spec = rpm.spec(spec_candidate)
-                            output = spec.sourceHeader.format(query)
-                        except Exception:
-                            error = True
-                            if spec_candidate == str(specfile):
-                                with open(rpmerr.name, "r", errors="replace") as rpmerr_read:
-                                    rpmerr_out = rpmerr_read.read()
-                        else:
-                            error = False
-                            rpmerr_out = None
-                            break
-        finally:
-            rpm.setLogFile(sys.stderr)
-            rpm.reloadConfig()
-
+                        rpm.addMacro("_invalid_encoding_terminates_build", "0")
+                        # rpm.addMacro() doesn’t work for parametrized macros
+                        rpm.expandMacro(f"%define {AUTORELEASE_MACRO} {autorelease_definition}")
+                        rpm.addMacro("autochangelog", "%nil")
+                        rpm.addMacro("__python", f"/usr/bin/python{python_version}")
+                        rpm.addMacro(
+                            "python_sitelib", f"/usr/lib/python{python_version}/site-packages"
+                        )
+                        rpm.addMacro("_sourcedir", f"{path}")
+                        rpm.addMacro("_builddir", f"{path}")
+                        spec = rpm.spec(spec_candidate)
+                        output = spec.sourceHeader.format(query)
+                    except Exception:
+                        error = True
+                        if spec_candidate == str(specfile):
+                            with open(rpmerr.name, "r", errors="replace") as rpmerr_read:
+                                rpmerr_out = rpmerr_read.read()
+                    else:
+                        error = False
+                        rpmerr_out = None
+                        break
+                    finally:
+                        rpm.setLogFile(sys.stderr)
+                        rpm.reloadConfig()
         if error:
             if log_error:
                 log.debug("rpm query for %r failed: %s", query, rpmerr_out)

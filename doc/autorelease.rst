@@ -108,6 +108,8 @@ those added fields:
 * ``-e <extraver>``: Allows specifying the ``extraver`` portion of the release.
 * ``-s <snapinfo>``: Allows specifying the ``snapinfo`` portion of the release.
 
+Moreover, ``-b <base>`` allows overriding the default base release number (the default is 1).
+
 In the modern versioning, those fields are embedded in the package `Version` instead.
 
 .. _prerelease example:

@@ -158,7 +158,6 @@ class TestPkgConverter:
 
 @mock.patch.object(convert, "PkgConverter")
 def test_convert_empty_commit_message(PkgConverter, cli_runner, specfile):
-    # with pytest.raises(click.UsageError, match="Commit message cannot be empty"):
     result = cli_runner.invoke(
         convert.convert, ["--commit", "--message=", str(specfile)], catch_exceptions=False
     )
@@ -168,7 +167,6 @@ def test_convert_empty_commit_message(PkgConverter, cli_runner, specfile):
 
 @mock.patch.object(convert, "PkgConverter")
 def test_convert_no_changes(PkgConverter, cli_runner, specfile):
-    # with pytest.raises(ValueError, match="All changes are disabled"):
     result = cli_runner.invoke(
         convert.convert, ["--no-changelog", "--no-release", str(specfile)], catch_exceptions=False
     )

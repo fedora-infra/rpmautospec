@@ -68,9 +68,12 @@ def do_calculate_release_number(
 @handle_expected_exceptions
 def calculate_release(obj: dict[str, Any], complete_release: bool, spec_or_path: Path) -> None:
     """Calculate the next release tag for a package build"""
-    release = do_calculate_release(
-        spec_or_path,
-        complete_release=complete_release,
-        error_on_unparseable_spec=obj["error_on_unparseable_spec"],
-    )
+    try:
+        release = do_calculate_release(
+            spec_or_path,
+            complete_release=complete_release,
+            error_on_unparseable_spec=obj["error_on_unparseable_spec"],
+        )
+    except SpecParseFailure as exc:
+        raise click.ClickException(*exc.args) from exc
     print("Calculated release number:", release)

@@ -63,6 +63,23 @@ class TestRelease:
 
                     assert f"Calculated release number: {expected_release}" in result.stdout
 
+    def test_calculate_release_specfile_parse_failure(self, cli_runner):
+        error_on_unparseable_spec_sentinel = object()
+        ctx_obj = {"error_on_unparseable_spec": error_on_unparseable_spec_sentinel}
+
+        with mock.patch.object(release, "do_calculate_release") as do_calculate_release:
+            do_calculate_release.side_effect = release.SpecParseFailure("BOO")
+            result = cli_runner.invoke(release.calculate_release, ["some_path"], obj=ctx_obj)
+
+        do_calculate_release.assert_called_once_with(
+            "some_path",
+            complete_release=True,
+            error_on_unparseable_spec=error_on_unparseable_spec_sentinel,
+        )
+
+        assert result.exit_code != 0
+        assert "Error: BOO" in result.stderr
+
     def test_do_calculate_release_error(self, cli_runner):
         with mock.patch.object(release, "PkgHistoryProcessor") as PkgHistoryProcessor:
             processor = PkgHistoryProcessor.return_value

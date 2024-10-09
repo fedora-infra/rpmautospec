@@ -68,13 +68,12 @@ def test_do_generate_changelog_error():
     assert str(excinfo.value) == "Couldn’t parse spec file test.spec:\nBOOP"
 
 
-def test_generate_changelog(cli_runner):
+@pytest.mark.parametrize("testcase", ("success", "specfile-parse-failure"))
+def test_generate_changelog(testcase, cli_runner):
     with (
         mock.patch.object(changelog, "do_generate_changelog") as do_generate_changelog,
         mock.patch.object(changelog, "pager") as pager,
     ):
-        generated_changelog = do_generate_changelog.return_value
-
         pager_sentinel = object()
         error_on_unparseable_spec_sentinel = object()
 
@@ -83,11 +82,23 @@ def test_generate_changelog(cli_runner):
             "error_on_unparseable_spec": error_on_unparseable_spec_sentinel,
         }
 
-        result = cli_runner.invoke(changelog.generate_changelog, ["some_path"], obj=ctx_obj)
+        if "specfile-parse-failure" in testcase:
+            do_generate_changelog.side_effect = changelog.SpecParseFailure("BOO")
 
-        assert result.exit_code == 0
+        result = cli_runner.invoke(changelog.generate_changelog, ["some_path"], obj=ctx_obj)
 
         do_generate_changelog.assert_called_once_with(
             "some_path", error_on_unparseable_spec=error_on_unparseable_spec_sentinel
         )
-        pager.page.assert_called_once_with(generated_changelog, enabled=pager_sentinel)
+
+        if "success" in testcase:
+            assert result.exit_code == 0
+
+            pager.page.assert_called_once_with(
+                do_generate_changelog.return_value, enabled=pager_sentinel
+            )
+        else:
+            assert result.exit_code != 0
+            assert "Error: BOO" in result.stderr
+
+            pager.page.assert_not_called()

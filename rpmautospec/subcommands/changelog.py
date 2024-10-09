@@ -39,7 +39,10 @@ def do_generate_changelog(
 @handle_expected_exceptions
 def generate_changelog(obj: dict[str, Any], spec_or_path: Path) -> None:
     """Generate changelog entries from git commit logs"""
-    changelog = do_generate_changelog(
-        spec_or_path, error_on_unparseable_spec=obj["error_on_unparseable_spec"]
-    )
+    try:
+        changelog = do_generate_changelog(
+            spec_or_path, error_on_unparseable_spec=obj["error_on_unparseable_spec"]
+        )
+    except SpecParseFailure as exc:
+        raise click.ClickException(*exc.args) from exc
     pager.page(changelog, enabled=obj["pager"])

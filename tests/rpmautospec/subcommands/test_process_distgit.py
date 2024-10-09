@@ -485,9 +485,15 @@ def test_do_process_distgit(
 
 
 @pytest.mark.parametrize(
-    "override_locale", (False, "C", "de_DE.UTF-8"), ids=("locale-unset", "locale-C", "locale-de")
+    "testcase", ("locale-unset", "locale-C", "locale-de", "specfile-parse-failure")
 )
-def test_process_distgit(override_locale, tmp_path, locale, cli_runner):
+def test_process_distgit(testcase, tmp_path, locale, cli_runner):
+    override_locale = False
+    if "locale-C" in testcase:
+        override_locale = "C"
+    elif "locale-de" in testcase:
+        override_locale = "de_DE.UTF-8"
+
     output_spec_file = tmp_path / "test.spec"
     unpacked_repo_dir, test_spec_file_path = gen_testrepo(tmp_path, "rawhide")
 
@@ -497,13 +503,24 @@ def test_process_distgit(override_locale, tmp_path, locale, cli_runner):
     if override_locale:
         locale.setlocale(locale.LC_ALL, override_locale)
 
-    with mock.patch.object(
-        process_distgit, "do_process_distgit", wraps=process_distgit.do_process_distgit
-    ) as do_process_distgit_fn:
-        cli_runner.invoke(process_distgit.process_distgit, args, obj=ctx_obj)
+    with (
+        mock.patch.object(
+            process_distgit, "do_process_distgit", wraps=process_distgit.do_process_distgit
+        ) as do_process_distgit_fn,
+        mock.patch("rpm.setLogFile"),  # rpm can’t cope with fake sys.stderr
+    ):
+        if "specfile-parse-failure" in testcase:
+            do_process_distgit_fn.side_effect = process_distgit.SpecParseFailure("BOO")
+        result = cli_runner.invoke(process_distgit.process_distgit, args, obj=ctx_obj)
 
     do_process_distgit_fn.assert_called_once_with(
         str(test_spec_file_path),
         str(output_spec_file),
         error_on_unparseable_spec=ctx_obj["error_on_unparseable_spec"],
     )
+
+    if "specfile-parse-failure" in testcase:
+        assert result.exit_code != 0
+        assert "Error: BOO" in result.stderr
+    else:
+        assert result.exit_code == 0

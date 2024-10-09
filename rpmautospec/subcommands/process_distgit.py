@@ -151,6 +151,9 @@ def do_process_distgit(
 @handle_expected_exceptions
 def process_distgit(obj: dict[str, Any], spec_or_path: Path, target: Path) -> None:
     """Work repository history and commit logs into a spec file"""
-    do_process_distgit(
-        spec_or_path, target, error_on_unparseable_spec=obj["error_on_unparseable_spec"]
-    )
+    try:
+        do_process_distgit(
+            spec_or_path, target, error_on_unparseable_spec=obj["error_on_unparseable_spec"]
+        )
+    except SpecParseFailure as exc:
+        raise click.ClickException(*exc.args) from exc

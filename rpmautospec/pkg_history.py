@@ -1,9 +1,9 @@
 import datetime as dt
 import logging
+import os.path
 import re
 import stat
 import sys
-import tempfile
 from collections import defaultdict
 from functools import reduce
 from pathlib import Path, PurePath
@@ -12,14 +12,13 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Optional, Sequence, Union
 
 import pygit2
+import rpm
 
 try:
     from pygit2 import BlobIO
 except ImportError:  # pragma: no cover
     from .compat import MinimalBlobIO as BlobIO
 from rpmautospec_core import AUTORELEASE_MACRO
-
-import rpm
 
 from .changelog import ChangelogEntry
 from .magic_comments import parse_magic_comments
@@ -155,28 +154,27 @@ class PkgHistoryProcessor:
                     abridged.write(line)
                 abridged.flush()
 
-                for spec_candidate in (abridged.name, str(specfile)):
-                    with tempfile.NamedTemporaryFile(
-                        mode="w", prefix="rpmautospec-rpmerr-"
-                    ) as rpmerr:
+                rpmerr_out = None
+                print("rpm.spec:", rpm.spec)
+                with open(os.path.devnull, "w") as devnull:
+                    rpm.setLogFile(devnull)
+                try:
+                    spec = rpm.spec(abridged.name)
+                    output = spec.sourceHeader.format(query)
+                except Exception:
+                    with NamedTemporaryFile(mode="w", prefix="rpmautospec-rpmerr-") as rpmerr:
                         rpm.setLogFile(rpmerr)
                         try:
-                            spec = rpm.spec(spec_candidate)
+                            spec = rpm.spec(str(specfile))
                             output = spec.sourceHeader.format(query)
                         except Exception:
-                            error = True
-                            if spec_candidate == str(specfile):
-                                with open(rpmerr.name, "r", errors="replace") as rpmerr_read:
-                                    rpmerr_out = rpmerr_read.read()
-                        else:
-                            error = False
-                            rpmerr_out = None
-                            break
+                            with open(rpmerr.name, "r", errors="replace") as rpmerr_read:
+                                rpmerr_out = rpmerr_read.read()
         finally:
             rpm.setLogFile(sys.stderr)
             rpm.reloadConfig()
 
-        if error:
+        if rpmerr_out is not None:
             if log_error:
                 log.debug("rpm query for %r failed: %s", query, rpmerr_out)
             return {"error": "specfile-parse-error", "error-detail": rpmerr_out}

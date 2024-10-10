@@ -10,6 +10,7 @@ from unittest import mock
 
 import pygit2
 import pytest
+from rpm import spec as rpm_spec
 
 from rpmautospec import pkg_history
 
@@ -185,16 +186,18 @@ class TestPkgHistoryProcessor:
         ),
     )
     @pytest.mark.parametrize(
-        "prep",
+        "prep, abridged_fails",
         (
-            "%prep",
-            "",
-            "%package boo\nSummary: Boo boo\n%prep\n%description boo",
+            ("%prep", False),
+            ("", False),
+            ("%package boo\nSummary: Boo boo\n%prep\n%description boo", True),
         ),
         ids=("with-prep", "without-prep", "with-prep-inadequate"),
-        indirect=True,
+        indirect=["prep"],
     )
-    def test__get_rpmverflags(self, testcase, release, prep, specfile, processor, caplog):
+    def test__get_rpmverflags(
+        self, testcase, release, prep, abridged_fails, specfile, processor, caplog
+    ):
         with_name = "with-name" in testcase
         specfile_missing = "specfile-missing" in testcase
         specfile_broken = "specfile-broken" in testcase
@@ -217,7 +220,13 @@ class TestPkgHistoryProcessor:
             specfile.unlink()
             specfile.touch()
 
-        with caplog.at_level("DEBUG"):
+        with caplog.at_level("DEBUG"), mock.patch("rpm.spec", wraps=rpm_spec) as mock_rpm_spec:
+            if abridged_fails:
+                mock_rpm_spec.side_effect = [
+                    ValueError("can't parse specfile"),
+                    mock.DEFAULT,
+                ]
+
             result = processor._get_rpmverflags(specfile.parent, name=name, log_error=log_error)
 
         if specfile_missing or specfile_broken:

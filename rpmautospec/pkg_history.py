@@ -12,14 +12,13 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Optional, Sequence, Union
 
 import pygit2
+import rpm
 
 try:
     from pygit2 import BlobIO
 except ImportError:  # pragma: no cover
     from .compat import MinimalBlobIO as BlobIO
 from rpmautospec_core import AUTORELEASE_MACRO
-
-import rpm
 
 from .changelog import ChangelogEntry
 from .magic_comments import parse_magic_comments
@@ -173,6 +172,8 @@ class PkgHistoryProcessor:
                     finally:
                         rpm.setLogFile(sys.stderr)
                         rpm.reloadConfig()
+            else:
+                pass  # pragma: no cover
         if error:
             if log_error:
                 log.debug("rpm query for %r failed: %s", query, rpmerr_out)

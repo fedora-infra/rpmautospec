@@ -40,6 +40,8 @@ jobs:
             fedver: f38
           - pyver: 312
             fedver: latest
+          - pyver: 313
+            fedver: latest
     runs-on: ubuntu-latest
     container: "fedorapython/fedora-python-tox:${{ matrix.fedver }}"
     steps:
@@ -56,6 +58,7 @@ jobs:
           glibc-langpack-en
           krb5-devel
           libffi-devel
+          libgit2-devel
           poetry
           python3-rpm
           rpm

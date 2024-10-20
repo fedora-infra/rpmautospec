@@ -60,7 +60,7 @@ pytest-xdist = [
     { version = "^2.5.0 || ^3", python = "^3.12" }
 ]
 coverage = "^7.2.0"
-ruff = "^0.2.0 || ^0.3.0 || ^0.4.0 || ^0.5.0 || ^0.6.0"
+ruff = "^0.2.0 || ^0.3.0 || ^0.4.0 || ^0.5.0 || ^0.6.0 || ^0.7.0"
 
 [tool.poetry.scripts]
 rpmautospec = "rpmautospec.cli:cli"

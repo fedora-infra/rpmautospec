@@ -146,7 +146,7 @@ def do_process_distgit(
 
 @click.command()
 @click.argument("spec_or_path", type=click.Path())
-@click.argument("target", type=click.Path())
+@click.argument("target", type=click.Path(), required=False)
 @click.pass_obj
 @handle_expected_exceptions
 def process_distgit(obj: dict[str, Any], spec_or_path: Path, target: Path) -> None:

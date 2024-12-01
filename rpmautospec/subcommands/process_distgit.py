@@ -51,6 +51,8 @@ def do_process_distgit(
         target = processor.specfile
     else:
         target = Path(target)
+        if target.is_dir():
+            target /= processor.specfile.name
 
     # Preserve mode of the target spec file if it is overwritten, otherwise use that of the
     # processed spec file. Otherwise it would inherit the 0600 mode of the temporary file.
@@ -146,7 +148,7 @@ def do_process_distgit(
 
 @click.command()
 @click.argument("spec_or_path", type=click.Path())
-@click.argument("target", type=click.Path())
+@click.argument("target", type=click.Path(), required=False)
 @click.pass_obj
 @handle_expected_exceptions
 def process_distgit(obj: dict[str, Any], spec_or_path: Path, target: Path) -> None:

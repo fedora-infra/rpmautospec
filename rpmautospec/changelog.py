@@ -1,8 +1,7 @@
+import locale
 import re
 from enum import Enum, auto
 from textwrap import TextWrapper
-
-from babel.dates import format_datetime
 
 
 class CommitLogParseState(int, Enum):
@@ -11,6 +10,18 @@ class CommitLogParseState(int, Enum):
     before_body = auto()
     in_continuation = auto()
     body = auto()
+
+
+class TimeLocaleManager:
+    def __init__(self, localename):
+        self.name = localename
+
+    def __enter__(self):
+        self.orig = locale.setlocale(locale.LC_TIME)
+        locale.setlocale(locale.LC_TIME, self.name)
+
+    def __exit__(self, exc_type, exc_value, traceback):  # pylint: disable=unused-argument
+        locale.setlocale(locale.LC_TIME, self.orig)
 
 
 class ChangelogEntry(dict):
@@ -98,9 +109,9 @@ class ChangelogEntry(dict):
             # verbatim data from the changed `changelog` file
             return entry_info["data"]
 
-        changelog_date = format_datetime(
-            entry_info["timestamp"], format="EEE MMM dd y", locale="en"
-        )
+        # WARNING: the following is NOT thread-safe
+        with TimeLocaleManager("en_US"):
+            changelog_date = entry_info["timestamp"].strftime("%a %b %d %Y")
 
         if entry_info["epoch-version"]:
             changelog_evr = f" - {entry_info['epoch-version']}"

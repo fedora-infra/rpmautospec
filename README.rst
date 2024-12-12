@@ -13,7 +13,6 @@ repository.
 Dependencies:
 
 * Python >= 3.9
-* babel >= 2.8
 * pygit2 >= 1.4
 * rpmautospec-core >= 0.1.4
 

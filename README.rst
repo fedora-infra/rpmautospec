@@ -13,7 +13,6 @@ repository.
 Dependencies:
 
 * Python >= 3.9
-* pygit2 >= 1.4
 * rpmautospec-core >= 0.1.4
 
 Installation dependencies:
@@ -23,6 +22,7 @@ Installation dependencies:
 Optional dependencies:
 
 * uv (if using uv to install)
+* pygit2 >= 1.4
 
 General
 -------

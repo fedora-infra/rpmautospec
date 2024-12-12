@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = ">=3.9, <4.0"
 resolution-markers = [
     "python_full_version >= '3.12'",
@@ -437,10 +436,14 @@ source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "click-plugins" },
-    { name = "pygit2", version = "1.15.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "pygit2", version = "1.17.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "rpm" },
     { name = "rpmautospec-core" },
+]
+
+[package.optional-dependencies]
+pygit2 = [
+    { name = "pygit2", version = "1.15.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pygit2", version = "1.17.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 
 [package.dev-dependencies]
@@ -457,8 +460,8 @@ dev = [
 requires-dist = [
     { name = "click", specifier = ">=8,<9" },
     { name = "click-plugins", specifier = ">=1.1.1,<2.0.0" },
-    { name = "pygit2", marker = "python_full_version == '3.9.*'", specifier = ">=1.4.0,<1.17.1" },
-    { name = "pygit2", marker = "python_full_version >= '3.10' and python_full_version < '4.0.0'", specifier = ">=1.4.0,<2.0.0" },
+    { name = "pygit2", marker = "python_full_version == '3.9.*' and extra == 'pygit2'", specifier = ">=1.4.0,<1.17.1" },
+    { name = "pygit2", marker = "python_full_version >= '3.10' and python_full_version < '4.0.0' and extra == 'pygit2'", specifier = ">=1.4.0,<2.0.0" },
     { name = "rpm" },
     { name = "rpmautospec-core", specifier = ">=0.1.4,<1.0.0" },
 ]

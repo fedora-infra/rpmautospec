@@ -11,7 +11,7 @@ from shutil import SpecialFileError
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Optional, Sequence, Union
 
-import pygit2
+# import pygit2
 import rpm
 
 try:
@@ -20,6 +20,7 @@ except ImportError:  # pragma: no cover
     from .compat import MinimalBlobIO as BlobIO
 from rpmautospec_core import AUTORELEASE_MACRO
 
+from . import minigit2 as pygit2
 from .changelog import ChangelogEntry
 from .magic_comments import parse_magic_comments
 

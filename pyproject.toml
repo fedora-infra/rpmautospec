@@ -45,10 +45,6 @@ exclude = [
 [tool.poetry.dependencies]
 python = "^3.9"
 rpmautospec_core = "^0.1.4"
-pygit2 = [
-    { version = "^1.4.0,<1.16.0", python = ">=3.9.0,<3.10.0" },
-    { version = "^1.4.0", python = "^3.10.0" }
-]
 rpm = "*"
 click = "^8"
 click-plugins = "^1.1.1"
@@ -63,6 +59,10 @@ pytest-xdist = [
 ]
 coverage = "^7.2.0"
 ruff = "^0.2.0 || ^0.3.0 || ^0.4.0 || ^0.5.0 || ^0.6.0 || ^0.7.0 || ^0.8.0"
+pygit2 = [
+    { version = "^1.4.0,<1.16.0", python = ">=3.9.0,<3.10.0" },
+    { version = "^1.4.0", python = "^3.10.0" }
+]
 
 [tool.poetry.scripts]
 rpmautospec = "rpmautospec.cli:cli"

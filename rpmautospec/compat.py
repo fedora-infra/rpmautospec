@@ -1,7 +1,25 @@
 from importlib.metadata import EntryPoint, entry_points
 from io import BytesIO
 
-import pygit2
+try:
+    import pygit2
+except ImportError:
+    from . import minigit2 as pygit2
+
+    uses_minigit2 = True
+else:
+    import pygit2.enums
+
+    uses_minigit2 = False
+
+needs_minimal_blobio = False
+if uses_minigit2:
+    needs_minimal_blobio = True
+else:
+    try:
+        from pygit2 import BlobIO
+    except ImportError:  # pragma: no cover
+        needs_minimal_blobio = True
 
 
 class MinimalBlobIO:
@@ -18,6 +36,10 @@ class MinimalBlobIO:
 
     def __exit__(self, exc_type, exc_value, traceback):
         pass
+
+
+if needs_minimal_blobio:
+    BlobIO = MinimalBlobIO
 
 
 def cli_plugin_entry_points() -> tuple[EntryPoint]:

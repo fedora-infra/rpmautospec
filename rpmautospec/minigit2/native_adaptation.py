@@ -11,15 +11,12 @@ from ctypes import (
     c_int64,
     c_size_t,
     c_uint,
+    c_uint16,
     c_uint32,
     c_uint64,
     c_void_p,
-    cast,
 )
 from enum import IntEnum, IntFlag, auto
-
-NULL = cast(POINTER(c_int)(), c_void_p)
-
 
 # Simple types
 
@@ -220,6 +217,36 @@ class git_filemode_t(IntEnumMixin, IntFlag):
     COMMIT = 0o160000
 
 
+class git_delta_t(IntEnumMixin, IntEnum):
+    UNMODIFIED = 0
+    ADDED = auto()
+    DELETED = auto()
+    MODIFIED = auto()
+    RENAMED = auto()
+    COPIED = auto()
+    IGNORED = auto()
+    UNTRACKED = auto()
+    TYPECHANGE = auto()
+    UNREADABLE = auto()
+    CONFLICTED = auto()
+
+
+class git_config_level_t(IntEnumMixin, IntEnum):
+    PROGRAMDATA = 1
+    SYSTEM = auto()
+    XDG = auto()
+    GLOBAL = auto()
+    LOCAL = auto()
+    APP = auto()
+    HIGHEST = -1
+
+
+class git_libgit2_opt_t(IntEnumMixin, IntEnum):
+    # This is abridged.
+    GET_SEARCH_PATH = 4
+    SET_SEARCH_PATH = 5
+
+
 # Compound types
 
 
@@ -353,8 +380,30 @@ git_diff_p = POINTER(git_diff)
 git_diff_p_p = POINTER(git_diff_p)
 
 
+class git_diff_file(Structure):
+    _fields_ = (
+        ("id", git_oid),
+        ("path", c_char_p),
+        ("size", git_object_size_t),
+        ("flags", c_uint32),
+        ("mode", c_uint16),
+        ("id_abbrev", c_uint16),
+    )
+
+
+git_diff_file_p = POINTER(git_diff_file)
+git_diff_file_p_p = POINTER(git_diff_file_p)
+
+
 class git_diff_delta(Structure):
-    pass
+    _fields_ = (
+        ("status", c_int),  # really git_delta_t
+        ("flags", c_uint32),
+        ("similarity", c_uint16),
+        ("nfiles", c_uint16),
+        ("old_file", git_diff_file),
+        ("new_file", git_diff_file),
+    )
 
 
 git_diff_delta_p = POINTER(git_diff_delta)
@@ -423,6 +472,7 @@ FUNC_DECLS = {
     "git_blob_free": (None, (git_blob_p,)),
     "git_blob_rawcontent": (c_void_p, (git_blob_p,)),
     "git_blob_rawsize": (git_object_size_t, (git_blob_p,)),
+    "git_buf_dispose": (None, (git_buf_p,)),
     "git_commit_author": (git_signature_p, (git_commit_p,)),
     "git_commit_committer": (git_signature_p, (git_commit_p,)),
     "git_commit_free": (None, (git_commit_p,)),
@@ -448,6 +498,7 @@ FUNC_DECLS = {
     "git_error_last": (git_error_p, ()),
     "git_index_free": (None, (git_index_p,)),
     "git_libgit2_init": (c_int, ()),
+    "git_libgit2_opts": (c_int, (c_int,)),  # variadic
     "git_object_free": (None, (git_object_p,)),
     "git_object_id": (git_oid_p, (git_object_p,)),
     "git_object_lookup_prefix": (
@@ -465,6 +516,7 @@ FUNC_DECLS = {
     "git_repository_free": (None, (git_repository_p,)),
     "git_repository_head": (c_int, (git_reference_p_p, git_repository_p)),
     "git_repository_index": (c_int, (git_index_p_p, git_repository_p)),
+    "git_repository_init": (c_int, (git_repository_p_p, c_char_p, c_uint)),
     "git_repository_item_path": (c_int, (git_buf_p, git_repository_p, git_repository_item_t)),
     "git_repository_open_ext": (c_int, (git_repository_p_p, c_char_p, c_uint, c_char_p)),
     "git_revparse_single": (c_int, (git_object_p_p, git_repository_p, c_char_p)),

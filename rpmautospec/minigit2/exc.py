@@ -17,9 +17,16 @@ class Libgit2VersionWarning(UserWarning):
     pass
 
 
+# Exception classes present in pygit2
+
+
+class AlreadyExistsError(ValueError):
+    pass
+
+
 class GitError(Exception):
     pass
 
 
-class GitPeelError(GitError):
+class InvalidSpecError(ValueError):
     pass

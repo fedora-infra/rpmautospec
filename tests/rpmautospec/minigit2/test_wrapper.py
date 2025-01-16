@@ -24,14 +24,14 @@ def get_param_id_from_request(request: pytest.FixtureRequest) -> str:
 
 
 @pytest.fixture
-def uncache_libgit2() -> None:
+def uncache_library_obj() -> None:
     with (
-        mock.patch.object(wrapper.WrapperOfWrappings, "_libgit2"),
-        mock.patch.object(wrapper.WrapperOfWrappings, "_soname"),
+        mock.patch.object(wrapper.LibraryUser, "_library_obj"),
+        mock.patch.object(wrapper.LibraryUser, "_soname"),
     ):
         try:
-            wrapper.WrapperOfWrappings._libgit2 = None
-            wrapper.WrapperOfWrappings._soname = None
+            wrapper.LibraryUser._library_obj = None
+            wrapper.LibraryUser._soname = None
         except AttributeError:
             pass
 
@@ -56,6 +56,115 @@ def repo_root(tmp_path) -> Path:
 @pytest.fixture
 def repo(repo_root) -> wrapper.Repository:
     return wrapper.Repository(repo_root)
+
+
+class TestLibraryUser:
+    @pytest.mark.parametrize(
+        "success, cache_is_hot, found, soname",
+        (
+            pytest.param(True, False, True, "reallib", id="success-real-lib"),
+            pytest.param(True, False, True, "libgit2.so.1.8", id="success"),
+            pytest.param(
+                True, False, True, "libgit2.so.1.8.5", id="success-max-version-with-minor"
+            ),
+            pytest.param(True, False, True, "libgit2.so.1.9", id="success-version-unknown"),
+            pytest.param(True, True, None, None, id="success-cache-hot"),
+            pytest.param(False, False, False, None, id="failure-libgit2-not-found"),
+            pytest.param(False, False, True, "LIBGIT2.DLL", id="failure-illegal-soname"),
+            pytest.param(False, False, True, "libgit2.so.1.0", id="failure-version-too-low"),
+        ),
+    )
+    @pytest.mark.usefixtures("uncache_library_obj")
+    def test__get_library(
+        self,
+        success: bool,
+        cache_is_hot: bool,
+        found: bool,
+        soname: Optional[str],
+        request: pytest.FixtureRequest,
+    ) -> None:
+        test_case = get_param_id_from_request(request)
+
+        CDLL_wraps = ctypes.CDLL if not soname else None
+
+        with (
+            mock.patch.object(
+                wrapper, "find_library", wraps=ctypes.util.find_library
+            ) as find_library,
+            mock.patch.object(wrapper, "CDLL", wraps=CDLL_wraps) as CDLL,
+            mock.patch.object(wrapper, "install_func_decls") as install_func_decls,
+        ):
+            if cache_is_hot:
+                wrapper.LibraryUser._library_obj = lib_sentinel = object()
+
+            if success:
+                if "version-unknown" in test_case:
+                    expectation = pytest.warns(exc.Libgit2VersionWarning)
+                else:
+                    expectation = nullcontext()
+            else:
+                if "libgit2-not-found" in test_case:
+                    expectation = pytest.raises(exc.Libgit2NotFoundError)
+                elif "illegal-soname" in test_case or "version-too-low" in test_case:
+                    expectation = pytest.raises(exc.Libgit2VersionError)
+
+            if soname != "reallib":
+                find_library.return_value = soname
+
+            with expectation:
+                retval = wrapper.WrapperOfWrappings._get_library()
+
+            if success:
+                if cache_is_hot:
+                    assert retval is lib_sentinel
+                    return
+
+                CDLL.assert_called_once()
+                install_func_decls.assert_called_once_with(wrapper.LibraryUser._library_obj)
+
+                if CDLL_wraps:
+                    assert isinstance(retval, ctypes.CDLL)
+                    assert retval._name.startswith("libgit2.so.")
+
+    def test__lib(self) -> None:
+        obj = wrapper.WrapperOfWrappings()
+        with mock.patch.object(wrapper.WrapperOfWrappings, "_get_library") as _get_library:
+            _get_library.return_value = lib_sentinel = object()
+            assert obj._lib is lib_sentinel
+            _get_library.assert_called_once_with()
+
+    @pytest.mark.parametrize(
+        "error_code, exc_msg_tmpl",
+        (
+            pytest.param(0, None, id="without-error-code"),
+            pytest.param(-1, "Something happened: {message}", id="with-error-code-template"),
+            pytest.param(-1, None, id="with-error-code-without-template"),
+        ),
+    )
+    def test_raise_if_error(self, error_code: int, exc_msg_tmpl: Optional[str]):
+        if error_code:
+            expectation = pytest.raises(exc.GitError)
+        else:
+            expectation = nullcontext()
+
+        with mock.patch.object(wrapper.WrapperOfWrappings, "_get_library") as _get_library:
+            _get_library.return_value = lib = mock.Mock()
+            lib.git_error_last.return_value = error_p = mock.Mock()
+            error_p.contents.message = b"BOO!"
+
+            with expectation as excinfo:
+                wrapper.WrapperOfWrappings.raise_if_error(error_code, exc_msg_tmpl)
+
+        if not error_code:
+            lib.git_error_last.assert_not_called()
+        else:
+            lib.git_error_last.assert_called_once_with()
+            exc_str = str(excinfo.value)
+            assert "BOO!" in exc_str
+            if exc_msg_tmpl:
+                assert "Something happened:" in exc_str
+            else:
+                assert "Something happened:" not in exc_str
 
 
 class TestWrapperOfWrappings:
@@ -118,24 +227,23 @@ class TestWrapperOfWrappings:
         already_set = "already-set" in testcase
         native_is_pointer = "not-a-pointer" not in testcase
 
-        obj = wrapper.WrapperOfWrappings()
-
-        if already_set:
-            obj._real_native = object()
-            exception_expected = pytest.raises(ValueError, match="_native can’t be changed")
-        else:
-            exception_expected = nullcontext()
+        class ClassUnderTest(wrapper.WrapperOfWrappings):
+            def __repr__(self):
+                return "ClassUnderTest()"
 
         if native_is_pointer:
-            finalizer_ctxmgr = mock.patch.object(obj, "_libgit2_native_finalizer")
+            ClassUnderTest._libgit2_native_finalizer = mock.Mock(name="finalizer")
+
+        if already_set:
+            obj = ClassUnderTest(native=ctypes.c_void_p(1))
+            exception_expected = pytest.raises(ValueError, match="_native can’t be changed")
         else:
-            finalizer_ctxmgr = nullcontext()
+            obj = ClassUnderTest()
+            exception_expected = nullcontext()
 
-        sentinel = object()
+        sentinel = ctypes.c_void_p(12345)
 
-        with exception_expected, finalizer_ctxmgr as finalizer:
-            if not native_is_pointer:
-                obj._libgit2_native_finalizer = None
+        with exception_expected:
             obj._native = sentinel
 
         if already_set:
@@ -144,114 +252,50 @@ class TestWrapperOfWrappings:
         assert obj._real_native is sentinel
 
         if native_is_pointer:
+            assert sentinel.value in obj._real_native_refcounts
+            assert sentinel.value in obj._real_native_must_free
+            assert wrapper.WrapperOfWrappings._real_native_refcounts[sentinel.value] == 1
+            assert wrapper.WrapperOfWrappings._real_native_must_free[sentinel.value] is True
+
+    @pytest.mark.parametrize("testcase", ("normal", "not-a-pointer"))
+    def test__native__deleter(self, testcase: str) -> None:
+        native_is_pointer = "not-a-pointer" not in testcase
+
+        class ClassUnderTest(wrapper.WrapperOfWrappings):
+            pass
+
+        if native_is_pointer:
+            sentinel = ctypes.c_void_p(12345)
+            ClassUnderTest._libgit2_native_finalizer = finalizer = mock.Mock()
+        else:
+            sentinel = object()
+
+        objs = [
+            ClassUnderTest(native=sentinel),
+            ClassUnderTest(native=sentinel, _must_free=False),
+        ]
+
+        assert all(obj._real_native is sentinel for obj in objs)
+
+        if native_is_pointer:
+            assert wrapper.WrapperOfWrappings._real_native_refcounts[12345] == 2
+
+        del objs[0]._native
+
+        assert objs[0]._real_native is None
+        assert objs[1]._real_native is sentinel
+
+        if native_is_pointer:
+            assert wrapper.WrapperOfWrappings._real_native_refcounts[12345] == 1
+
+        del objs[1]._native
+
+        assert all(obj._real_native is None for obj in objs)
+
+        if native_is_pointer:
             finalizer.assert_called_with(sentinel)
-
-    @pytest.mark.parametrize(
-        "success, cache_is_hot, found, soname",
-        (
-            pytest.param(True, False, True, "reallib", id="success-real-lib"),
-            pytest.param(True, False, True, "libgit2.so.1.8", id="success"),
-            pytest.param(
-                True, False, True, "libgit2.so.1.8.5", id="success-max-version-with-minor"
-            ),
-            pytest.param(True, False, True, "libgit2.so.1.9", id="success-version-unknown"),
-            pytest.param(True, True, None, None, id="success-cache-hot"),
-            pytest.param(False, False, False, None, id="failure-libgit2-not-found"),
-            pytest.param(False, False, True, "LIBGIT2.DLL", id="failure-illegal-soname"),
-            pytest.param(False, False, True, "libgit2.so.1.0", id="failure-version-too-low"),
-        ),
-    )
-    @pytest.mark.usefixtures("uncache_libgit2")
-    def test__get_library(
-        self,
-        success: bool,
-        cache_is_hot: bool,
-        found: bool,
-        soname: Optional[str],
-        request: pytest.FixtureRequest,
-    ) -> None:
-        test_case = get_param_id_from_request(request)
-
-        CDLL_wraps = ctypes.CDLL if not soname else None
-
-        with (
-            mock.patch.object(
-                wrapper, "find_library", wraps=ctypes.util.find_library
-            ) as find_library,
-            mock.patch.object(wrapper, "CDLL", wraps=CDLL_wraps) as CDLL,
-            mock.patch.object(wrapper, "install_func_decls") as install_func_decls,
-        ):
-            if cache_is_hot:
-                wrapper.WrapperOfWrappings._libgit2 = lib_sentinel = object()
-
-            if success:
-                if "version-unknown" in test_case:
-                    expectation = pytest.warns(exc.Libgit2VersionWarning)
-                else:
-                    expectation = nullcontext()
-            else:
-                if "libgit2-not-found" in test_case:
-                    expectation = pytest.raises(exc.Libgit2NotFoundError)
-                elif "illegal-soname" in test_case or "version-too-low" in test_case:
-                    expectation = pytest.raises(exc.Libgit2VersionError)
-
-            if soname != "reallib":
-                find_library.return_value = soname
-
-            with expectation:
-                retval = wrapper.WrapperOfWrappings._get_library()
-
-            if success:
-                if cache_is_hot:
-                    assert retval is lib_sentinel
-                    return
-
-                CDLL.assert_called_once()
-                install_func_decls.assert_called_once_with(wrapper.WrapperOfWrappings._libgit2)
-
-                if CDLL_wraps:
-                    assert isinstance(retval, ctypes.CDLL)
-                    assert retval._name.startswith("libgit2.so.")
-
-    def test__lib(self) -> None:
-        obj = wrapper.WrapperOfWrappings()
-        with mock.patch.object(wrapper.WrapperOfWrappings, "_get_library") as _get_library:
-            _get_library.return_value = lib_sentinel = object()
-            assert obj._lib is lib_sentinel
-            _get_library.assert_called_once_with()
-
-    @pytest.mark.parametrize(
-        "error_code, exc_msg_tmpl",
-        (
-            pytest.param(0, None, id="without-error-code"),
-            pytest.param(-1, "Something happened: {message}", id="with-error-code-template"),
-            pytest.param(-1, None, id="with-error-code-without-template"),
-        ),
-    )
-    def test_raise_if_error(self, error_code: int, exc_msg_tmpl: Optional[str]):
-        if error_code:
-            expectation = pytest.raises(exc.GitError)
-        else:
-            expectation = nullcontext()
-
-        with mock.patch.object(wrapper.WrapperOfWrappings, "_get_library") as _get_library:
-            _get_library.return_value = lib = mock.Mock()
-            lib.git_error_last.return_value = error_p = mock.Mock()
-            error_p.contents.message = b"BOO!"
-
-            with expectation as excinfo:
-                wrapper.WrapperOfWrappings.raise_if_error(error_code, exc_msg_tmpl)
-
-        if not error_code:
-            lib.git_error_last.assert_not_called()
-        else:
-            lib.git_error_last.assert_called_once_with()
-            exc_str = str(excinfo.value)
-            assert "BOO!" in exc_str
-            if exc_msg_tmpl:
-                assert "Something happened:" in exc_str
-            else:
-                assert "Something happened:" not in exc_str
+            assert 12345 not in wrapper.WrapperOfWrappings._real_native_refcounts
+            assert 12345 not in wrapper.WrapperOfWrappings._real_native_must_free
 
 
 class TestOid:
@@ -311,7 +355,7 @@ class TestRepository:
             not_a_repo = tmp_path / "not_a_repo"
             not_a_repo.mkdir()
             path = path_type(not_a_repo)
-            expectation = pytest.raises(exc.GitError)
+            expectation = pytest.raises(KeyError)
 
         with expectation as excinfo:
             repo = wrapper.Repository(path)

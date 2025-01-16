@@ -1,5 +1,6 @@
-import pygit2
-from pygit2.enums import DeltaStatus
+from rpmautospec.compat import pygit2
+
+DeltaStatus = pygit2.enums.DeltaStatus
 
 SPEC_FILE_TEMPLATE = """Summary: Boo
 Name: boo

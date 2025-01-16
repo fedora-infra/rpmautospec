@@ -22,17 +22,18 @@ from pathlib import Path
 from sys import getfilesystemencodeerrors, getfilesystemencoding
 from typing import Any, Literal, Optional, Union, overload
 from warnings import warn
+from weakref import ref
 
 from .constants import GIT_DIFF_OPTIONS_VERSION, GIT_OID_SHA1_HEXSIZE
 from .exc import (
+    AlreadyExistsError,
     GitError,
-    GitPeelError,
+    InvalidSpecError,
     Libgit2NotFoundError,
     Libgit2VersionError,
     Libgit2VersionWarning,
 )
 from .native_adaptation import (
-    NULL,
     git_blob_p,
     git_buf,
     git_commit_p,
@@ -41,6 +42,7 @@ from .native_adaptation import (
     git_diff_p,
     git_diff_stats_p,
     git_error_code,
+    git_error_t,
     git_filemode_t,
     git_index_p,
     git_object_p,
@@ -65,13 +67,101 @@ LIBGIT2_MIN_VERSION_STR = ".".join(str(x) for x in LIBGIT2_MIN_VERSION)
 LIBGIT2_MAX_VERSION_STR = ".".join(str(x) for x in LIBGIT2_MAX_VERSION)
 
 
-class WrapperOfWrappings:
-    """Base class wrapping pieces of libgit2."""
+class LibraryUser:
+    ERROR_CODE_TO_EXC_CLASS = {
+        git_error_code.ENOTFOUND: KeyError,
+        git_error_code.EEXISTS: AlreadyExistsError,
+        git_error_code.EAMBIGUOUS: ValueError,
+        git_error_code.EBUFS: ValueError,
+        git_error_code.EINVALIDSPEC: InvalidSpecError,
+        git_error_code.PASSTHROUGH: GitError,
+        git_error_code.ITEROVER: StopIteration,
+    }
+
+    ERROR_T_TO_EXC_CLASS = {
+        git_error_t.NOMEMORY: MemoryError,
+        git_error_t.OS: OSError,
+        git_error_t.INVALID: ValueError,
+    }
 
     _soname: Optional[str] = None
-    _libgit2: Optional[CDLL] = None
+    _library_obj: Optional[CDLL] = None
+
+    @classmethod
+    def _get_library(cls) -> CDLL:
+        """Discover and load libgit2.
+
+        This caches the loaded library object in the class.
+
+        :return: The loaded library
+        """
+        if not LibraryUser._library_obj:
+            soname = find_library("git2")
+            if not soname:
+                raise Libgit2NotFoundError("libgit2 not found")
+            if not (match := re.match(r"libgit2\.so\.(?P<version>\d+(?:\.\d+)*)", soname)):
+                raise Libgit2VersionError(f"Can’t parse libgit2 version: {soname}")
+            version = match.group("version")
+            version_tuple = tuple(int(x) for x in match.group("version").split("."))
+            if LIBGIT2_MIN_VERSION > version_tuple:
+                raise Libgit2VersionError(
+                    f"Version {version} of libgit2 too low (must be >= {LIBGIT2_MIN_VERSION_STR})"
+                )
+            if LIBGIT2_MAX_VERSION < version_tuple[: len(LIBGIT2_MAX_VERSION)]:
+                warn(
+                    f"Version {version} of libgit2 unknown (latest known is"
+                    + f" {LIBGIT2_MIN_VERSION_STR}.)",
+                    Libgit2VersionWarning,
+                )
+
+            LibraryUser._soname = soname
+            LibraryUser._library_obj = CDLL(soname)
+            install_func_decls(LibraryUser._library_obj)
+            LibraryUser._library_obj.git_libgit2_init()
+
+        return LibraryUser._library_obj
+
+    @cached_property
+    def _lib(self) -> CDLL:
+        """The loaded library."""
+        return self._get_library()
+
+    @classmethod
+    def raise_if_error(
+        cls,
+        error_code: int,
+        exc_msg_tmpl: Optional[str] = None,
+        key: Optional[Union[str, bytes]] = None,
+    ) -> None:
+        if not error_code:
+            return
+
+        exc_class = cls.ERROR_CODE_TO_EXC_CLASS.get(error_code)
+
+        if exc_class is KeyError and key:
+            raise KeyError(key)
+
+        error_p = cls._get_library().git_error_last()
+        if error_p:
+            message = error_p.contents.message.decode("utf-8", errors="replace")
+
+            if not exc_class:
+                exc_class = cls.ERROR_T_TO_EXC_CLASS.get(error_p.contents.klass, GitError)
+        else:
+            message = "(No error information given)"
+
+        if exc_msg_tmpl:
+            message = exc_msg_tmpl.format(message=message)
+
+        raise exc_class(message)
+
+
+class WrapperOfWrappings(LibraryUser):
+    """Base class wrapping libgit2 objects."""
+
     _libgit2_native_finalizer: Optional[Union[_CFuncPtr, str]] = None
 
+    _live_obj_refs: dict[int, ref["WrapperOfWrappings"]] = {}
     _real_native_refcounts: defaultdict[int, int] = defaultdict(int)
     _real_native_must_free: defaultdict[int, bool] = defaultdict(bool)
 
@@ -81,6 +171,7 @@ class WrapperOfWrappings:
     def __init__(
         self, native: Optional[_SimpleCData] = None, _must_free: Optional[bool] = None
     ) -> None:
+        self._live_obj_refs[id(self)] = ref(self)
         if _must_free is not None:
             self._must_free = _must_free
         if native is not None:
@@ -88,6 +179,7 @@ class WrapperOfWrappings:
 
     def __del__(self) -> None:
         del self._native
+        self._live_obj_refs.pop(id(self), None)
 
     def __bool__(self) -> bool:
         return bool(self._real_native)
@@ -123,71 +215,23 @@ class WrapperOfWrappings:
         finalizer = self._libgit2_native_finalizer
         if finalizer:
             ptr = cast(native, c_void_p)
+            assert ptr.value in self._real_native_refcounts
+
             self._real_native_refcounts[ptr.value] -= 1
-            if (
-                not self._real_native_refcounts[ptr.value]
-                and self._real_native_must_free[ptr.value]
-            ):
-                if isinstance(finalizer, str):
-                    type(self)._libgit2_native_finalizer_name = finalizer
-                    type(self)._libgit2_native_finalizer = finalizer = getattr(self._lib, finalizer)
+            if not self._real_native_refcounts[ptr.value]:
+                if self._real_native_must_free[ptr.value]:
+                    if isinstance(finalizer, str):
+                        type(self)._libgit2_native_finalizer_name = finalizer
+                        type(self)._libgit2_native_finalizer = finalizer = getattr(
+                            self._lib, finalizer
+                        )
 
-                finalizer(native)
-                del self._real_native_refcounts[ptr.value]
+                    finalizer(native)
+
                 del self._real_native_must_free[ptr.value]
-                del self._real_native
+                del self._real_native_refcounts[ptr.value]
 
-    @classmethod
-    def _get_library(cls) -> CDLL:
-        """Discover and load libgit2.
-
-        This caches the loaded library object in the class.
-
-        :return: The loaded library
-        """
-        if not WrapperOfWrappings._libgit2:
-            soname = find_library("git2")
-            if not soname:
-                raise Libgit2NotFoundError("libgit2 not found")
-            if not (match := re.match(r"libgit2\.so\.(?P<version>\d+(?:\.\d+)*)", soname)):
-                raise Libgit2VersionError(f"Can’t parse libgit2 version: {soname}")
-            version = match.group("version")
-            version_tuple = tuple(int(x) for x in match.group("version").split("."))
-            if LIBGIT2_MIN_VERSION > version_tuple[: len(LIBGIT2_MIN_VERSION)]:
-                raise Libgit2VersionError(
-                    f"Version {version} of libgit2 too low (must be >= {LIBGIT2_MIN_VERSION_STR})"
-                )
-            if LIBGIT2_MAX_VERSION < version_tuple[: len(LIBGIT2_MAX_VERSION)]:
-                warn(
-                    f"Version {version} of libgit2 unknown (latest known is"
-                    + f" {LIBGIT2_MIN_VERSION_STR}.)",
-                    Libgit2VersionWarning,
-                )
-
-            WrapperOfWrappings._soname = soname
-            WrapperOfWrappings._libgit2 = CDLL(soname)
-            install_func_decls(WrapperOfWrappings._libgit2)
-            WrapperOfWrappings._libgit2.git_libgit2_init()
-
-        return WrapperOfWrappings._libgit2
-
-    @cached_property
-    def _lib(self) -> CDLL:
-        """The loaded library."""
-        return self._get_library()
-
-    @classmethod
-    def raise_if_error(
-        cls, error_code: int, exc_msg_tmpl: Optional[str] = None, exc_class: Exception = GitError
-    ) -> None:
-        if not error_code:
-            return
-
-        error_p = cls._get_library().git_error_last()
-        message = error_p.contents.message.decode("utf-8", errors="replace")
-        if exc_msg_tmpl:
-            message = exc_msg_tmpl.format(message=message)
-        raise exc_class(message)
+        del self._real_native
 
 
 OidTypes = Union["Oid", str, bytes]
@@ -247,20 +291,38 @@ class Repository(WrapperOfWrappings):
 
     _real_native: Optional[git_repository_p] = None
 
-    def __init__(self, path: Union[str, Path], flags: int = 0) -> None:
+    def __init__(
+        self, path: Union[str, Path], flags: int = 0, native: Optional[git_repository_p] = None
+    ) -> None:
         if isinstance(path, Path):
             path = str(path)
         path_c = c_char_p(path.encode("utf-8"))
 
         self.path = path
 
-        native = git_repository_p()
-        error_code = self._lib.git_repository_open_ext(
-            native, path_c, c_uint(flags), cast(NULL, c_char_p)
-        )
-        self.raise_if_error(error_code, "Can’t open repository: {message}")
+        if not native:
+            native = git_repository_p()
+            error_code = self._lib.git_repository_open_ext(
+                native, path_c, c_uint(flags), c_char_p()
+            )
+            self.raise_if_error(error_code, "Can’t open repository: {message}")
 
         super().__init__(native=native)
+
+    @classmethod
+    def init_repository(
+        cls, path: Union[str, Path], initial_head: Optional[str] = None
+    ) -> "Repository":
+        # Currently, this is only used in tests, so implements only the bare minimum.
+        if isinstance(path, Path):
+            path = str(path)
+        path_c = c_char_p(path.encode("utf-8"))
+
+        native = git_repository_p()
+        error_code = cls._get_library().git_repository_init(native, path_c, False)
+        cls.raise_if_error(error_code)
+
+        return cls(path=path, native=native)
 
     def __getitem__(self, oid: OidTypes) -> "Object":
         return Object(repo=self, oid=oid)
@@ -283,7 +345,7 @@ class Repository(WrapperOfWrappings):
         for peel_type in peel_types:
             try:
                 obj = obj.peel(target_type=peel_type)
-            except GitError:
+            except InvalidSpecError:
                 pass
             else:
                 break
@@ -522,7 +584,9 @@ class Object(WrapperOfWrappings):
         buf_p = byref(buf)
         error_code = self._lib.git_object_short_id(buf_p, cast(self._native, git_object_p))
         self.raise_if_error(error_code, "Error determining short id: {message}")
-        return buf.ptr.decode("ascii")
+        short_id = buf.ptr.decode("ascii")
+        self._lib.git_buf_dispose(buf_p)
+        return short_id
 
     @overload
     def peel(self, target_type: Literal[git_object_t.COMMIT]) -> "Commit": ...
@@ -547,7 +611,7 @@ class Object(WrapperOfWrappings):
         error_code = self._lib.git_object_peel(
             peeled, cast(self._native, git_object_p), target_type
         )
-        self.raise_if_error(error_code, "Can’t peel object: {message}", exc_class=GitPeelError)
+        self.raise_if_error(error_code, "Can’t peel object: {message}")
 
         return Object(repo=self._repo, native=peeled)
 
@@ -676,7 +740,7 @@ class Tree(Object):
     ) -> Diff:
         diff_options = git_diff_options()
         error_code = self._lib.git_diff_options_init(diff_options, GIT_DIFF_OPTIONS_VERSION)
-        self.raise_if_error(error_code, "Can’t initialize diff options: {message}")
+        self.raise_if_error(error_code)
 
         diff_options.flags = flags
         diff_options.context_lines = context_lines
@@ -687,7 +751,7 @@ class Tree(Object):
         error_code = self._lib.git_diff_tree_to_workdir(
             diff_p, self._repo._native, self._native, diff_options
         )
-        self.raise_if_error(error_code, "Error diffing tree to workdir: {message}")
+        self.raise_if_error(error_code)
 
         return Diff(self._repo, diff_p)
 
@@ -697,9 +761,7 @@ class Tree(Object):
 
         entry = git_tree_entry_p()
         error_code = self._lib.git_tree_entry_bypath(entry, self._native, path)
-        if error_code == git_error_code.ENOTFOUND:
-            raise KeyError
-        self.raise_if_error(error_code, "Error looking up file in tree: {message}")
+        self.raise_if_error(error_code, key=path)
 
         return entry
 
@@ -715,7 +777,7 @@ class Tree(Object):
     def _object_from_tree_entry(self, entry: git_tree_entry_p) -> Object:
         native = git_object_p()
         error_code = self._lib.git_tree_entry_to_object(native, self._repo._native, entry)
-        self.raise_if_error(error_code, "Error accessing object for tree entry: {message}")
+        self.raise_if_error(error_code)
         return Object(repo=self._repo, native=native, _entry=entry)
 
     def __getitem__(self, path: Union[str, bytes]) -> Object:
@@ -731,7 +793,7 @@ class Tree(Object):
 
             owned_entry = git_tree_entry_p()
             error_code = self._lib.git_tree_entry_dup(byref(owned_entry), unowned_entry)
-            self.raise_if_error(error_code, "Error duplicating tree entry: {message}")
+            self.raise_if_error(error_code)
 
             yield self._object_from_tree_entry(owned_entry)
 
@@ -817,10 +879,10 @@ class RevWalk(WrapperOfWrappings, Iterator):
         error_code = self._lib.git_revwalk_next(oid_p, self._native)
         if error_code == git_error_code.ITEROVER:
             raise StopIteration
-        self.raise_if_error(error_code, "Can’t find next oid to walk: {message}")
+        self.raise_if_error(error_code)
 
         commit = git_commit_p()
         error_code = self._lib.git_commit_lookup(commit, self._repo._native, oid_p)
-        self.raise_if_error(error_code, "Can’t lookup commit for oid: {message}")
+        self.raise_if_error(error_code)
 
         return Commit(repo=self._repo, native=commit)

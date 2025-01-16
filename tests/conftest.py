@@ -1,9 +1,12 @@
+import gc
 import locale as locale_mod
 from pathlib import Path
 
-import pygit2
 import pytest
 from click.testing import CliRunner
+
+from rpmautospec.compat import pygit2
+from rpmautospec.minigit2.wrapper import WrapperOfWrappings
 
 from .common import SPEC_FILE_TEMPLATE, create_commit
 
@@ -42,6 +45,26 @@ def locale():
 
     for category, locale_settings in saved_locale_settings.items():
         locale_mod.setlocale(getattr(locale_mod, category), locale_settings)
+
+
+@pytest.fixture(autouse=True)
+def validate_minigit2_native_refcounting() -> None:
+    yield
+
+    gc.collect()
+
+    # We can’t just check that WrapperOfWrappings._real_native_refcounts and
+    # WrapperOfWrappings._real_native_must_free are empty because finalization of refcounted
+    # objects may happen after this fixture finalized, so take still living objects into account.
+
+    num_unfinalized_objs = 0
+    for ref in WrapperOfWrappings._live_obj_refs.values():
+        obj = ref()
+        if obj is not None and obj._real_native and obj._libgit2_native_finalizer:
+            num_unfinalized_objs += 1
+
+    assert len(WrapperOfWrappings._real_native_refcounts) == num_unfinalized_objs
+    assert len(WrapperOfWrappings._real_native_must_free) == num_unfinalized_objs
 
 
 @pytest.fixture

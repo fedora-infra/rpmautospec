@@ -8,11 +8,11 @@ from pathlib import Path
 from shutil import SpecialFileError, rmtree
 from unittest import mock
 
-import pygit2
 import pytest
 from rpm import spec as rpm_spec
 
 from rpmautospec import pkg_history
+from rpmautospec.compat import pygit2
 
 from ..common import SPEC_FILE_TEMPLATE, create_commit
 

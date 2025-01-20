@@ -470,6 +470,7 @@ git_signature_p_p = POINTER(git_signature_p)
 FUNC_DECLS = {
     "git_blob_create_from_buffer": (c_int, (git_oid_p, git_repository_p, c_void_p, c_size_t)),
     "git_blob_free": (None, (git_blob_p,)),
+    "git_blob_lookup": (c_int, (git_blob_p_p, git_repository_p, git_oid_p)),
     "git_blob_rawcontent": (c_void_p, (git_blob_p,)),
     "git_blob_rawsize": (git_object_size_t, (git_blob_p,)),
     "git_buf_dispose": (None, (git_buf_p,)),
@@ -501,6 +502,7 @@ FUNC_DECLS = {
     "git_libgit2_opts": (c_int, (c_int,)),  # variadic
     "git_object_free": (None, (git_object_p,)),
     "git_object_id": (git_oid_p, (git_object_p,)),
+    "git_object_lookup": (c_int, (git_object_p_p, git_repository_p, git_oid_p)),
     "git_object_lookup_prefix": (
         c_int,
         (git_object_p_p, git_repository_p, git_oid_p, c_size_t, git_object_t),
@@ -510,6 +512,11 @@ FUNC_DECLS = {
     "git_object_type": (git_object_t, (git_object_p,)),
     "git_oid_fmt": (c_int, (c_char_p, git_oid_p)),
     "git_oid_fromstrp": (c_int, (git_oid_p, c_char_p)),
+    "git_reference_lookup": (c_int, (git_reference_p_p, git_repository_p, c_char_p)),
+    "git_reference_symbolic_create": (
+        c_int,
+        (git_reference_p_p, git_repository_p, c_char_p, c_char_p, c_int, c_char_p),
+    ),
     "git_reference_symbolic_target": (c_char_p, (git_reference_p,)),
     "git_reference_target": (git_oid_p, (git_reference_p,)),
     "git_reference_type": (git_reference_t, (git_reference_p,)),

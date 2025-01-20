@@ -9,6 +9,8 @@ makes bootstrapping rpmautospec hairy (e.g. for a new Python version).
 """
 
 from . import enums, settings
+from .blob import Blob
+from .commit import Commit
 from .constants import (
     GIT_CONFIG_LEVEL_GLOBAL,
     GIT_CONFIG_LEVEL_LOCAL,
@@ -17,6 +19,8 @@ from .constants import (
     GIT_REPOSITORY_OPEN_NO_SEARCH,
 )
 from .exc import GitError
-from .wrapper import Blob, Commit, Oid, Repository, Tree
+from .oid import Oid
+from .repository import Repository
+from .tree import Tree
 
 init_repository = Repository.init_repository

@@ -1,26 +1,15 @@
 import ctypes
 import ctypes.util
 import gc
-import re
-import subprocess
 from contextlib import nullcontext
-from pathlib import Path
-from random import randbytes
 from typing import Any, Optional
 from unittest import mock
 
 import pytest
 
-from rpmautospec.minigit2 import constants, exc, native_adaptation, wrapper
+from rpmautospec.minigit2 import exc, wrapper
 
-
-def get_param_id_from_request(request: pytest.FixtureRequest) -> str:
-    node = request.node
-    name = node.name
-    originalname = node.originalname
-    if not (match := re.match(rf"^{originalname}\[(?P<id>[^\]]+)\]", name)):
-        raise ValueError(f"Can’t extract parameter id from request: {name}")
-    return match.group("id")
+from .common import get_param_id_from_request
 
 
 @pytest.fixture
@@ -36,26 +25,6 @@ def uncache_library_obj() -> None:
             pass
 
         yield
-
-
-@pytest.fixture
-def repo_root(tmp_path) -> Path:
-    repo_root = tmp_path / "git_repo"
-    repo_root.mkdir()
-    repo_root_str = str(repo_root)
-    subprocess.run(["git", "-C", repo_root_str, "init"])
-
-    a_file = repo_root / "a_file"
-    a_file.write_text("A file.\n")
-    subprocess.run(["git", "-C", repo_root_str, "add", str(a_file)])
-    subprocess.run(["git", "-C", repo_root_str, "commit", "-m", "Add a file"])
-
-    return repo_root
-
-
-@pytest.fixture
-def repo(repo_root) -> wrapper.Repository:
-    return wrapper.Repository(repo_root)
 
 
 class TestLibraryUser:
@@ -83,7 +52,7 @@ class TestLibraryUser:
         soname: Optional[str],
         request: pytest.FixtureRequest,
     ) -> None:
-        test_case = get_param_id_from_request(request)
+        testcase = get_param_id_from_request(request)
 
         CDLL_wraps = ctypes.CDLL if not soname else None
 
@@ -98,14 +67,14 @@ class TestLibraryUser:
                 wrapper.LibraryUser._library_obj = lib_sentinel = object()
 
             if success:
-                if "version-unknown" in test_case:
+                if "version-unknown" in testcase:
                     expectation = pytest.warns(exc.Libgit2VersionWarning)
                 else:
                     expectation = nullcontext()
             else:
-                if "libgit2-not-found" in test_case:
+                if "libgit2-not-found" in testcase:
                     expectation = pytest.raises(exc.Libgit2NotFoundError)
-                elif "illegal-soname" in test_case or "version-too-low" in test_case:
+                elif "illegal-soname" in testcase or "version-too-low" in testcase:
                     expectation = pytest.raises(exc.Libgit2VersionError)
 
             if soname != "reallib":
@@ -296,158 +265,3 @@ class TestWrapperOfWrappings:
             finalizer.assert_called_with(sentinel)
             assert 12345 not in wrapper.WrapperOfWrappings._real_native_refcounts
             assert 12345 not in wrapper.WrapperOfWrappings._real_native_must_free
-
-
-class TestOid:
-    @pytest.mark.parametrize(
-        "test_case",
-        ("native", "oid", "oid-as-str", "oid-as-bytes", "none", "native-and-oid"),
-    )
-    def test___init__(self, test_case: str):
-        native_in = oid_in = None
-        success = True
-
-        oid_bytes = randbytes(constants.GIT_OID_SHA1_SIZE)
-        oid_hex = "".join(f"{x:02x}" for x in oid_bytes)
-
-        if "native" in test_case:
-            oid_bytearray = bytearray(oid_bytes)
-            native_oid = native_adaptation.git_oid.from_buffer_copy(oid_bytearray)
-            native_in = ctypes.pointer(native_oid)
-
-        if "oid" in test_case:
-            oid_in = oid_hex
-            if "oid-as-bytes" in test_case:
-                oid_in = oid_in.encode("ascii")
-            elif "oid-as-str" not in test_case:
-                oid_in = wrapper.Oid(oid=oid_in)
-
-        if "none" in test_case or "and" in test_case:
-            expectation = pytest.raises(
-                ValueError, match="Exactly one of native or oid has to be specified"
-            )
-            success = False
-        else:
-            expectation = nullcontext()
-
-        with expectation:
-            oid = wrapper.Oid(native=native_in, oid=oid_in)
-
-        if success:
-            assert oid.hex == str(oid) == oid_hex
-            assert oid.hexb == oid_hex.encode("ascii")
-
-
-class TestRepository:
-    @pytest.mark.parametrize(
-        "path_type, exists",
-        (
-            pytest.param(str, True, id="str"),
-            pytest.param(Path, True, id="Path"),
-            pytest.param(str, False, id="missing"),
-        ),
-    )
-    def test___init__(self, path_type: type, exists: bool, repo_root: Path, tmp_path: Path) -> None:
-        if exists:
-            path = path_type(repo_root)
-            expectation = nullcontext()
-        else:
-            not_a_repo = tmp_path / "not_a_repo"
-            not_a_repo.mkdir()
-            path = path_type(not_a_repo)
-            expectation = pytest.raises(KeyError)
-
-        with expectation as excinfo:
-            repo = wrapper.Repository(path)
-
-        if exists:
-            buf = native_adaptation.git_buf()
-            buf_p = ctypes.byref(buf)
-            error_code = repo._lib.git_repository_item_path(
-                buf_p, repo._native, native_adaptation.git_repository_item_t.WORKDIR
-            )
-            repo.raise_if_error(error_code)
-            assert repo_root == Path(buf.ptr.decode("utf-8", errors="replace"))
-            repo._lib.git_buf_dispose(buf_p)
-        else:
-            assert "Can’t open repository" in str(excinfo.value)
-            assert str(path) in str(excinfo.value)
-
-    def test___get_item__(self, repo: wrapper.Repository):
-        assert isinstance(repo[repo.head.target], wrapper.Commit)
-        assert repo.head.target.hex == repo[repo.head.target].id.hex
-
-    @pytest.mark.parametrize(
-        "obj_type, expected",
-        (
-            pytest.param(wrapper.Object, True, id="Object"),
-            pytest.param(str, True, id="str"),
-            pytest.param(bytes, True, id="bytes"),
-            pytest.param(wrapper.Oid, True, id="Oid"),
-            pytest.param(None, True, id="None"),
-            pytest.param(wrapper.Blob, False, id="unexpected"),
-        ),
-    )
-    def test__coerce_to_object_and_peel(
-        self, obj_type: type, expected: bool, repo: wrapper.Repository
-    ):
-        if obj_type is None:
-            obj = None
-        elif obj_type is wrapper.Object:
-            obj = repo[repo.head.target]
-        elif obj_type is str:
-            obj = repo.head.target.hex
-        elif obj_type is bytes:
-            obj = repo.head.target.hexb
-        elif obj_type is wrapper.Oid:
-            obj = repo.head.target
-        elif obj_type is wrapper.Blob:
-            content = b"BLOB\n"
-            buf = ctypes.c_char_p(content)
-            oid = native_adaptation.git_oid()
-            error_code = repo._lib.git_blob_create_from_buffer(
-                oid, repo._native, buf, len(content) + 1
-            )
-            repo.raise_if_error(error_code)
-            obj = wrapper.Object(repo=repo, oid=wrapper.Oid(native=ctypes.byref(oid)))
-
-        peel_types = (native_adaptation.git_object_t.BLOB, native_adaptation.git_object_t.TREE)
-
-        if expected:
-            expectation = nullcontext()
-        else:
-            peel_types = tuple(
-                pt for pt in peel_types if pt != getattr(obj_type, "_object_t", None)
-            )
-            expectation = pytest.raises(TypeError, match="unexpected")
-
-        with expectation:
-            peeled = repo._coerce_to_object_and_peel(obj=obj, peel_types=peel_types)
-
-        if not expected:
-            return
-
-        if obj_type is None:
-            assert peeled is None
-            return
-
-        assert isinstance(peeled, wrapper.Tree)
-
-    def test_head(self, repo: wrapper.Repository):
-        assert isinstance(repo.head, wrapper.Reference)
-        assert repo.head.target.hex == repo[repo.head.target].id.hex
-
-    def test_index(self, repo: wrapper.Repository):
-        assert isinstance(repo.index, wrapper.Index)
-
-    def test_diff(self, repo_root: Path, repo: wrapper.Repository):
-        initial_commit = repo[repo.head.target]
-
-        repo_root_str = str(repo_root)
-        a_file = repo_root / "a_file"
-        a_file.write_text("New content.\n")
-
-        subprocess.run(["git", "-C", repo_root_str, "add", str(a_file)])
-        subprocess.run(["git", "-C", repo_root_str, "commit", "-m", "Change a file"])
-
-        second_commit = repo[repo.head.target]

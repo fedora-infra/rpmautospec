@@ -1,0 +1,164 @@
+"""Minimal wrapper for libgit2 - High Level Wrappers"""
+
+from ctypes import _SimpleCData, byref, cast
+from functools import cached_property
+from sys import getfilesystemencodeerrors, getfilesystemencoding
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, overload
+
+from .native_adaptation import (
+    git_blob_p,
+    git_buf,
+    git_commit_p,
+    git_filemode_t,
+    git_object_p,
+    git_object_t,
+    git_tag_p,
+    git_tree_entry_p,
+    git_tree_p,
+)
+from .oid import Oid, OidTypes
+from .wrapper import WrapperOfWrappings
+
+if TYPE_CHECKING:
+    from .blob import Blob
+    from .commit import Commit
+    from .repository import Repository
+    from .tag import Tag
+    from .tree import Tree
+
+ObjectTypes = Union[git_object_p, git_commit_p, git_tree_p, git_tag_p, git_blob_p]
+
+
+class Object(WrapperOfWrappings):
+    """Represent a generic git object."""
+
+    _libgit2_native_finalizer = "git_object_free"
+
+    _object_type: _SimpleCData = git_object_p
+    _object_t: git_object_t
+    _object_t_to_cls: dict[git_object_t, "Object"] = {}
+
+    _repo: "Repository"
+    _real_native: Optional[ObjectTypes] = None
+
+    _initialized: bool = False
+
+    def __init_subclass__(cls):
+        if cls._object_t in cls._object_t_to_cls:  # pragma: no cover
+            raise TypeError(f"Object type already registered: {cls._object_t.name}")
+        cls._object_t_to_cls[cls._object_t] = cls
+        super().__init_subclass__()
+
+    def __new__(
+        cls,
+        repo: "Repository",
+        *args: tuple[Any],
+        native: Optional[ObjectTypes] = None,
+        oid: Optional[OidTypes] = None,
+        _must_free: Optional[bool] = None,
+        _entry: Optional[git_tree_entry_p] = None,
+    ) -> "Object":
+        if (native is None) == (oid is None):
+            raise ValueError("Exactly one of native or oid has to be specified")
+
+        if cls is Object:
+            lib = cls._get_library()
+            if oid:
+                oid = Oid(oid=oid)
+                native = git_object_p()
+                error_code = lib.git_object_lookup_prefix(
+                    native, repo._native, oid._native, len(oid.hexb), git_object_t.ANY
+                )
+                cls.raise_if_error(error_code, "Can’t lookup object: {message}")
+
+            object_t = lib.git_object_type(cast(native, git_object_p))
+            try:
+                concrete_cls = cls._object_t_to_cls[object_t]
+            except KeyError:  # pragma: no cover
+                raise TypeError(f"Unexpected object type: {object_t.name}")
+
+            return concrete_cls(repo=repo, native=native, _must_free=_must_free, _entry=_entry)
+        else:
+            return super().__new__(cls)
+
+    def __init__(
+        self,
+        repo: "Repository",
+        *,
+        native: Optional[ObjectTypes] = None,
+        oid: Optional[OidTypes] = None,  # processed by .__new__()
+        _must_free: Optional[bool] = None,
+        _entry: Optional[git_tree_entry_p] = None,
+    ) -> None:
+        if not self._initialized:
+            self._repo = repo
+            self._entry = _entry
+            self._initialized = True
+
+            super().__init__(native=cast(native, self._object_type), _must_free=_must_free)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(oid={self.short_id!r})"
+
+    def __eq__(self, other: "Object") -> bool:
+        return isinstance(other, Object) and self.id == other.id
+
+    def __hash__(self) -> int:
+        return hash(self.id.hex)
+
+    @cached_property
+    def id(self) -> Oid:
+        return Oid(native=self._lib.git_object_id(cast(self._native, git_object_p)))
+
+    @cached_property
+    def short_id(self) -> str:
+        buf = git_buf()
+        buf_p = byref(buf)
+        error_code = self._lib.git_object_short_id(buf_p, cast(self._native, git_object_p))
+        self.raise_if_error(error_code, "Error determining short id: {message}")
+        short_id = buf.ptr.decode("ascii")
+        self._lib.git_buf_dispose(buf_p)
+        return short_id
+
+    @overload
+    def peel(self, target_type: Literal[git_object_t.COMMIT]) -> "Commit": ...
+
+    @overload
+    def peel(self, target_type: Literal[git_object_t.TREE]) -> "Tree": ...
+
+    @overload
+    def peel(self, target_type: Literal[git_object_t.TAG]) -> "Tag": ...
+
+    @overload
+    def peel(self, target_type: Literal[git_object_t.BLOB]) -> "Blob": ...
+
+    @overload
+    def peel(self, target_type: None) -> "Union[Commit, Tree, Blob]": ...
+
+    def peel(self, target_type: Optional[git_object_t] = None) -> "Union[Commit, Tree, Tag, Blob]":
+        if not target_type:
+            target_type = git_object_t.ANY
+
+        peeled = git_object_p()
+        error_code = self._lib.git_object_peel(
+            peeled, cast(self._native, git_object_p), target_type
+        )
+        self.raise_if_error(error_code, "Can’t peel object: {message}")
+
+        return Object(repo=self._repo, native=peeled)
+
+    @cached_property
+    def name(self) -> Optional[bytes]:
+        if not self._entry:
+            return None
+
+        return self._lib.git_tree_entry_name(self._entry).decode(
+            encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors()
+        )
+
+    @cached_property
+    def filemode(self) -> git_filemode_t:
+        if not self._entry:
+            return None
+
+        return self._lib.git_tree_entry_filemode(self._entry)

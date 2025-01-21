@@ -79,7 +79,7 @@ class Tree(Object):
         )
         self.raise_if_error(error_code)
 
-        return Diff(self._repo, diff_p)
+        return Diff(repo=self._repo, native=diff_p)
 
     def _get_tree_entry_for_path(self, path: Union[str, bytes]) -> git_tree_entry_p:
         if isinstance(path, str):

@@ -486,6 +486,10 @@ FUNC_DECLS = {
     "git_commit_time_offset": (c_int, (git_commit_p,)),
     "git_commit_tree": (c_int, (git_tree_p_p, git_commit_p)),
     "git_diff_get_stats": (c_int, (git_diff_stats_p_p, git_diff_p)),
+    "git_diff_index_to_workdir": (
+        c_int,
+        (git_diff_p_p, git_repository_p, git_index_p, git_diff_options_p),
+    ),
     "git_diff_options_init": (c_int, (git_diff_options_p, c_uint)),
     "git_diff_stats_free": (None, (git_diff_stats_p,)),
     "git_diff_tree_to_tree": (

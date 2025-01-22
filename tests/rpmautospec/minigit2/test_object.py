@@ -1,4 +1,3 @@
-from contextlib import nullcontext
 from ctypes import CDLL, pointer
 from stat import filemode
 from typing import TYPE_CHECKING
@@ -30,35 +29,27 @@ class TestObject:
                 class FakeBlobFails(Object):
                     _object_t = git_object_t.BLOB
 
-    @pytest.mark.parametrize("testcase", ("from-oid", "from-native", "underspecified"))
-    def test_construct_and_initialize(
-        self, testcase: str, libgit2: "CDLL", repo: "Repository"
-    ) -> None:
-        from_native = "from-native" in testcase
-        underspecified = "underspecified" in testcase
+    # Object.__init__() is tested with .from_native() and .from_oid()
 
-        if underspecified:
-            oid = native = None
-            expectation = pytest.raises(ValueError)
-        else:
-            expectation = nullcontext()
-            oid = repo.head.target
-            native = None
-            if from_native:
-                native = git_object_p()
+    def test__from_native(self, libgit2: "CDLL", repo: "Repository") -> None:
+        oid = repo.head.target
+        native = git_object_p()
 
-                error_code = libgit2.git_object_lookup(
-                    pointer(native), repo._native, pointer(oid._native), git_object_t.ANY
-                )
-                assert error_code == 0
+        error_code = libgit2.git_object_lookup(
+            pointer(native), repo._native, pointer(oid._native), git_object_t.ANY
+        )
+        assert error_code == 0
 
-                oid = None
+        head_commit = Object._from_native(repo=repo, native=native)
 
-        with expectation:
-            head_commit = Object(repo=repo, native=native, oid=oid)
+        assert isinstance(head_commit, Commit)
 
-        if not underspecified:
-            assert isinstance(head_commit, Commit)
+    def test__from_oid(self, repo: "Repository") -> None:
+        oid = repo.head.target
+
+        head_commit = Object._from_oid(repo=repo, oid=oid)
+
+        assert isinstance(head_commit, Commit)
 
     def test___repr__(self, repo: "Repository") -> None:
         head_commit = repo[repo.head.target]
@@ -81,7 +72,7 @@ class TestObject:
         head_commit = repo[repo.head.target]
         oid = head_commit.id
         assert isinstance(oid, Oid)
-        assert Object(repo=repo, oid=oid) == head_commit
+        assert Object._from_oid(repo=repo, oid=oid) == head_commit
 
     def test_short_id(self, repo: "Repository") -> None:
         head_commit = repo[repo.head.target]

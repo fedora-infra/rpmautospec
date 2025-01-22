@@ -3,7 +3,7 @@
 from ctypes import _SimpleCData, byref, c_char_p, cast
 from functools import cached_property
 from sys import getfilesystemencodeerrors, getfilesystemencoding
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union, overload
+from typing import TYPE_CHECKING, Literal, Optional, Union, overload
 
 from .native_adaptation import (
     git_blob_p,
@@ -49,53 +49,48 @@ class Object(WrapperOfWrappings):
         cls._object_t_to_cls[cls._object_t] = cls
         super().__init_subclass__()
 
-    def __new__(
-        cls,
-        repo: "Repository",
-        *args: tuple[Any],
-        native: Optional[ObjectTypes] = None,
-        oid: Optional[OidTypes] = None,
-        _must_free: Optional[bool] = None,
-        _entry: Optional[git_tree_entry_p] = None,
-    ) -> "Object":
-        if (native is None) == (oid is None):
-            raise ValueError("Exactly one of native or oid has to be specified")
-
-        if cls is Object:
-            lib = cls._get_library()
-            if oid:
-                oid = Oid(oid=oid)
-                native = git_object_p()
-                error_code = lib.git_object_lookup_prefix(
-                    native, repo._native, oid._native, len(oid.hexb), git_object_t.ANY
-                )
-                cls.raise_if_error(error_code, "Can’t lookup object: {message}")
-
-            object_t = lib.git_object_type(cast(native, git_object_p))
-            try:
-                concrete_cls = cls._object_t_to_cls[object_t]
-            except KeyError:  # pragma: no cover
-                raise TypeError(f"Unexpected object type: {object_t.name}")
-
-            return concrete_cls(repo=repo, native=native, _must_free=_must_free, _entry=_entry)
-        else:
-            return super().__new__(cls)
-
     def __init__(
         self,
-        repo: "Repository",
         *,
-        native: Optional[ObjectTypes] = None,
-        oid: Optional[OidTypes] = None,  # processed by .__new__()
+        _repo: "Repository",
+        _native: ObjectTypes,
         _must_free: Optional[bool] = None,
         _entry: Optional[git_tree_entry_p] = None,
     ) -> None:
-        if not self._initialized:
-            self._repo = repo
-            self._entry = _entry
-            self._initialized = True
+        self._repo = _repo
+        self._entry = _entry
+        super().__init__(native=cast(_native, self._object_type), _must_free=_must_free)
 
-            super().__init__(native=cast(native, self._object_type), _must_free=_must_free)
+    @classmethod
+    def _from_native(
+        cls,
+        repo: "Repository",
+        native: ObjectTypes,
+        *,
+        _must_free: Optional[bool] = None,
+        _entry: Optional[git_tree_entry_p] = None,
+    ) -> "Object":
+        object_t = cls._get_library().git_object_type(cast(native, git_object_p))
+        try:
+            concrete_cls = cls._object_t_to_cls[object_t]
+        except KeyError:  # pragma: no cover
+            raise TypeError(f"Unexpected object type: {object_t.name}")
+
+        return concrete_cls(_repo=repo, _native=native, _must_free=_must_free, _entry=_entry)
+
+    @classmethod
+    def _from_oid(
+        cls, repo: "Repository", oid: OidTypes, *, _must_free: Optional[bool] = None
+    ) -> "Object":
+        lib = cls._get_library()
+        oid = Oid(oid=oid)
+        native = git_object_p()
+        error_code = lib.git_object_lookup_prefix(
+            native, repo._native, oid._native, len(oid.hexb), git_object_t.ANY
+        )
+        cls.raise_if_error(error_code, "Can’t lookup object: {message}")
+
+        return cls._from_native(repo=repo, native=native, _must_free=_must_free)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(oid={self.short_id!r})"
@@ -145,7 +140,7 @@ class Object(WrapperOfWrappings):
         )
         self.raise_if_error(error_code, "Can’t peel object: {message}")
 
-        return Object(repo=self._repo, native=peeled)
+        return Object._from_native(repo=self._repo, native=peeled)
 
     @cached_property
     def name(self) -> Optional[bytes]:

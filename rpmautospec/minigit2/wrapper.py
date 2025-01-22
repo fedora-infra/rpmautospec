@@ -174,6 +174,13 @@ class WrapperOfWrappings(LibraryUser):
         finalizer = self._libgit2_native_finalizer
         if finalizer:
             ptr = cast(native, c_void_p)
+            if not ptr.value:
+                return
+
+            if ptr.value not in self._real_native_refcounts:
+                print(f"{finalizer=} {self._real_native}", file=open("/dev/tty", "w"), flush=True)
+                print(f"{ptr!r} {ptr.value=} not in refcounts", file=open("/dev/tty", "w"),
+                      flush=True)
             assert ptr.value in self._real_native_refcounts
 
             self._real_native_refcounts[ptr.value] -= 1

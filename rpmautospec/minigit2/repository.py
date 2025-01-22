@@ -85,7 +85,7 @@ class Repository(WrapperOfWrappings):
         return encoded.decode(encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors())
 
     def __getitem__(self, oid: OidTypes) -> "Object":
-        return Object(repo=self, oid=oid)
+        return Object._from_oid(repo=self, oid=oid)
 
     def _coerce_to_object_and_peel(
         self,
@@ -135,7 +135,7 @@ class Repository(WrapperOfWrappings):
         git_object = git_object_p()
         error_code = self._lib.git_revparse_single(git_object, self._native, revision)
         self.raise_if_error(error_code, "Error parsing revision: {message}")
-        return Object(repo=self, native=git_object)
+        return Object._from_native(repo=self, native=git_object)
 
     def diff(
         self,

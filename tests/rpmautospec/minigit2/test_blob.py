@@ -21,5 +21,5 @@ class TestBlob:
         error_code = libgit2.git_blob_lookup(native_blob_p, repo._native, native_oid)
         assert not error_code, "Can’t lookup blob from its oid"
 
-        obj = blob.Blob(repo=repo, native=native_blob_p)
+        obj = blob.Blob(_repo=repo, _native=native_blob_p)
         assert obj.data == buffer

@@ -19,6 +19,8 @@ from .object_ import Object
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from .index import Index
+
 
 class Tree(Object):
     """Represent a git tree."""
@@ -29,6 +31,48 @@ class Tree(Object):
     _object_t = git_object_t.TREE
 
     _real_native: Optional[git_tree_p] = None
+
+    def _get_tree_entry_for_path(self, path: Union[str, bytes]) -> git_tree_entry_p:
+        if isinstance(path, str):
+            path = path.encode("utf-8")
+
+        entry = git_tree_entry_p()
+        error_code = self._lib.git_tree_entry_bypath(entry, self._native, path)
+        self.raise_if_error(error_code, key=path)
+
+        return entry
+
+    def __contains__(self, path: Union[str, bytes]) -> bool:
+        try:
+            entry = self._get_tree_entry_for_path(path)
+        except KeyError:
+            return False
+        else:
+            self._lib.git_tree_entry_free(entry)
+            return True
+
+    def _object_from_tree_entry(self, entry: git_tree_entry_p) -> Object:
+        native = git_object_p()
+        error_code = self._lib.git_tree_entry_to_object(native, self._repo._native, entry)
+        self.raise_if_error(error_code)
+        return Object(repo=self._repo, native=native, _entry=entry)
+
+    def __getitem__(self, path: Union[str, bytes]) -> Object:
+        return self._object_from_tree_entry(self._get_tree_entry_for_path(path))
+
+    def __len__(self) -> int:
+        return self._lib.git_tree_entrycount(self._native)
+
+    def __iter__(self) -> "Iterator[Object]":
+        for idx in range(len(self)):
+            unowned_entry = self._lib.git_tree_entry_byindex(self._native, idx)
+            self.raise_if_error(not unowned_entry, "Error looking up tree entry: {message}")
+
+            owned_entry = git_tree_entry_p()
+            error_code = self._lib.git_tree_entry_dup(byref(owned_entry), unowned_entry)
+            self.raise_if_error(error_code)
+
+            yield self._object_from_tree_entry(owned_entry)
 
     def diff_to_tree(
         self,
@@ -81,44 +125,26 @@ class Tree(Object):
 
         return Diff(repo=self._repo, native=diff_p)
 
-    def _get_tree_entry_for_path(self, path: Union[str, bytes]) -> git_tree_entry_p:
-        if isinstance(path, str):
-            path = path.encode("utf-8")
-
-        entry = git_tree_entry_p()
-        error_code = self._lib.git_tree_entry_bypath(entry, self._native, path)
-        self.raise_if_error(error_code, key=path)
-
-        return entry
-
-    def __contains__(self, path: Union[str, bytes]) -> bool:
-        try:
-            entry = self._get_tree_entry_for_path(path)
-        except KeyError:
-            return False
-        else:
-            self._lib.git_tree_entry_free(entry)
-            return True
-
-    def _object_from_tree_entry(self, entry: git_tree_entry_p) -> Object:
-        native = git_object_p()
-        error_code = self._lib.git_tree_entry_to_object(native, self._repo._native, entry)
+    def diff_to_index(
+        self,
+        index: "Index",
+        flags: git_diff_option_t = git_diff_option_t.NORMAL,
+        context_lines: int = 3,
+        interhunk_lines: int = 0,
+    ) -> Diff:
+        diff_options = git_diff_options()
+        error_code = self._lib.git_diff_options_init(diff_options, GIT_DIFF_OPTIONS_VERSION)
         self.raise_if_error(error_code)
-        return Object(repo=self._repo, native=native, _entry=entry)
 
-    def __getitem__(self, path: Union[str, bytes]) -> Object:
-        return self._object_from_tree_entry(self._get_tree_entry_for_path(path))
+        diff_options.flags = flags
+        diff_options.context_lines = context_lines
+        diff_options.interhunk_lines = interhunk_lines
 
-    def __len__(self) -> int:
-        return self._lib.git_tree_entrycount(self._native)
+        diff_p = git_diff_p()
 
-    def __iter__(self) -> "Iterator[Object]":
-        for idx in range(len(self)):
-            unowned_entry = self._lib.git_tree_entry_byindex(self._native, idx)
-            self.raise_if_error(not unowned_entry, "Error looking up tree entry: {message}")
+        error_code = self._lib.git_diff_tree_to_index(
+            diff_p, self._repo._native, self._native, index._native, diff_options
+        )
+        self.raise_if_error(error_code)
 
-            owned_entry = git_tree_entry_p()
-            error_code = self._lib.git_tree_entry_dup(byref(owned_entry), unowned_entry)
-            self.raise_if_error(error_code)
-
-            yield self._object_from_tree_entry(owned_entry)
+        return Diff(repo=self._repo, native=diff_p)

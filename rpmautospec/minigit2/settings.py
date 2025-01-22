@@ -1,4 +1,5 @@
-from ctypes import byref, c_char, c_char_p, c_int, cast, memmove
+from ctypes import byref, c_char_p, c_int, cast
+from sys import getfilesystemencodeerrors, getfilesystemencoding
 
 from .native_adaptation import git_buf, git_libgit2_opt_t
 from .wrapper import LibraryUser
@@ -14,22 +15,23 @@ class SearchPathList(LibraryUser):
             c_int(key),
             buf_p,
         )
-        print(f"{error_code=}")
         self.raise_if_error(error_code, "Error retrieving search path: {message}")
 
-        path_encoded = (c_char * buf.size)()
-        memmove(path_encoded, buf.ptr, buf.size)
+        path_encoded = cast(buf.ptr, c_char_p).value
+        path_decoded = path_encoded.decode(
+            encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors()
+        )
         self._lib.git_buf_dispose(buf_p)
-        return bytes(path_encoded).decode(encoding="utf-8", errors="replace")
+        return path_decoded
 
     def __setitem__(self, key: int, value: str | bytes) -> None:
         if isinstance(value, str):
-            value = value.encode("utf-8")
+            value = value.encode(
+                encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors()
+            )
 
         error_code = self._lib.git_libgit2_opts(
-            git_libgit2_opt_t.SET_SEARCH_PATH,
-            c_int(key),
-            cast(value, c_char_p),
+            git_libgit2_opt_t.SET_SEARCH_PATH, c_int(key), value
         )
         self.raise_if_error(error_code)
 

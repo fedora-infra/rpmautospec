@@ -20,7 +20,7 @@ from .exc import (
 from .native_adaptation import git_error_code, git_error_t, install_func_decls
 
 LIBGIT2_MIN_VERSION = (1, 1)
-LIBGIT2_MAX_VERSION = (1, 8)
+LIBGIT2_MAX_VERSION = (1, 9)
 LIBGIT2_MIN_VERSION_STR = ".".join(str(x) for x in LIBGIT2_MIN_VERSION)
 LIBGIT2_MAX_VERSION_STR = ".".join(str(x) for x in LIBGIT2_MAX_VERSION)
 
@@ -67,8 +67,8 @@ class LibraryUser:
                 )
             if LIBGIT2_MAX_VERSION < version_tuple[: len(LIBGIT2_MAX_VERSION)]:
                 warn(
-                    f"Version {version} of libgit2 unknown (latest known is"
-                    + f" {LIBGIT2_MIN_VERSION_STR}.)",
+                    f"Version {version} of libgit2 is unknown (latest known is"
+                    + f" {LIBGIT2_MAX_VERSION_STR}).",
                     Libgit2VersionWarning,
                 )
 
@@ -107,6 +107,7 @@ class LibraryUser:
                 exc_class = cls.ERROR_T_TO_EXC_CLASS.get(error_p.contents.klass, GitError)
         else:
             message = "(No error information given)"
+            exc_class = exc_class or GitError
 
         if exc_msg_tmpl:
             message = exc_msg_tmpl.format(message=message)

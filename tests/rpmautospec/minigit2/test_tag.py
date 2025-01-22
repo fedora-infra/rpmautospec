@@ -1,0 +1,3 @@
+# This is kind of pointless, but hey, what don’t you do to soothe your obsessions…
+
+from rpmautospec.minigit2.tag import Tag  # noqa: F401

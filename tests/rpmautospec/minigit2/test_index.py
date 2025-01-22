@@ -26,4 +26,4 @@ class TestIndex(BaseTestWrapper):
 
         diff = repo.index.diff_to_workdir()
 
-        raise RuntimeError
+        assert diff.stats.files_changed == 1

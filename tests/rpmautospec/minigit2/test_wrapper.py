@@ -8,6 +8,7 @@ from unittest import mock
 import pytest
 
 from rpmautospec.minigit2 import exc, wrapper
+from rpmautospec.minigit2.native_adaptation import git_error_code
 
 from .common import get_param_id_from_request
 
@@ -32,11 +33,11 @@ class TestLibraryUser:
         "success, cache_is_hot, found, soname",
         (
             pytest.param(True, False, True, "reallib", id="success-real-lib"),
-            pytest.param(True, False, True, "libgit2.so.1.8", id="success"),
+            pytest.param(True, False, True, "libgit2.so.1.9", id="success"),
             pytest.param(
-                True, False, True, "libgit2.so.1.8.5", id="success-max-version-with-minor"
+                True, False, True, "libgit2.so.1.9.5", id="success-max-version-with-minor"
             ),
-            pytest.param(True, False, True, "libgit2.so.1.9", id="success-version-unknown"),
+            pytest.param(True, False, True, "libgit2.so.1.10", id="success-version-unknown"),
             pytest.param(True, True, None, None, id="success-cache-hot"),
             pytest.param(False, False, False, None, id="failure-libgit2-not-found"),
             pytest.param(False, False, True, "LIBGIT2.DLL", id="failure-illegal-soname"),
@@ -103,37 +104,67 @@ class TestLibraryUser:
             _get_library.assert_called_once_with()
 
     @pytest.mark.parametrize(
-        "error_code, exc_msg_tmpl",
+        "error_code, exc_msg_tmpl, key, last_error_set",
         (
-            pytest.param(0, None, id="without-error-code"),
-            pytest.param(-1, "Something happened: {message}", id="with-error-code-template"),
-            pytest.param(-1, None, id="with-error-code-without-template"),
+            pytest.param(git_error_code.OK, None, None, False, id="without-error-code"),
+            pytest.param(
+                git_error_code.ERROR,
+                "Something happened: {message}",
+                None,
+                True,
+                id="with-unspecific-error-code-template",
+            ),
+            pytest.param(
+                git_error_code.EEXISTS,
+                None,
+                None,
+                True,
+                id="with-already-exists-error-without-template",
+            ),
+            pytest.param(git_error_code.ENOTFOUND, None, "fifteen", False, id="with-key-error"),
+            pytest.param(git_error_code.ERROR, None, None, False, id="with-unspecified-no-info"),
         ),
     )
-    def test_raise_if_error(self, error_code: int, exc_msg_tmpl: Optional[str]):
+    def test_raise_if_error(
+        self, error_code: int, exc_msg_tmpl: Optional[str], key: str, last_error_set: bool
+    ):
         if error_code:
-            expectation = pytest.raises(exc.GitError)
+            if error_code == git_error_code.ENOTFOUND:
+                cls = KeyError
+            elif error_code == git_error_code.EEXISTS:
+                cls = exc.AlreadyExistsError
+            else:
+                cls = exc.GitError
+            expectation = pytest.raises(cls)
         else:
             expectation = nullcontext()
 
         with mock.patch.object(wrapper.WrapperOfWrappings, "_get_library") as _get_library:
             _get_library.return_value = lib = mock.Mock()
-            lib.git_error_last.return_value = error_p = mock.Mock()
-            error_p.contents.message = b"BOO!"
+            if last_error_set:
+                error_p = mock.Mock()
+                error_p.contents.message = b"BOO!"
+            else:
+                error_p = None
+            lib.git_error_last.return_value = error_p
 
             with expectation as excinfo:
-                wrapper.WrapperOfWrappings.raise_if_error(error_code, exc_msg_tmpl)
+                wrapper.WrapperOfWrappings.raise_if_error(error_code, exc_msg_tmpl, key=key)
 
-        if not error_code:
-            lib.git_error_last.assert_not_called()
-        else:
-            lib.git_error_last.assert_called_once_with()
-            exc_str = str(excinfo.value)
-            assert "BOO!" in exc_str
-            if exc_msg_tmpl:
-                assert "Something happened:" in exc_str
+        if error_code:
+            if error_code == git_error_code.ENOTFOUND:
+                lib.git_error_last.assert_not_called()
             else:
-                assert "Something happened:" not in exc_str
+                lib.git_error_last.assert_called_once_with()
+                exc_str = str(excinfo.value)
+                if last_error_set:
+                    assert "BOO!" in exc_str
+                else:
+                    assert "No error information given" in exc_str
+                if exc_msg_tmpl:
+                    assert "Something happened:" in exc_str
+                else:
+                    assert "Something happened:" not in exc_str
 
 
 class TestWrapperOfWrappings:
@@ -191,14 +222,19 @@ class TestWrapperOfWrappings:
         obj = wrapper.WrapperOfWrappings(native=sentinel)
         assert obj._native is sentinel
 
-    @pytest.mark.parametrize("testcase", ("normal", "already-set", "not-a-pointer"))
+    @pytest.mark.parametrize(
+        "testcase", ("normal", "already-set", "native-not-a-pointer", "set-null")
+    )
     def test__native__setter(self, testcase: str) -> None:
         already_set = "already-set" in testcase
-        native_is_pointer = "not-a-pointer" not in testcase
+        native_is_pointer = "native-not-a-pointer" not in testcase
+        set_null = "set-null" in testcase
 
         class ClassUnderTest(wrapper.WrapperOfWrappings):
             def __repr__(self):
                 return "ClassUnderTest()"
+
+        exception_expected = nullcontext()
 
         if native_is_pointer:
             ClassUnderTest._libgit2_native_finalizer = mock.Mock(name="finalizer")
@@ -208,14 +244,21 @@ class TestWrapperOfWrappings:
             exception_expected = pytest.raises(ValueError, match="_native can’t be changed")
         else:
             obj = ClassUnderTest()
-            exception_expected = nullcontext()
 
-        sentinel = ctypes.c_void_p(12345)
+        if not set_null:
+            sentinel = ctypes.c_void_p(12345)
+        else:
+            sentinel = ctypes.c_void_p()
+
+        if native_is_pointer and set_null:
+            exception_expected = pytest.raises(
+                ValueError, match=r"_native must be a valid \(non-NULL\) pointer"
+            )
 
         with exception_expected:
             obj._native = sentinel
 
-        if already_set:
+        if already_set or (native_is_pointer and set_null):
             return
 
         assert obj._real_native is sentinel
@@ -226,22 +269,25 @@ class TestWrapperOfWrappings:
             assert wrapper.WrapperOfWrappings._real_native_refcounts[sentinel.value] == 1
             assert wrapper.WrapperOfWrappings._real_native_must_free[sentinel.value] is True
 
-    @pytest.mark.parametrize("testcase", ("normal", "not-a-pointer"))
+    @pytest.mark.parametrize("testcase", ("normal", "not-a-pointer", "must-not-free"))
     def test__native__deleter(self, testcase: str) -> None:
         native_is_pointer = "not-a-pointer" not in testcase
+        must_free = "must-not-free" not in testcase
+
+        finalizer = mock.Mock()
 
         class ClassUnderTest(wrapper.WrapperOfWrappings):
-            pass
+            _lib = mock.Mock(finalizer=finalizer)
 
         if native_is_pointer:
             sentinel = ctypes.c_void_p(12345)
-            ClassUnderTest._libgit2_native_finalizer = finalizer = mock.Mock()
+            ClassUnderTest._libgit2_native_finalizer = "finalizer"
         else:
             sentinel = object()
 
         objs = [
-            ClassUnderTest(native=sentinel),
-            ClassUnderTest(native=sentinel, _must_free=False),
+            ClassUnderTest(native=sentinel, _must_free=must_free),
+            ClassUnderTest(native=sentinel, _must_free=False),  # verify overriding of _must_free
         ]
 
         assert all(obj._real_native is sentinel for obj in objs)
@@ -262,6 +308,9 @@ class TestWrapperOfWrappings:
         assert all(obj._real_native is None for obj in objs)
 
         if native_is_pointer:
-            finalizer.assert_called_with(sentinel)
+            if must_free:
+                finalizer.assert_called_with(sentinel)
+            else:
+                finalizer.assert_not_called()
             assert 12345 not in wrapper.WrapperOfWrappings._real_native_refcounts
             assert 12345 not in wrapper.WrapperOfWrappings._real_native_must_free

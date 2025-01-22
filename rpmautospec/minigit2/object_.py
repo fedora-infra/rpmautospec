@@ -1,6 +1,6 @@
 """Minimal wrapper for libgit2 - High Level Wrappers"""
 
-from ctypes import _SimpleCData, byref, cast
+from ctypes import _SimpleCData, byref, c_char_p, cast
 from functools import cached_property
 from sys import getfilesystemencodeerrors, getfilesystemencoding
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, overload
@@ -116,7 +116,7 @@ class Object(WrapperOfWrappings):
         buf_p = byref(buf)
         error_code = self._lib.git_object_short_id(buf_p, cast(self._native, git_object_p))
         self.raise_if_error(error_code, "Error determining short id: {message}")
-        short_id = buf.ptr.decode("ascii")
+        short_id = cast(buf.ptr, c_char_p).value.decode("ascii")
         self._lib.git_buf_dispose(buf_p)
         return short_id
 

@@ -15,7 +15,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "repo_config")
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(autouse=True)
 def git_empty_config():
     """Ensure tests run with empty git configuration."""
     for level in (

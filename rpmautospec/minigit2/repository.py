@@ -2,7 +2,9 @@
 
 from collections.abc import Sequence
 from ctypes import c_char_p, c_uint
+from functools import cached_property
 from pathlib import Path
+from sys import getfilesystemencodeerrors, getfilesystemencoding
 from typing import TYPE_CHECKING, Optional, Union
 
 from .blob import Blob
@@ -37,23 +39,22 @@ class Repository(WrapperOfWrappings):
 
     _real_native: Optional[git_repository_p] = None
 
-    def __init__(
-        self, path: Union[str, Path], flags: int = 0, native: Optional[git_repository_p] = None
-    ) -> None:
+    def __init__(self, path: Union[str, Path], flags: int = 0) -> None:
         if isinstance(path, Path):
             path = str(path)
         path_c = c_char_p(path.encode("utf-8"))
 
-        self.path = path
-
-        if not native:
-            native = git_repository_p()
-            error_code = self._lib.git_repository_open_ext(
-                native, path_c, c_uint(flags), c_char_p()
-            )
-            self.raise_if_error(error_code, "Can’t open repository: {message}")
+        native = git_repository_p()
+        error_code = self._lib.git_repository_open_ext(native, path_c, c_uint(flags), c_char_p())
+        self.raise_if_error(error_code, "Can’t open repository: {message}")
 
         super().__init__(native=native)
+
+    @classmethod
+    def _from_native(cls, native: git_repository_p) -> "Repository":
+        self = cls.__new__(cls)
+        super(Repository, self).__init__(native=native)
+        return self
 
     @classmethod
     def init_repository(
@@ -68,7 +69,20 @@ class Repository(WrapperOfWrappings):
         error_code = cls._get_library().git_repository_init(native, path_c, False)
         cls.raise_if_error(error_code)
 
-        return cls(path=path, native=native)
+        return cls._from_native(native)
+
+    @cached_property
+    def path(self) -> str:
+        return self._lib.git_repository_path(self._native).decode(
+            encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors()
+        )
+
+    @cached_property
+    def workdir(self) -> Optional[str]:
+        encoded = self._lib.git_repository_workdir(self._native)
+        if not encoded:
+            return None
+        return encoded.decode(encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors())
 
     def __getitem__(self, oid: OidTypes) -> "Object":
         return Object(repo=self, oid=oid)
@@ -150,12 +164,13 @@ class Repository(WrapperOfWrappings):
                 return a.diff_to_index(self.index, *opts.values())
             else:
                 return a.diff_to_workdir(*opts.values())
-        elif isinstance(a, Blob) and isinstance(b, Blob):
-            return a.diff(b)
+        elif isinstance(a, Blob) and isinstance(b, Blob):  # pragma: no cover
+            # return a.diff(b)
+            raise NotImplementedError
 
         raise ValueError("Only blobs and treeish can be diffed")
 
-    def walk(self, oid: Optional[Oid] = None, sort: git_sort_t = git_sort_t.NONE) -> "RevWalk":
+    def walk(self, oid: Optional[Oid], sort: git_sort_t = git_sort_t.NONE) -> "RevWalk":
         revwalk = git_revwalk_p()
         error_code = self._lib.git_revwalk_new(revwalk, self._native)
         self.raise_if_error(error_code, "Can’t allocate revwalk: {message}")
@@ -163,7 +178,8 @@ class Repository(WrapperOfWrappings):
         error_code = self._lib.git_revwalk_sorting(revwalk, sort)
         self.raise_if_error(error_code, "Can’t set sorting on revwalk: {message}")
 
-        error_code = self._lib.git_revwalk_push(revwalk, oid._native)
-        self.raise_if_error(error_code, "Can’t set revwalk to Oid: {message}")
+        if oid is not None:
+            error_code = self._lib.git_revwalk_push(revwalk, oid._native)
+            self.raise_if_error(error_code, "Can’t set revwalk to Oid: {message}")
 
         return RevWalk(repo=self, native=revwalk)

@@ -263,7 +263,7 @@ git_error_p_p = POINTER(git_error_p)
 
 class git_buf(Structure):
     _fields_ = (
-        ("ptr", c_char_p),
+        ("ptr", POINTER(c_char)),
         ("reserved", c_size_t),
         ("size", c_size_t),
     )
@@ -492,6 +492,10 @@ FUNC_DECLS = {
     ),
     "git_diff_options_init": (c_int, (git_diff_options_p, c_uint)),
     "git_diff_stats_free": (None, (git_diff_stats_p,)),
+    "git_diff_tree_to_index": (
+        c_int,
+        (git_diff_p_p, git_repository_p, git_tree_p, git_index_p, git_diff_options_p),
+    ),
     "git_diff_tree_to_tree": (
         c_int,
         (git_diff_p_p, git_repository_p, git_tree_p, git_tree_p, git_diff_options_p),
@@ -530,12 +534,15 @@ FUNC_DECLS = {
     "git_repository_init": (c_int, (git_repository_p_p, c_char_p, c_uint)),
     "git_repository_item_path": (c_int, (git_buf_p, git_repository_p, git_repository_item_t)),
     "git_repository_open_ext": (c_int, (git_repository_p_p, c_char_p, c_uint, c_char_p)),
+    "git_repository_path": (c_char_p, (git_repository_p,)),
+    "git_repository_workdir": (c_char_p, (git_repository_p,)),
     "git_revparse_single": (c_int, (git_object_p_p, git_repository_p, c_char_p)),
     "git_revwalk_free": (None, (git_revwalk_p,)),
     "git_revwalk_new": (c_int, (git_revwalk_p_p, git_repository_p)),
     "git_revwalk_next": (c_int, (git_oid_p, git_revwalk_p)),
     "git_revwalk_push": (c_int, (git_revwalk_p, git_oid_p)),
     "git_revwalk_sorting": (c_int, (git_revwalk_p, c_uint)),
+    "git_signature_now": (c_int, (git_signature_p_p, c_char_p, c_char_p)),
     "git_tag_free": (None, (git_tag_p,)),
     "git_tree_entry_byindex": (git_tree_entry_p, (git_tree_p, c_size_t)),
     "git_tree_entry_bypath": (c_int, (git_tree_entry_p_p, git_tree_p, c_char_p)),

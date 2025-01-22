@@ -40,4 +40,4 @@ class RevWalk(WrapperOfWrappings, Iterator):
         error_code = self._lib.git_commit_lookup(commit, self._repo._native, oid_p)
         self.raise_if_error(error_code)
 
-        return Commit(repo=self._repo, native=commit)
+        return Commit(_repo=self._repo, _native=commit)

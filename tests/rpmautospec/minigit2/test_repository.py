@@ -132,7 +132,7 @@ class TestRepository:
                 oid, repo._native, buf, len(content) + 1
             )
             repo.raise_if_error(error_code)
-            obj = Object(repo=repo, oid=Oid(native=byref(oid)))
+            obj = Object._from_oid(repo=repo, oid=Oid(native=byref(oid)))
 
         peel_types = (git_object_t.BLOB, git_object_t.TREE)
 

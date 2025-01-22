@@ -55,7 +55,7 @@ class Tree(Object):
         native = git_object_p()
         error_code = self._lib.git_tree_entry_to_object(native, self._repo._native, entry)
         self.raise_if_error(error_code)
-        return Object(repo=self._repo, native=native, _entry=entry)
+        return Object._from_native(repo=self._repo, native=native, _entry=entry)
 
     def __getitem__(self, path: Union[str, bytes]) -> Object:
         return self._object_from_tree_entry(self._get_tree_entry_for_path(path))

@@ -30,7 +30,7 @@ class Commit(Object):
             native = git_commit_p()
             error_code = self._lib.git_commit_parent(native, self._native, n)
             self.raise_if_error(error_code, "Error getting parent: {message}")
-            parents.append(Commit(repo=self._repo, native=native))
+            parents.append(Commit(_repo=self._repo, _native=native))
         return parents
 
     @cached_property
@@ -38,7 +38,7 @@ class Commit(Object):
         native = git_tree_p()
         error_code = self._lib.git_commit_tree(native, self._native)
         self.raise_if_error(error_code, "Error retrieving tree: {message}")
-        return Tree(repo=self._repo, native=native)
+        return Tree(_repo=self._repo, _native=native)
 
     @cached_property
     def commit_time(self) -> int:

@@ -13,6 +13,7 @@ from .native_adaptation import (
     git_object_t,
     git_tree_entry_p,
     git_tree_p,
+    lib,
 )
 from .object_ import Object
 
@@ -37,7 +38,7 @@ class Tree(Object):
             path = path.encode("utf-8")
 
         entry = git_tree_entry_p()
-        error_code = self._lib.git_tree_entry_bypath(entry, self._native, path)
+        error_code = lib.git_tree_entry_bypath(entry, self._native, path)
         self.raise_if_error(error_code, key=path)
 
         return entry
@@ -48,12 +49,12 @@ class Tree(Object):
         except KeyError:
             return False
         else:
-            self._lib.git_tree_entry_free(entry)
+            lib.git_tree_entry_free(entry)
             return True
 
     def _object_from_tree_entry(self, entry: git_tree_entry_p) -> Object:
         native = git_object_p()
-        error_code = self._lib.git_tree_entry_to_object(native, self._repo._native, entry)
+        error_code = lib.git_tree_entry_to_object(native, self._repo._native, entry)
         self.raise_if_error(error_code)
         return Object._from_native(repo=self._repo, native=native, _entry=entry)
 
@@ -61,15 +62,15 @@ class Tree(Object):
         return self._object_from_tree_entry(self._get_tree_entry_for_path(path))
 
     def __len__(self) -> int:
-        return self._lib.git_tree_entrycount(self._native)
+        return lib.git_tree_entrycount(self._native)
 
     def __iter__(self) -> "Iterator[Object]":
         for idx in range(len(self)):
-            unowned_entry = self._lib.git_tree_entry_byindex(self._native, idx)
+            unowned_entry = lib.git_tree_entry_byindex(self._native, idx)
             self.raise_if_error(not unowned_entry, "Error looking up tree entry: {message}")
 
             owned_entry = git_tree_entry_p()
-            error_code = self._lib.git_tree_entry_dup(byref(owned_entry), unowned_entry)
+            error_code = lib.git_tree_entry_dup(byref(owned_entry), unowned_entry)
             self.raise_if_error(error_code)
 
             yield self._object_from_tree_entry(owned_entry)
@@ -83,7 +84,7 @@ class Tree(Object):
         swap: bool = False,
     ) -> Diff:
         diff_options = git_diff_options()
-        error_code = self._lib.git_diff_options_init(diff_options, GIT_DIFF_OPTIONS_VERSION)
+        error_code = lib.git_diff_options_init(diff_options, GIT_DIFF_OPTIONS_VERSION)
         self.raise_if_error(error_code, "Can’t initialize diff options: {message}")
 
         diff_options.flags = flags
@@ -97,7 +98,7 @@ class Tree(Object):
         else:
             a, b = self._native, tree._native
 
-        error_code = self._lib.git_diff_tree_to_tree(diff_p, self._repo._native, a, b, diff_options)
+        error_code = lib.git_diff_tree_to_tree(diff_p, self._repo._native, a, b, diff_options)
         self.raise_if_error(error_code, "Error diffing tree to tree: {message}")
 
         return Diff(self._repo, diff_p)
@@ -109,7 +110,7 @@ class Tree(Object):
         interhunk_lines: int = 0,
     ) -> Diff:
         diff_options = git_diff_options()
-        error_code = self._lib.git_diff_options_init(diff_options, GIT_DIFF_OPTIONS_VERSION)
+        error_code = lib.git_diff_options_init(diff_options, GIT_DIFF_OPTIONS_VERSION)
         self.raise_if_error(error_code)
 
         diff_options.flags = flags
@@ -118,7 +119,7 @@ class Tree(Object):
 
         diff_p = git_diff_p()
 
-        error_code = self._lib.git_diff_tree_to_workdir(
+        error_code = lib.git_diff_tree_to_workdir(
             diff_p, self._repo._native, self._native, diff_options
         )
         self.raise_if_error(error_code)
@@ -133,7 +134,7 @@ class Tree(Object):
         interhunk_lines: int = 0,
     ) -> Diff:
         diff_options = git_diff_options()
-        error_code = self._lib.git_diff_options_init(diff_options, GIT_DIFF_OPTIONS_VERSION)
+        error_code = lib.git_diff_options_init(diff_options, GIT_DIFF_OPTIONS_VERSION)
         self.raise_if_error(error_code)
 
         diff_options.flags = flags
@@ -142,7 +143,7 @@ class Tree(Object):
 
         diff_p = git_diff_p()
 
-        error_code = self._lib.git_diff_tree_to_index(
+        error_code = lib.git_diff_tree_to_index(
             diff_p, self._repo._native, self._native, index._native, diff_options
         )
         self.raise_if_error(error_code)

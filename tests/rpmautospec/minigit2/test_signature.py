@@ -1,22 +1,18 @@
-from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
 
-from rpmautospec.minigit2.native_adaptation import git_signature_p
+from rpmautospec.minigit2.native_adaptation import git_signature_p, lib
 from rpmautospec.minigit2.signature import Signature
-
-if TYPE_CHECKING:
-    from ctypes import CDLL
 
 
 @pytest.fixture
-def native_sig(libgit2: "CDLL") -> git_signature_p:
+def native_sig() -> git_signature_p:
     native = git_signature_p()
     user = b"Some User"
     email = b"someuser@example.com"
 
-    error_code = libgit2.git_signature_now(native, user, email)
+    error_code = lib.git_signature_now(native, user, email)
     assert error_code == 0
 
     return native
@@ -24,9 +20,7 @@ def native_sig(libgit2: "CDLL") -> git_signature_p:
 
 class TestSignature:
     @pytest.mark.parametrize("with_owner", (True, False), ids=("with-owner", "without-owner"))
-    def test_everything(
-        self, with_owner: bool, native_sig: git_signature_p, libgit2: "CDLL"
-    ) -> None:
+    def test_everything(self, with_owner: bool, native_sig: git_signature_p) -> None:
         if with_owner:
             owner = mock.Mock(message_encoding="ascii")
         else:
@@ -39,6 +33,6 @@ class TestSignature:
 
         if with_owner:
             assert sig._encoding == "ascii"
-            libgit2.git_signature_free(native_sig)
+            lib.git_signature_free(native_sig)
         else:
             assert sig._encoding == "utf-8"

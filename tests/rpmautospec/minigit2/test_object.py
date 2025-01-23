@@ -1,4 +1,4 @@
-from ctypes import CDLL, pointer
+from ctypes import pointer
 from stat import filemode
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -7,7 +7,7 @@ import pytest
 
 from rpmautospec.minigit2.blob import Blob
 from rpmautospec.minigit2.commit import Commit
-from rpmautospec.minigit2.native_adaptation import git_object_p, git_object_t
+from rpmautospec.minigit2.native_adaptation import git_object_p, git_object_t, lib
 from rpmautospec.minigit2.object_ import Object
 from rpmautospec.minigit2.oid import Oid
 from rpmautospec.minigit2.tree import Tree
@@ -32,11 +32,11 @@ class TestObject:
 
     # Object.__init__() is tested with .from_native() and .from_oid()
 
-    def test__from_native(self, libgit2: "CDLL", repo: "Repository") -> None:
+    def test__from_native(self, repo: "Repository") -> None:
         oid = repo.head.target
         native = git_object_p()
 
-        error_code = libgit2.git_object_lookup(
+        error_code = lib.git_object_lookup(
             pointer(native), repo._native, pointer(oid._native), git_object_t.ANY
         )
         assert error_code == 0

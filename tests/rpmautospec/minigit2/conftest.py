@@ -1,11 +1,9 @@
 import subprocess
-from ctypes import CDLL
 from pathlib import Path
 
 import pytest
 
 from rpmautospec.minigit2.repository import Repository
-from rpmautospec.minigit2.wrapper import LibraryUser
 
 
 @pytest.fixture
@@ -31,8 +29,3 @@ def repo_root_str(repo_root: Path) -> str:
 @pytest.fixture
 def repo(repo_root: Path) -> Repository:
     return Repository(repo_root)
-
-
-@pytest.fixture
-def libgit2() -> CDLL:
-    return LibraryUser._get_library()

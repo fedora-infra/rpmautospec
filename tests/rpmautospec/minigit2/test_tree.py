@@ -5,6 +5,7 @@ from unittest import mock
 import pytest
 
 from rpmautospec.minigit2.diff import Diff
+from rpmautospec.minigit2.native_adaptation import lib
 from rpmautospec.minigit2.tree import Tree
 
 if TYPE_CHECKING:
@@ -58,7 +59,7 @@ class TestTree:
         new_tree = repo[repo.head.target].tree
 
         with mock.patch.object(
-            new_tree._lib, "git_diff_tree_to_tree", wraps=new_tree._lib.git_diff_tree_to_tree
+            lib, "git_diff_tree_to_tree", wraps=lib.git_diff_tree_to_tree
         ) as git_diff_tree_to_tree:
             diff = new_tree.diff_to_tree(tree)
             assert isinstance(diff, Diff)
@@ -68,7 +69,7 @@ class TestTree:
             )
 
         with mock.patch.object(
-            new_tree._lib, "git_diff_tree_to_tree", wraps=new_tree._lib.git_diff_tree_to_tree
+            lib, "git_diff_tree_to_tree", wraps=lib.git_diff_tree_to_tree
         ) as git_diff_tree_to_tree:
             diff = new_tree.diff_to_tree(tree, swap=True)
             assert isinstance(diff, Diff)

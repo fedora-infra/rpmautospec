@@ -4,7 +4,7 @@ from ctypes import c_char, memmove
 from functools import cached_property
 from typing import Optional
 
-from .native_adaptation import git_blob_p, git_object_t
+from .native_adaptation import git_blob_p, git_object_t, lib
 from .object_ import Object
 
 
@@ -20,8 +20,8 @@ class Blob(Object):
 
     @cached_property
     def data(self) -> bytes:
-        rawsize = self._lib.git_blob_rawsize(self._native)
-        rawcontent_p = self._lib.git_blob_rawcontent(self._native)
+        rawsize = lib.git_blob_rawsize(self._native)
+        rawcontent_p = lib.git_blob_rawcontent(self._native)
         self.raise_if_error(not rawcontent_p, "Error accessing blob content: {message}")
 
         buf = (c_char * rawsize)()

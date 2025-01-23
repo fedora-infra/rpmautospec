@@ -3,7 +3,7 @@
 from sys import getfilesystemencodeerrors, getfilesystemencoding
 from typing import TYPE_CHECKING, Optional, Union
 
-from .native_adaptation import git_reference_p, git_reference_t
+from .native_adaptation import git_reference_p, git_reference_t, lib
 from .oid import Oid
 from .wrapper import WrapperOfWrappings
 
@@ -25,10 +25,10 @@ class Reference(WrapperOfWrappings):
 
     @property
     def target(self) -> Union[Oid, str]:
-        if self._lib.git_reference_type(self._native) == git_reference_t.DIRECT:
-            return Oid(native=self._lib.git_reference_target(self._native))
+        if lib.git_reference_type(self._native) == git_reference_t.DIRECT:
+            return Oid(native=lib.git_reference_target(self._native))
 
-        if not (name := self._lib.git_reference_symbolic_target(self._native)):
+        if not (name := lib.git_reference_symbolic_target(self._native)):
             raise ValueError("no target available")
 
         return name.decode(encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors())

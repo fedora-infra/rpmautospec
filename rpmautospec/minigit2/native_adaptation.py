@@ -1,5 +1,6 @@
 """Minimal wrapper for libgit2 - Native Adaptation"""
 
+import re
 from ctypes import (
     CDLL,
     CFUNCTYPE,
@@ -16,7 +17,55 @@ from ctypes import (
     c_uint64,
     c_void_p,
 )
+from ctypes.util import find_library
 from enum import IntEnum, IntFlag, auto
+from typing import Optional
+from warnings import warn
+
+from .exc import Libgit2NotFoundError, Libgit2VersionError, Libgit2VersionWarning
+
+_soname: Optional[str] = None
+lib: Optional[CDLL] = None
+version: Optional[str] = None
+version_tuple: Optional[tuple[int]] = None
+
+LIBGIT2_MIN_VERSION = (1, 1)
+LIBGIT2_MAX_VERSION = (1, 9)
+LIBGIT2_MIN_VERSION_STR = ".".join(str(x) for x in LIBGIT2_MIN_VERSION)
+LIBGIT2_MAX_VERSION_STR = ".".join(str(x) for x in LIBGIT2_MAX_VERSION)
+
+
+def _setup_lib():
+    """Discover and load libgit2, and establish basic facts."""
+    global _soname, lib, version, version_tuple
+
+    soname = find_library("git2")
+    if not soname:
+        raise Libgit2NotFoundError("libgit2 not found")
+    if not (match := re.match(r"libgit2\.so\.(?P<version>\d+(?:\.\d+)*)", soname)):
+        raise Libgit2VersionError(f"Can’t parse libgit2 version: {_soname}")
+    version = match.group("version")
+    version_tuple = tuple(int(x) for x in match.group("version").split("."))
+    if LIBGIT2_MIN_VERSION > version_tuple:
+        raise Libgit2VersionError(
+            f"Version {version} of libgit2 too low (must be >= {LIBGIT2_MIN_VERSION_STR})"
+        )
+    if LIBGIT2_MAX_VERSION < version_tuple[: len(LIBGIT2_MAX_VERSION)]:
+        warn(
+            f"Version {version} of libgit2 is unknown (latest known is {LIBGIT2_MAX_VERSION_STR}).",
+            Libgit2VersionWarning,
+        )
+
+    _soname = soname
+    lib = CDLL(soname)
+    lib.git_libgit2_init()
+
+
+try:
+    _setup_lib()
+except Exception as exc:  # pragma: no cover
+    raise ImportError from exc
+
 
 # Simple types
 
@@ -231,12 +280,14 @@ class git_delta_t(IntEnumMixin, IntEnum):
     CONFLICTED = auto()
 
 
-class git_config_level_t(IntEnumMixin, IntEnum):
+class git_config_level_t(IntEnumMixin, IntEnum):  # pragma: no cover
     PROGRAMDATA = 1
     SYSTEM = auto()
     XDG = auto()
     GLOBAL = auto()
     LOCAL = auto()
+    if version_tuple >= (1, 8):
+        WORKTREE = auto()
     APP = auto()
     HIGHEST = -1
 
@@ -415,21 +466,25 @@ git_diff_progress_cb = CFUNCTYPE(c_int, git_diff_p, c_char_p, c_char_p, c_void_p
 
 
 class git_diff_options(Structure):
-    _fields_ = (
-        ("version", c_uint),
-        ("flags", c_uint32),
-        ("ignore_submodules", c_int),
-        ("pathspec", git_strarray),
-        ("notify_cb", git_diff_notify_cb),
-        ("progress_cb", git_diff_progress_cb),
-        ("payload", c_void_p),
-        ("context_lines", c_uint32),
-        ("interhunk_lines", c_uint32),
-        ("oid_type", c_int),  # Added in libgit2 v1.7.0
-        ("id_abbrev", c_uint32),
-        ("max_size", git_off_t),
-        ("old_prefix", c_char_p),
-        ("new_prefix", c_char_p),
+    _fields_ = tuple(
+        (fname, ftype)
+        for fname, ftype in (
+            ("version", c_uint),
+            ("flags", c_uint32),
+            ("ignore_submodules", c_int),
+            ("pathspec", git_strarray),
+            ("notify_cb", git_diff_notify_cb),
+            ("progress_cb", git_diff_progress_cb),
+            ("payload", c_void_p),
+            ("context_lines", c_uint32),
+            ("interhunk_lines", c_uint32),
+            ("oid_type", c_int),  # Added in libgit2 v1.7.0
+            ("id_abbrev", c_uint32),
+            ("max_size", git_off_t),
+            ("old_prefix", c_char_p),
+            ("new_prefix", c_char_p),
+        )
+        if fname != "oid_type" or version_tuple >= (1, 7)
     )
 
 
@@ -465,6 +520,29 @@ git_signature_p = POINTER(git_signature)
 git_signature_p_p = POINTER(git_signature_p)
 
 
+class git_config_entry(Structure):
+    _fields_ = (
+        ("name", c_char_p),
+        ("value", c_char_p),
+        ("backend_type", c_char_p),
+        ("origin_path", c_char_p),
+        ("include_depth", c_uint),
+        ("level", c_int),  # really git_config_level_t
+    )
+
+
+git_config_entry_p = POINTER(git_config_entry)
+git_config_entry_p_p = POINTER(git_config_entry_p)
+
+
+class git_config(Structure):
+    pass
+
+
+git_config_p = POINTER(git_config)
+git_config_p_p = POINTER(git_config_p)
+
+
 # Native function declarations
 
 FUNC_DECLS = {
@@ -485,21 +563,32 @@ FUNC_DECLS = {
     "git_commit_time": (git_time_t, (git_commit_p,)),
     "git_commit_time_offset": (c_int, (git_commit_p,)),
     "git_commit_tree": (c_int, (git_tree_p_p, git_commit_p)),
+    "git_config_delete_entry": (c_int, (git_config_p, c_char_p)),
+    "git_config_entry_free": (None, (git_config_entry_p,)),
+    "git_config_get_entry": (c_int, (git_config_entry_p_p, git_config_p, c_char_p)),
+    "git_config_open_ondisk": (c_int, (git_config_p_p, c_char_p)),
+    "git_config_set_bool": (c_int, (git_config_p, c_char_p, c_int)),
+    "git_config_set_int64": (c_int, (git_config_p, c_char_p, c_int64)),
+    "git_config_set_string": (c_int, (git_config_p, c_char_p, c_char_p)),
+    "git_config_free": (None, (git_config_p,)),
     "git_diff_get_stats": (c_int, (git_diff_stats_p_p, git_diff_p)),
     "git_diff_index_to_workdir": (
-        c_int, (git_diff_p_p, git_repository_p, git_index_p, git_diff_options_p)
+        c_int,
+        (git_diff_p_p, git_repository_p, git_index_p, git_diff_options_p),
     ),
     "git_diff_options_init": (c_int, (git_diff_options_p, c_uint)),
     "git_diff_stats_free": (None, (git_diff_stats_p,)),
     "git_diff_tree_to_index": (
-        c_int, (git_diff_p_p, git_repository_p, git_tree_p, git_index_p, git_diff_options_p)
+        c_int,
+        (git_diff_p_p, git_repository_p, git_tree_p, git_index_p, git_diff_options_p),
     ),
     "git_diff_tree_to_tree": (
         c_int,
         (git_diff_p_p, git_repository_p, git_tree_p, git_tree_p, git_diff_options_p),
     ),
     "git_diff_tree_to_workdir": (
-        c_int, (git_diff_p_p, git_repository_p, git_tree_p, git_diff_options_p)
+        c_int,
+        (git_diff_p_p, git_repository_p, git_tree_p, git_diff_options_p),
     ),
     "git_error_last": (git_error_p, ()),
     "git_index_free": (None, (git_index_p,)),
@@ -519,11 +608,13 @@ FUNC_DECLS = {
     "git_oid_fromstrp": (c_int, (git_oid_p, c_char_p)),
     "git_reference_lookup": (c_int, (git_reference_p_p, git_repository_p, c_char_p)),
     "git_reference_symbolic_create": (
-        c_int, (git_reference_p_p, git_repository_p, c_char_p, c_char_p, c_int, c_char_p)
+        c_int,
+        (git_reference_p_p, git_repository_p, c_char_p, c_char_p, c_int, c_char_p),
     ),
     "git_reference_symbolic_target": (c_char_p, (git_reference_p,)),
     "git_reference_target": (git_oid_p, (git_reference_p,)),
     "git_reference_type": (git_reference_t, (git_reference_p,)),
+    "git_repository_config": (c_int, (git_config_p_p, git_repository_p)),
     "git_repository_free": (None, (git_repository_p,)),
     "git_repository_head": (c_int, (git_reference_p_p, git_repository_p)),
     "git_repository_index": (c_int, (git_index_p_p, git_repository_p)),
@@ -552,20 +643,18 @@ FUNC_DECLS = {
 }
 
 
-# Functions to set up the wrapper
+# Set up native function argument types.
 
 
-def apply_version_compat(version: tuple[int]):
-    if version < (1, 7, 0):
-        git_diff_options._fields_ = tuple(
-            (memname, memtype)
-            for memname, memtype in git_diff_options._fields_
-            if memname != "oid_type"
-        )
-
-
-def install_func_decls(lib: CDLL) -> None:
+def _install_func_decls() -> None:
+    global lib
     for func_name, (restype, argtypes) in FUNC_DECLS.items():
         func = getattr(lib, func_name)
         func.restype = restype
         func.argtypes = argtypes
+
+
+try:
+    _install_func_decls()
+except Exception as exc:  # pragma: no cover
+    raise ImportError from exc

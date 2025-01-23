@@ -1,6 +1,6 @@
 from . import native_adaptation
 
-GIT_CHECKOUT_FORCE = (1 << 1)
+GIT_CHECKOUT_FORCE = 1 << 1
 
 GIT_DIFF_OPTIONS_VERSION = 1
 

@@ -3,7 +3,7 @@
 from functools import cached_property
 from typing import Optional, Union
 
-from .native_adaptation import git_commit_p, git_object_t, git_tree_p
+from .native_adaptation import git_commit_p, git_object_t, git_tree_p, lib
 from .object_ import Object
 from .oid import Oid
 from .signature import Signature
@@ -24,11 +24,11 @@ class Commit(Object):
 
     @cached_property
     def parents(self) -> list["Commit"]:
-        n_parents = self._lib.git_commit_parentcount(self._native)
+        n_parents = lib.git_commit_parentcount(self._native)
         parents = []
         for n in range(n_parents):
             native = git_commit_p()
-            error_code = self._lib.git_commit_parent(native, self._native, n)
+            error_code = lib.git_commit_parent(native, self._native, n)
             self.raise_if_error(error_code, "Error getting parent: {message}")
             parents.append(Commit(_repo=self._repo, _native=native))
         return parents
@@ -36,29 +36,29 @@ class Commit(Object):
     @cached_property
     def tree(self) -> "Tree":
         native = git_tree_p()
-        error_code = self._lib.git_commit_tree(native, self._native)
+        error_code = lib.git_commit_tree(native, self._native)
         self.raise_if_error(error_code, "Error retrieving tree: {message}")
         return Tree(_repo=self._repo, _native=native)
 
     @cached_property
     def commit_time(self) -> int:
-        return self._lib.git_commit_time(self._native)
+        return lib.git_commit_time(self._native)
 
     @cached_property
     def commit_time_offset(self) -> int:
-        return self._lib.git_commit_time_offset(self._native)
+        return lib.git_commit_time_offset(self._native)
 
     @cached_property
     def author(self) -> "Signature":
-        return Signature(native=self._lib.git_commit_author(self._native), _owner=self)
+        return Signature(native=lib.git_commit_author(self._native), _owner=self)
 
     @cached_property
     def committer(self) -> "Signature":
-        return Signature(native=self._lib.git_commit_committer(self._native), _owner=self)
+        return Signature(native=lib.git_commit_committer(self._native), _owner=self)
 
     @cached_property
     def message_encoding(self) -> Optional[str]:
-        encoding = self._lib.git_commit_message_encoding(self._native)
+        encoding = lib.git_commit_message_encoding(self._native)
         if encoding:
             encoding = encoding.decode("ascii")
         else:
@@ -67,5 +67,5 @@ class Commit(Object):
 
     @cached_property
     def message(self) -> str:
-        message = self._lib.git_commit_message(self._native)
+        message = lib.git_commit_message(self._native)
         return message.decode(encoding=self.message_encoding, errors="replace")

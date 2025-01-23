@@ -5,9 +5,11 @@ try:
     import pygit2
 except ImportError:
     from . import minigit2 as pygit2
+
     uses_minigit2 = True
 else:
     import pygit2.enums
+
     uses_minigit2 = False
 
 needs_minimal_blobio = False

@@ -5,7 +5,7 @@ from functools import cached_property
 from typing import Optional, Union
 
 from .constants import GIT_OID_SHA1_HEXSIZE
-from .native_adaptation import git_oid, git_oid_p
+from .native_adaptation import git_oid, git_oid_p, lib
 from .wrapper import WrapperOfWrappings
 
 OidTypes = Union["Oid", str, bytes]
@@ -35,7 +35,7 @@ class Oid(WrapperOfWrappings):
                 if isinstance(oid, str):
                     oid = oid.encode("ascii")
                 native = git_oid()
-                error_code = self._lib.git_oid_fromstrp(native, oid)
+                error_code = lib.git_oid_fromstrp(native, oid)
                 self.raise_if_error(error_code, "Error creating Oid: {message}")
 
         super().__init__(native=native)
@@ -46,7 +46,7 @@ class Oid(WrapperOfWrappings):
     @cached_property
     def hexb(self) -> bytes:
         buf = (c_char * GIT_OID_SHA1_HEXSIZE)()
-        error_code = self._lib.git_oid_fmt(buf, self._native)
+        error_code = lib.git_oid_fmt(buf, self._native)
         self.raise_if_error(error_code, "Can’t format Oid: {message}")
         return buf.value
 

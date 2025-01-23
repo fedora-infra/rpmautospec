@@ -1,4 +1,4 @@
-from ctypes import CDLL, pointer
+from ctypes import pointer
 from stat import filemode
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -7,35 +7,36 @@ import pytest
 
 from rpmautospec.minigit2.blob import Blob
 from rpmautospec.minigit2.commit import Commit
-from rpmautospec.minigit2.native_adaptation import git_object_p, git_object_t
+from rpmautospec.minigit2.native_adaptation import git_object_p, git_object_t, lib
 from rpmautospec.minigit2.object_ import Object
 from rpmautospec.minigit2.oid import Oid
 from rpmautospec.minigit2.tree import Tree
 
 if TYPE_CHECKING:
-
     from rpmautospec.minigit2.repository import Repository
 
 
 class TestObject:
     def test___init_subclass__(self) -> None:
         with mock.patch.dict(Object._object_t_to_cls, clear=True):
+
             class FakeBlobWorks(Object):
                 _object_t = git_object_t.BLOB
 
             assert Object._object_t_to_cls == {git_object_t.BLOB: FakeBlobWorks}
 
             with pytest.raises(TypeError, match="Object type already registered"):
+
                 class FakeBlobFails(Object):
                     _object_t = git_object_t.BLOB
 
     # Object.__init__() is tested with .from_native() and .from_oid()
 
-    def test__from_native(self, libgit2: "CDLL", repo: "Repository") -> None:
+    def test__from_native(self, repo: "Repository") -> None:
         oid = repo.head.target
         native = git_object_p()
 
-        error_code = libgit2.git_object_lookup(
+        error_code = lib.git_object_lookup(
             pointer(native), repo._native, pointer(oid._native), git_object_t.ANY
         )
         assert error_code == 0
@@ -76,7 +77,7 @@ class TestObject:
 
     def test_short_id(self, repo: "Repository") -> None:
         head_commit = repo[repo.head.target]
-        assert head_commit.id.hex[:len(head_commit.short_id)] == head_commit.short_id
+        assert head_commit.id.hex[: len(head_commit.short_id)] == head_commit.short_id
 
     def test_peel(self, repo: "Repository") -> None:
         head_commit = repo[repo.head.target]

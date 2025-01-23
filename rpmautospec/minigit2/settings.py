@@ -1,7 +1,7 @@
 from ctypes import byref, c_char_p, c_int, cast
 from sys import getfilesystemencodeerrors, getfilesystemencoding
 
-from .native_adaptation import git_buf, git_libgit2_opt_t
+from .native_adaptation import git_buf, git_libgit2_opt_t, lib
 from .wrapper import LibraryUser
 
 
@@ -10,7 +10,7 @@ class SearchPathList(LibraryUser):
         buf = git_buf()
         buf_p = byref(buf)
 
-        error_code = self._lib.git_libgit2_opts(
+        error_code = lib.git_libgit2_opts(
             git_libgit2_opt_t.GET_SEARCH_PATH,
             c_int(key),
             buf_p,
@@ -21,7 +21,7 @@ class SearchPathList(LibraryUser):
         path_decoded = path_encoded.decode(
             encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors()
         )
-        self._lib.git_buf_dispose(buf_p)
+        lib.git_buf_dispose(buf_p)
         return path_decoded
 
     def __setitem__(self, key: int, value: str | bytes) -> None:
@@ -30,9 +30,7 @@ class SearchPathList(LibraryUser):
                 encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors()
             )
 
-        error_code = self._lib.git_libgit2_opts(
-            git_libgit2_opt_t.SET_SEARCH_PATH, c_int(key), value
-        )
+        error_code = lib.git_libgit2_opts(git_libgit2_opt_t.SET_SEARCH_PATH, c_int(key), value)
         self.raise_if_error(error_code)
 
 

@@ -8,9 +8,11 @@ from sys import getfilesystemencodeerrors, getfilesystemencoding
 from typing import TYPE_CHECKING, Optional, Union
 
 from .blob import Blob
+from .config import Config
 from .exc import InvalidSpecError
 from .index import Index
 from .native_adaptation import (
+    git_config_p,
     git_diff_option_t,
     git_index_p,
     git_object_p,
@@ -19,6 +21,7 @@ from .native_adaptation import (
     git_repository_p,
     git_revwalk_p,
     git_sort_t,
+    lib,
 )
 from .object_ import Object
 from .oid import Oid, OidTypes
@@ -45,7 +48,7 @@ class Repository(WrapperOfWrappings):
         path_c = c_char_p(path.encode("utf-8"))
 
         native = git_repository_p()
-        error_code = self._lib.git_repository_open_ext(native, path_c, c_uint(flags), c_char_p())
+        error_code = lib.git_repository_open_ext(native, path_c, c_uint(flags), c_char_p())
         self.raise_if_error(error_code, "Can’t open repository: {message}")
 
         super().__init__(native=native)
@@ -66,20 +69,20 @@ class Repository(WrapperOfWrappings):
         path_c = c_char_p(path.encode("utf-8"))
 
         native = git_repository_p()
-        error_code = cls._get_library().git_repository_init(native, path_c, False)
+        error_code = lib.git_repository_init(native, path_c, False)
         cls.raise_if_error(error_code)
 
         return cls._from_native(native)
 
     @cached_property
     def path(self) -> str:
-        return self._lib.git_repository_path(self._native).decode(
+        return lib.git_repository_path(self._native).decode(
             encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors()
         )
 
     @cached_property
     def workdir(self) -> Optional[str]:
-        encoded = self._lib.git_repository_workdir(self._native)
+        encoded = lib.git_repository_workdir(self._native)
         if not encoded:
             return None
         return encoded.decode(encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors())
@@ -117,14 +120,14 @@ class Repository(WrapperOfWrappings):
     @property
     def head(self) -> "Reference":
         head_ref_p = git_reference_p()
-        error_code = self._lib.git_repository_head(head_ref_p, self._native)
+        error_code = lib.git_repository_head(head_ref_p, self._native)
         self.raise_if_error(error_code, "Can’t resolve HEAD: {message}")
         return Reference(repo=self, native=head_ref_p)
 
     @property
     def index(self) -> "Index":
         index_p = git_index_p()
-        error_code = self._lib.git_repository_index(index_p, self._native)
+        error_code = lib.git_repository_index(index_p, self._native)
         self.raise_if_error(error_code, "Error getting repository index: {message}")
         return Index(repo=self, native=index_p)
 
@@ -133,7 +136,7 @@ class Repository(WrapperOfWrappings):
             revision = revision.encode("utf-8")
 
         git_object = git_object_p()
-        error_code = self._lib.git_revparse_single(git_object, self._native, revision)
+        error_code = lib.git_revparse_single(git_object, self._native, revision)
         self.raise_if_error(error_code, "Error parsing revision: {message}")
         return Object._from_native(repo=self, native=git_object)
 
@@ -172,14 +175,21 @@ class Repository(WrapperOfWrappings):
 
     def walk(self, oid: Optional[Oid], sort: git_sort_t = git_sort_t.NONE) -> "RevWalk":
         revwalk = git_revwalk_p()
-        error_code = self._lib.git_revwalk_new(revwalk, self._native)
+        error_code = lib.git_revwalk_new(revwalk, self._native)
         self.raise_if_error(error_code, "Can’t allocate revwalk: {message}")
 
-        error_code = self._lib.git_revwalk_sorting(revwalk, sort)
+        error_code = lib.git_revwalk_sorting(revwalk, sort)
         self.raise_if_error(error_code, "Can’t set sorting on revwalk: {message}")
 
         if oid is not None:
-            error_code = self._lib.git_revwalk_push(revwalk, oid._native)
+            error_code = lib.git_revwalk_push(revwalk, oid._native)
             self.raise_if_error(error_code, "Can’t set revwalk to Oid: {message}")
 
         return RevWalk(repo=self, native=revwalk)
+
+    @cached_property
+    def config(self) -> Config:
+        native = git_config_p()
+        error_code = lib.git_repository_config(native, self._native)
+        self.raise_if_error(error_code)
+        return Config(native=native)

@@ -7,12 +7,14 @@ import pytest
 
 from rpmautospec.minigit2.blob import Blob
 from rpmautospec.minigit2.commit import Commit
+from rpmautospec.minigit2.config import Config
 from rpmautospec.minigit2.index import Index
 from rpmautospec.minigit2.native_adaptation import (
     git_buf,
     git_object_t,
     git_oid,
     git_repository_item_t,
+    lib,
 )
 from rpmautospec.minigit2.object_ import Object
 from rpmautospec.minigit2.oid import Oid
@@ -47,14 +49,14 @@ class TestRepository:
         if exists:
             buf = git_buf()
             buf_p = byref(buf)
-            error_code = repo._lib.git_repository_item_path(
+            error_code = lib.git_repository_item_path(
                 buf_p, repo._native, git_repository_item_t.WORKDIR
             )
             repo.raise_if_error(error_code)
             assert repo_root == Path(
                 cast(buf.ptr, c_char_p).value.decode("utf-8", errors="replace")
             )
-            repo._lib.git_buf_dispose(buf_p)
+            lib.git_buf_dispose(buf_p)
         else:
             assert "Can’t open repository" in str(excinfo.value)
             assert str(path) in str(excinfo.value)
@@ -113,9 +115,7 @@ class TestRepository:
             pytest.param(Blob, False, id="unexpected"),
         ),
     )
-    def test__coerce_to_object_and_peel(
-        self, obj_type: type, expected: bool, repo: Repository
-    ):
+    def test__coerce_to_object_and_peel(self, obj_type: type, expected: bool, repo: Repository):
         if obj_type is None:
             obj = None
         elif obj_type is Object:
@@ -130,9 +130,7 @@ class TestRepository:
             content = b"BLOB\n"
             buf = c_char_p(content)
             oid = git_oid()
-            error_code = repo._lib.git_blob_create_from_buffer(
-                oid, repo._native, buf, len(content) + 1
-            )
+            error_code = lib.git_blob_create_from_buffer(oid, repo._native, buf, len(content) + 1)
             repo.raise_if_error(error_code)
             obj = Object._from_oid(repo=repo, oid=Oid(native=byref(oid)))
 
@@ -235,3 +233,6 @@ class TestRepository:
             assert all(isinstance(c, Commit) for c in commits)
         else:
             assert len(commits) == 0
+
+    def test_config(self, repo: Repository) -> None:
+        assert isinstance(repo.config, Config)

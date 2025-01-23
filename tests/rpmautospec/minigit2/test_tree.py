@@ -5,6 +5,7 @@ from unittest import mock
 import pytest
 
 from rpmautospec.minigit2.diff import Diff
+from rpmautospec.minigit2.native_adaptation import lib
 from rpmautospec.minigit2.tree import Tree
 
 if TYPE_CHECKING:
@@ -15,10 +16,10 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def tree(repo: "Repository") -> Tree:
-        head_commit = repo[repo.head.target]
-        tree = head_commit.tree
-        assert isinstance(tree, Tree)
-        return tree
+    head_commit = repo[repo.head.target]
+    tree = head_commit.tree
+    assert isinstance(tree, Tree)
+    return tree
 
 
 class TestTree:
@@ -58,7 +59,7 @@ class TestTree:
         new_tree = repo[repo.head.target].tree
 
         with mock.patch.object(
-            new_tree._lib, "git_diff_tree_to_tree", wraps=new_tree._lib.git_diff_tree_to_tree
+            lib, "git_diff_tree_to_tree", wraps=lib.git_diff_tree_to_tree
         ) as git_diff_tree_to_tree:
             diff = new_tree.diff_to_tree(tree)
             assert isinstance(diff, Diff)
@@ -68,7 +69,7 @@ class TestTree:
             )
 
         with mock.patch.object(
-            new_tree._lib, "git_diff_tree_to_tree", wraps=new_tree._lib.git_diff_tree_to_tree
+            lib, "git_diff_tree_to_tree", wraps=lib.git_diff_tree_to_tree
         ) as git_diff_tree_to_tree:
             diff = new_tree.diff_to_tree(tree, swap=True)
             assert isinstance(diff, Diff)
@@ -77,7 +78,7 @@ class TestTree:
                 mock.ANY, repo._native, tree._native, new_tree._native, mock.ANY
             )
 
-    def test_diff_to_workdir(self, repo_root: "Path",tree: Tree) -> None:
+    def test_diff_to_workdir(self, repo_root: "Path", tree: Tree) -> None:
         a_file = repo_root / "a_file"
         a_file.write_text("Different contents.\n")
 

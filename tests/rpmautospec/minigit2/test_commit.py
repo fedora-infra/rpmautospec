@@ -5,7 +5,7 @@ from unittest import mock
 
 import pytest
 
-from rpmautospec.minigit2 import signature, tree
+from rpmautospec.minigit2 import commit, signature, tree
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -51,9 +51,8 @@ class TestCommit:
         match = re.match(
             r"^(?P<sign>[-+])(?P<hours>\d\d)(?P<minutes>\d\d)$", completed.stdout.decode("ascii")
         )
-        expected_offset = (
-            (-1 if match.group("sign") == "-" else 1)
-            * (int(match.group("hours")) * 60 + int(match.group("minutes")))
+        expected_offset = (-1 if match.group("sign") == "-" else 1) * (
+            int(match.group("hours")) * 60 + int(match.group("minutes"))
         )
 
         head_commit = repo[repo.head.target]
@@ -88,11 +87,11 @@ class TestCommit:
     ) -> None:
         head_commit = repo[repo.head.target]
 
-        with mock.patch.object(head_commit, "_lib") as _lib:
-            _lib.git_commit_message_encoding.return_value = native_encoding
+        with mock.patch.object(commit, "lib") as lib:
+            lib.git_commit_message_encoding.return_value = native_encoding
             assert head_commit.message_encoding == "utf-8"
 
-        _lib.git_commit_message_encoding.assert_called_once_with(head_commit._native)
+        lib.git_commit_message_encoding.assert_called_once_with(head_commit._native)
 
     def test_message(self, repo: "Repository") -> None:
         head_commit = repo[repo.head.target]

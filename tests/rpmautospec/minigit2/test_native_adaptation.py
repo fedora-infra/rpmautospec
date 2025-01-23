@@ -1,9 +1,14 @@
+import ctypes
+from contextlib import nullcontext
 from enum import IntEnum
+from typing import Optional
 from unittest import mock
 
 import pytest
 
-from rpmautospec.minigit2 import native_adaptation
+from rpmautospec.minigit2 import exc, native_adaptation
+
+from .common import get_param_id_from_request
 
 
 class TestIntEnumMixin:
@@ -18,34 +23,71 @@ class TestIntEnumMixin:
 
 class TestNativeAdaptation:
     @pytest.mark.parametrize(
-        "version, oid_type_exists",
+        "success, found, soname",
         (
-            pytest.param((1, 6, 99), False, id="version-1.6.99"),
-            pytest.param((1, 7, 0), True, id="version-1.7.0"),
+            pytest.param(True, True, "reallib", id="success-real-lib"),
+            pytest.param(True, True, "libgit2.so.1.9", id="success"),
+            pytest.param(True, True, "libgit2.so.1.9.5", id="success-max-version-with-minor"),
+            pytest.param(True, True, "libgit2.so.1.10", id="success-version-unknown"),
+            pytest.param(False, False, None, id="failure-libgit2-not-found"),
+            pytest.param(False, True, "LIBGIT2.DLL", id="failure-illegal-soname"),
+            pytest.param(False, True, "libgit2.so.1.0", id="failure-version-too-low"),
         ),
     )
-    def test_apply_version_compat(self, version: tuple[int], oid_type_exists: bool) -> None:
-        orig_fields = native_adaptation.git_diff_options._fields_
+    def test__setup_lib(
+        self, success: bool, found: bool, soname: Optional[str], request: pytest.FixtureRequest
+    ) -> None:
+        testcase = get_param_id_from_request(request)
 
-        if not any(f[0] == "oid_type" for f in orig_fields):
-            # Make this test work with libgit2 < 1.7.0
-            orig_fields.append(("oid_type", int))
+        CDLL_wraps = ctypes.CDLL if not soname else None
 
-        with mock.patch.object(native_adaptation, "git_diff_options") as git_diff_options:
-            git_diff_options._fields_ = tuple(orig_fields)
-            native_adaptation.apply_version_compat(version)
-            oid_type_is_in_fields = any(f[0] == "oid_type" for f in git_diff_options._fields_)
-            if oid_type_exists:
-                assert oid_type_is_in_fields
+        with (
+            mock.patch.object(native_adaptation, "_soname") as soname_sentinel,
+            mock.patch.object(native_adaptation, "lib") as lib_sentinel,
+            mock.patch.object(native_adaptation, "version"),
+            mock.patch.object(native_adaptation, "version_tuple"),
+            mock.patch.object(
+                native_adaptation, "find_library", wraps=ctypes.util.find_library
+            ) as find_library,
+            mock.patch.object(native_adaptation, "CDLL", wraps=CDLL_wraps) as CDLL,
+        ):
+            if success:
+                if "version-unknown" in testcase:
+                    expectation = pytest.warns(exc.Libgit2VersionWarning)
+                else:
+                    expectation = nullcontext()
             else:
-                assert not oid_type_is_in_fields
+                if "libgit2-not-found" in testcase:
+                    expectation = pytest.raises(exc.Libgit2NotFoundError)
+                elif "illegal-soname" in testcase or "version-too-low" in testcase:
+                    expectation = pytest.raises(exc.Libgit2VersionError)
 
-    def test_install_func_decls(self) -> None:
-        lib = mock.Mock()
+            if soname != "reallib":
+                find_library.return_value = soname
 
-        native_adaptation.install_func_decls(lib)
+            with expectation:
+                native_adaptation._setup_lib()
 
-        for func_name, (restype, argtypes) in native_adaptation.FUNC_DECLS.items():
-            func = getattr(lib, func_name)
-            assert func.restype == restype
-            assert func.argtypes == argtypes
+            if success:
+                if soname != "reallib":
+                    CDLL.assert_called_once_with(soname)
+                else:
+                    CDLL.assert_called_once()
+
+                if CDLL_wraps:
+                    assert isinstance(native_adaptation.lib, ctypes.CDLL)
+                    assert native_adaptation.lib._name.startswith("libgit2.so.")
+                else:
+                    assert native_adaptation.lib is CDLL.return_value
+            else:
+                assert native_adaptation._soname is soname_sentinel
+                assert native_adaptation.lib is lib_sentinel
+
+    def test__install_func_decls(self) -> None:
+        with mock.patch.object(native_adaptation, "lib") as lib:
+            native_adaptation._install_func_decls()
+
+            for func_name, (restype, argtypes) in native_adaptation.FUNC_DECLS.items():
+                func = getattr(lib, func_name)
+                assert func.restype == restype
+                assert func.argtypes == argtypes

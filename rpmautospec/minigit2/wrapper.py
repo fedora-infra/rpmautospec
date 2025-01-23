@@ -1,28 +1,16 @@
 """Minimal wrapper for libgit2 - LibraryUser & WrapperOfWrappings"""
 
-import re
 from collections import defaultdict
-from ctypes import CDLL, _CFuncPtr, _SimpleCData, c_void_p, cast
-from ctypes.util import find_library
-from functools import cached_property
+from ctypes import _CFuncPtr, _SimpleCData, c_void_p, cast
 from typing import Optional, Union
-from warnings import warn
 from weakref import ref
 
 from .exc import (
     AlreadyExistsError,
     GitError,
     InvalidSpecError,
-    Libgit2NotFoundError,
-    Libgit2VersionError,
-    Libgit2VersionWarning,
 )
-from .native_adaptation import git_error_code, git_error_t, install_func_decls
-
-LIBGIT2_MIN_VERSION = (1, 1)
-LIBGIT2_MAX_VERSION = (1, 9)
-LIBGIT2_MIN_VERSION_STR = ".".join(str(x) for x in LIBGIT2_MIN_VERSION)
-LIBGIT2_MAX_VERSION_STR = ".".join(str(x) for x in LIBGIT2_MAX_VERSION)
+from .native_adaptation import git_error_code, git_error_t, lib
 
 
 class LibraryUser:
@@ -42,48 +30,6 @@ class LibraryUser:
         git_error_t.INVALID: ValueError,
     }
 
-    _soname: Optional[str] = None
-    _library_obj: Optional[CDLL] = None
-
-    @classmethod
-    def _get_library(cls) -> CDLL:
-        """Discover and load libgit2.
-
-        This caches the loaded library object in the class.
-
-        :return: The loaded library
-        """
-        if not LibraryUser._library_obj:
-            soname = find_library("git2")
-            if not soname:
-                raise Libgit2NotFoundError("libgit2 not found")
-            if not (match := re.match(r"libgit2\.so\.(?P<version>\d+(?:\.\d+)*)", soname)):
-                raise Libgit2VersionError(f"Can’t parse libgit2 version: {soname}")
-            version = match.group("version")
-            version_tuple = tuple(int(x) for x in match.group("version").split("."))
-            if LIBGIT2_MIN_VERSION > version_tuple:
-                raise Libgit2VersionError(
-                    f"Version {version} of libgit2 too low (must be >= {LIBGIT2_MIN_VERSION_STR})"
-                )
-            if LIBGIT2_MAX_VERSION < version_tuple[: len(LIBGIT2_MAX_VERSION)]:
-                warn(
-                    f"Version {version} of libgit2 is unknown (latest known is"
-                    + f" {LIBGIT2_MAX_VERSION_STR}).",
-                    Libgit2VersionWarning,
-                )
-
-            LibraryUser._soname = soname
-            LibraryUser._library_obj = CDLL(soname)
-            install_func_decls(LibraryUser._library_obj)
-            LibraryUser._library_obj.git_libgit2_init()
-
-        return LibraryUser._library_obj
-
-    @cached_property
-    def _lib(self) -> CDLL:
-        """The loaded library."""
-        return self._get_library()
-
     @classmethod
     def raise_if_error(
         cls,
@@ -99,7 +45,7 @@ class LibraryUser:
         if exc_class is KeyError and key:
             raise KeyError(key)
 
-        error_p = cls._get_library().git_error_last()
+        error_p = lib.git_error_last()
         if error_p:
             message = error_p.contents.message.decode("utf-8", errors="replace")
 
@@ -177,10 +123,6 @@ class WrapperOfWrappings(LibraryUser):
             if not ptr.value:
                 return
 
-            if ptr.value not in self._real_native_refcounts:
-                print(f"{finalizer=} {self._real_native}", file=open("/dev/tty", "w"), flush=True)
-                print(f"{ptr!r} {ptr.value=} not in refcounts", file=open("/dev/tty", "w"),
-                      flush=True)
             assert ptr.value in self._real_native_refcounts
 
             self._real_native_refcounts[ptr.value] -= 1
@@ -188,9 +130,7 @@ class WrapperOfWrappings(LibraryUser):
                 if self._real_native_must_free[ptr.value]:
                     if isinstance(finalizer, str):
                         type(self)._libgit2_native_finalizer_name = finalizer
-                        type(self)._libgit2_native_finalizer = finalizer = getattr(
-                            self._lib, finalizer
-                        )
+                        type(self)._libgit2_native_finalizer = finalizer = getattr(lib, finalizer)
 
                     finalizer(native)
 

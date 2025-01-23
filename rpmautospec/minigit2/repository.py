@@ -20,6 +20,7 @@ from .native_adaptation import (
     git_reference_p,
     git_repository_p,
     git_revwalk_p,
+    git_signature_p,
     git_sort_t,
     lib,
 )
@@ -27,6 +28,7 @@ from .object_ import Object
 from .oid import Oid, OidTypes
 from .reference import Reference
 from .revwalk import RevWalk
+from .signature import Signature
 from .tree import Tree
 from .wrapper import WrapperOfWrappings
 
@@ -193,3 +195,10 @@ class Repository(WrapperOfWrappings):
         error_code = lib.git_repository_config(native, self._native)
         self.raise_if_error(error_code)
         return Config(native=native)
+
+    @property
+    def default_signature(self) -> Signature:
+        native = git_signature_p()
+        error_code = lib.git_signature_default(native, self._native)
+        self.raise_if_error(error_code)
+        return Signature(native=native)

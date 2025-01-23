@@ -629,6 +629,7 @@ FUNC_DECLS = {
     "git_revwalk_next": (c_int, (git_oid_p, git_revwalk_p)),
     "git_revwalk_push": (c_int, (git_revwalk_p, git_oid_p)),
     "git_revwalk_sorting": (c_int, (git_revwalk_p, c_uint)),
+    "git_signature_default": (c_int, (git_signature_p_p, git_repository_p)),
     "git_signature_now": (c_int, (git_signature_p_p, c_char_p, c_char_p)),
     "git_tag_free": (None, (git_tag_p,)),
     "git_tree_entry_byindex": (git_tree_entry_p, (git_tree_p, c_size_t)),

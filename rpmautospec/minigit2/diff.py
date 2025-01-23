@@ -3,10 +3,7 @@
 from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
-from .native_adaptation import (
-    git_diff_p,
-    git_diff_stats_p,
-)
+from .native_adaptation import git_diff_p, git_diff_stats_p, lib
 from .wrapper import WrapperOfWrappings
 
 if TYPE_CHECKING:
@@ -27,7 +24,7 @@ class DiffStats(WrapperOfWrappings):
 
     @property
     def files_changed(self) -> int:
-        return self._lib.git_diff_stats_files_changed(self._native)
+        return lib.git_diff_stats_files_changed(self._native)
 
 
 class Diff(WrapperOfWrappings):
@@ -43,6 +40,6 @@ class Diff(WrapperOfWrappings):
     @cached_property
     def stats(self) -> DiffStats:
         native = git_diff_stats_p()
-        error_code = self._lib.git_diff_get_stats(native, self._native)
+        error_code = lib.git_diff_get_stats(native, self._native)
         self.raise_if_error(error_code, "Can’t get diff stats: {message}")
         return DiffStats(diff=self, native=native)

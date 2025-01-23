@@ -5,7 +5,7 @@ from ctypes import byref
 from typing import TYPE_CHECKING, Optional
 
 from .commit import Commit
-from .native_adaptation import git_commit_p, git_error_code, git_oid, git_revwalk_p
+from .native_adaptation import git_commit_p, git_error_code, git_oid, git_revwalk_p, lib
 from .wrapper import WrapperOfWrappings
 
 if TYPE_CHECKING:
@@ -31,13 +31,13 @@ class RevWalk(WrapperOfWrappings, Iterator):
         oid = git_oid()
         oid_p = byref(oid)
 
-        error_code = self._lib.git_revwalk_next(oid_p, self._native)
+        error_code = lib.git_revwalk_next(oid_p, self._native)
         if error_code == git_error_code.ITEROVER:
             raise StopIteration
         self.raise_if_error(error_code)
 
         commit = git_commit_p()
-        error_code = self._lib.git_commit_lookup(commit, self._repo._native, oid_p)
+        error_code = lib.git_commit_lookup(commit, self._repo._native, oid_p)
         self.raise_if_error(error_code)
 
         return Commit(_repo=self._repo, _native=commit)

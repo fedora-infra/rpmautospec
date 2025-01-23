@@ -6,15 +6,13 @@ from unittest import mock
 
 import pytest
 
-from rpmautospec.minigit2.native_adaptation import git_reference_p
+from rpmautospec.minigit2.native_adaptation import git_reference_p, lib
 from rpmautospec.minigit2.oid import Oid
 from rpmautospec.minigit2.reference import Reference
 
 from .common import BaseTestWrapper
 
 if TYPE_CHECKING:
-    from ctypes import CDLL
-
     from rpmautospec.minigit2.repository import Repository
 
 
@@ -22,9 +20,7 @@ class TestReference(BaseTestWrapper):
     cls = Reference
 
     @pytest.mark.parametrize("testcase", ("direct", "symbolic", "symbolic-invalid"))
-    def test_target(
-        self, testcase: str, libgit2: "CDLL", repo_root_str: str, repo: "Repository"
-    ) -> None:
+    def test_target(self, testcase: str, repo_root_str: str, repo: "Repository") -> None:
         direct = "direct" in testcase
         invalid = "invalid" in testcase
 
@@ -34,7 +30,7 @@ class TestReference(BaseTestWrapper):
         else:
             native = git_reference_p()
             refname = b"HEAD"
-            error_code = libgit2.git_reference_lookup(native, repo._native, refname)
+            error_code = lib.git_reference_lookup(native, repo._native, refname)
             assert error_code == 0
 
             completed = subprocess.run(
@@ -50,7 +46,7 @@ class TestReference(BaseTestWrapper):
 
         if invalid:
             expectation = pytest.raises(ValueError)
-            simulate_invalid = mock.patch.object(ref._lib, "git_reference_symbolic_target")
+            simulate_invalid = mock.patch.object(lib, "git_reference_symbolic_target")
         else:
             simulate_invalid = nullcontext()
 

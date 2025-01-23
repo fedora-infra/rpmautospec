@@ -15,6 +15,7 @@ from .native_adaptation import (
     git_tag_p,
     git_tree_entry_p,
     git_tree_p,
+    lib,
 )
 from .oid import Oid, OidTypes
 from .wrapper import WrapperOfWrappings
@@ -70,7 +71,7 @@ class Object(WrapperOfWrappings):
         _must_free: Optional[bool] = None,
         _entry: Optional[git_tree_entry_p] = None,
     ) -> "Object":
-        object_t = cls._get_library().git_object_type(cast(native, git_object_p))
+        object_t = lib.git_object_type(cast(native, git_object_p))
         try:
             concrete_cls = cls._object_t_to_cls[object_t]
         except KeyError:  # pragma: no cover
@@ -82,7 +83,6 @@ class Object(WrapperOfWrappings):
     def _from_oid(
         cls, repo: "Repository", oid: OidTypes, *, _must_free: Optional[bool] = None
     ) -> "Object":
-        lib = cls._get_library()
         oid = Oid(oid=oid)
         native = git_object_p()
         error_code = lib.git_object_lookup_prefix(
@@ -103,16 +103,16 @@ class Object(WrapperOfWrappings):
 
     @cached_property
     def id(self) -> Oid:
-        return Oid(native=self._lib.git_object_id(cast(self._native, git_object_p)))
+        return Oid(native=lib.git_object_id(cast(self._native, git_object_p)))
 
     @cached_property
     def short_id(self) -> str:
         buf = git_buf()
         buf_p = byref(buf)
-        error_code = self._lib.git_object_short_id(buf_p, cast(self._native, git_object_p))
+        error_code = lib.git_object_short_id(buf_p, cast(self._native, git_object_p))
         self.raise_if_error(error_code, "Error determining short id: {message}")
         short_id = cast(buf.ptr, c_char_p).value.decode("ascii")
-        self._lib.git_buf_dispose(buf_p)
+        lib.git_buf_dispose(buf_p)
         return short_id
 
     @overload
@@ -135,9 +135,7 @@ class Object(WrapperOfWrappings):
             target_type = git_object_t.ANY
 
         peeled = git_object_p()
-        error_code = self._lib.git_object_peel(
-            peeled, cast(self._native, git_object_p), target_type
-        )
+        error_code = lib.git_object_peel(peeled, cast(self._native, git_object_p), target_type)
         self.raise_if_error(error_code, "Can’t peel object: {message}")
 
         return Object._from_native(repo=self._repo, native=peeled)
@@ -147,7 +145,7 @@ class Object(WrapperOfWrappings):
         if not self._entry:
             return None
 
-        return self._lib.git_tree_entry_name(self._entry).decode(
+        return lib.git_tree_entry_name(self._entry).decode(
             encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors()
         )
 
@@ -156,4 +154,4 @@ class Object(WrapperOfWrappings):
         if not self._entry:
             return None
 
-        return self._lib.git_tree_entry_filemode(self._entry)
+        return lib.git_tree_entry_filemode(self._entry)

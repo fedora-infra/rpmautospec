@@ -83,7 +83,7 @@ class Object(WrapperOfWrappings):
     def _from_oid(
         cls, repo: "Repository", oid: OidTypes, *, _must_free: Optional[bool] = None
     ) -> "Object":
-        oid = Oid(oid=oid)
+        oid = Oid._from_oid(oid)
         native = git_object_p()
         error_code = lib.git_object_lookup_prefix(
             native, repo._native, oid._native, len(oid.hexb), git_object_t.ANY
@@ -103,7 +103,7 @@ class Object(WrapperOfWrappings):
 
     @cached_property
     def id(self) -> Oid:
-        return Oid(native=lib.git_object_id(cast(self._native, git_object_p)))
+        return Oid(lib.git_object_id(cast(self._native, git_object_p)))
 
     @cached_property
     def short_id(self) -> str:

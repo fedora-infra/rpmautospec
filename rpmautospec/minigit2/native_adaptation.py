@@ -298,6 +298,15 @@ class git_libgit2_opt_t(IntEnumMixin, IntEnum):
     SET_SEARCH_PATH = 5
 
 
+class git_diff_flag_t(IntEnumMixin, IntFlag):
+    BINARY = 1 << 0
+    NOT_BINARY = auto()
+    VALID_ID = auto()
+    EXISTS = auto()
+    if version_tuple >= (1, 4):  # pragma: no cover
+        VALID_SIZE = auto()
+
+
 # Compound types
 
 
@@ -448,7 +457,7 @@ git_diff_file_p_p = POINTER(git_diff_file_p)
 
 class git_diff_delta(Structure):
     _fields_ = (
-        ("status", c_int),  # really git_delta_t
+        ("status", c_uint),  # really git_delta_t
         ("flags", c_uint32),
         ("similarity", c_uint16),
         ("nfiles", c_uint16),
@@ -571,11 +580,13 @@ FUNC_DECLS = {
     "git_config_set_int64": (c_int, (git_config_p, c_char_p, c_int64)),
     "git_config_set_string": (c_int, (git_config_p, c_char_p, c_char_p)),
     "git_config_free": (None, (git_config_p,)),
+    "git_diff_get_delta": (git_diff_delta_p, (git_diff_p, c_size_t)),
     "git_diff_get_stats": (c_int, (git_diff_stats_p_p, git_diff_p)),
     "git_diff_index_to_workdir": (
         c_int,
         (git_diff_p_p, git_repository_p, git_index_p, git_diff_options_p),
     ),
+    "git_diff_num_deltas": (c_size_t, (git_diff_p,)),
     "git_diff_options_init": (c_int, (git_diff_options_p, c_uint)),
     "git_diff_stats_free": (None, (git_diff_stats_p,)),
     "git_diff_tree_to_index": (

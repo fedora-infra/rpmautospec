@@ -16,29 +16,27 @@ class Oid(WrapperOfWrappings):
 
     _real_native: Optional[git_oid] = None
 
-    def __init__(
-        self, *, native: Optional[git_oid_p] = None, oid: Optional[OidTypes] = None
-    ) -> None:
-        if (native is None) == (oid is None):
-            raise ValueError("Exactly one of native or oid has to be specified")
-
-        if native:
+    def __init__(self, native: Union[git_oid, git_oid_p]) -> None:
+        if isinstance(native, git_oid_p):
             src = native
             native = git_oid()
             dst = byref(native)
             memmove(dst, src, sizeof(git_oid))
-        else:
-            assert oid
-            if isinstance(oid, Oid):
-                native = oid._native
-            else:
-                if isinstance(oid, str):
-                    oid = oid.encode("ascii")
-                native = git_oid()
-                error_code = lib.git_oid_fromstrp(native, oid)
-                self.raise_if_error(error_code, "Error creating Oid: {message}")
 
         super().__init__(native=native)
+
+    @classmethod
+    def _from_oid(cls, oid: OidTypes) -> "Oid":
+        if isinstance(oid, Oid):
+            native = oid._native
+        else:
+            if isinstance(oid, str):
+                oid = oid.encode("ascii")
+            native = git_oid()
+            error_code = lib.git_oid_fromstrp(native, oid)
+            cls.raise_if_error(error_code, "Error creating Oid: {message}")
+
+        return Oid(native)
 
     def __eq__(self, other: "Oid") -> bool:
         return self._native.id == other._native.id
@@ -55,7 +53,7 @@ class Oid(WrapperOfWrappings):
         return self.hexb.decode("ascii")
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(oid={self.hex!r})"
+        return f"{self.__class__.__name__}._from_oid({self.hex!r})"
 
     def __str__(self) -> str:
         return self.hex

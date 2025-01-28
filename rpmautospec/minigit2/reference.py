@@ -26,7 +26,7 @@ class Reference(WrapperOfWrappings):
     @property
     def target(self) -> Union[Oid, str]:
         if lib.git_reference_type(self._native) == git_reference_t.DIRECT:
-            return Oid(native=lib.git_reference_target(self._native))
+            return Oid(lib.git_reference_target(self._native))
 
         if not (name := lib.git_reference_symbolic_target(self._native)):
             raise ValueError("no target available")

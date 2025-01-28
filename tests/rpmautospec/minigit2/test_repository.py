@@ -21,6 +21,7 @@ from rpmautospec.minigit2.oid import Oid
 from rpmautospec.minigit2.reference import Reference
 from rpmautospec.minigit2.repository import Repository
 from rpmautospec.minigit2.revwalk import RevWalk
+from rpmautospec.minigit2.signature import Signature
 from rpmautospec.minigit2.tree import Tree
 
 
@@ -236,3 +237,10 @@ class TestRepository:
 
     def test_config(self, repo: Repository) -> None:
         assert isinstance(repo.config, Config)
+
+    def test_default_signature(self, repo: Repository) -> None:
+        repo.config["user.name"] = "J Random Hacker"
+        repo.config["user.email"] = "j.random@hacker.org"
+        assert isinstance(repo.default_signature, Signature)
+        assert repo.default_signature.name == "J Random Hacker"
+        assert repo.default_signature.email == "j.random@hacker.org"

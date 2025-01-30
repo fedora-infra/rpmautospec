@@ -36,14 +36,18 @@ class LibraryUser:
         error_code: int,
         exc_msg_tmpl: Optional[str] = None,
         key: Optional[Union[str, bytes]] = None,
+        io: bool = False,
     ) -> None:
         if not error_code:
             return
 
         exc_class = cls.ERROR_CODE_TO_EXC_CLASS.get(error_code)
 
-        if exc_class is KeyError and key:
-            raise KeyError(key)
+        if exc_class is KeyError:
+            if io:
+                exc_class = IOError
+            elif key:
+                raise KeyError(key)
 
         error_p = lib.git_error_last()
         if error_p:

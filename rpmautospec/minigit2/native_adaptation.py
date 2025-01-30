@@ -9,6 +9,7 @@ from ctypes import (
     c_char,
     c_char_p,
     c_int,
+    c_int32,
     c_int64,
     c_size_t,
     c_uint,
@@ -509,6 +510,41 @@ git_index_p = POINTER(git_index)
 git_index_p_p = POINTER(git_index_p)
 
 
+class git_index_time(Structure):
+    _fields_ = (
+        ("seconds", c_int32),
+        ("nanoseconds", c_uint32),
+    )
+
+
+git_index_time_p = POINTER(git_index_time)
+git_index_time_p_p = POINTER(git_index_time_p)
+
+
+class git_index_entry(Structure):
+    _fields_ = (
+        ("ctime", git_index_time),
+        ("mtime", git_index_time),
+        ("dev", c_uint32),
+        ("ino", c_uint32),
+        ("mode", c_uint32),
+        ("uid", c_uint32),
+        ("gid", c_uint32),
+        ("file_size", c_uint32),
+        ("id", git_oid),
+        ("flags", c_uint16),
+        ("flags_extended", c_uint16),
+        ("path", c_char_p),
+    )
+
+
+git_index_entry_p = POINTER(git_index_entry)
+git_index_entry_p_p = POINTER(git_index_entry_p)
+
+
+git_index_matched_path_cb = CFUNCTYPE(c_int, c_char_p, c_char_p, c_void_p)
+
+
 class git_time(Structure):
     _fields_ = (
         ("time", git_time_t),
@@ -602,7 +638,21 @@ FUNC_DECLS = {
         (git_diff_p_p, git_repository_p, git_tree_p, git_diff_options_p),
     ),
     "git_error_last": (git_error_p, ()),
+    "git_index_add_all": (
+        c_int,
+        (git_index_p, git_strarray_p, c_uint, git_index_matched_path_cb, c_void_p),
+    ),
+    "git_index_add_bypath": (c_int, (git_index_p, c_char_p)),
     "git_index_free": (None, (git_index_p,)),
+    "git_index_remove": (c_int, (git_index_p, c_char_p, c_int)),
+    "git_index_write": (c_int, (git_index_p,)),
+    "git_index_write_tree": (
+        c_int,
+        (
+            git_oid_p,
+            git_index_p,
+        ),
+    ),
     "git_libgit2_init": (c_int, ()),
     "git_libgit2_opts": (c_int, (c_int,)),  # variadic
     "git_object_free": (None, (git_object_p,)),

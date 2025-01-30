@@ -13,13 +13,14 @@ from rpmautospec.minigit2.native_adaptation import git_error_code
 
 class TestLibraryUser:
     @pytest.mark.parametrize(
-        "error_code, exc_msg_tmpl, key, last_error_set",
+        "error_code, exc_msg_tmpl, key, io, last_error_set",
         (
-            pytest.param(git_error_code.OK, None, None, False, id="without-error-code"),
+            pytest.param(git_error_code.OK, None, None, False, False, id="without-error-code"),
             pytest.param(
                 git_error_code.ERROR,
                 "Something happened: {message}",
                 None,
+                False,
                 True,
                 id="with-unspecific-error-code-template",
             ),
@@ -27,19 +28,35 @@ class TestLibraryUser:
                 git_error_code.EEXISTS,
                 None,
                 None,
+                False,
                 True,
                 id="with-already-exists-error-without-template",
             ),
-            pytest.param(git_error_code.ENOTFOUND, None, "fifteen", False, id="with-key-error"),
-            pytest.param(git_error_code.ERROR, None, None, False, id="with-unspecified-no-info"),
+            pytest.param(
+                git_error_code.ENOTFOUND, None, None, False, False, id="with-key-error-without-key"
+            ),
+            pytest.param(
+                git_error_code.ENOTFOUND, None, "fifteen", False, False, id="with-key-error"
+            ),
+            pytest.param(
+                git_error_code.ENOTFOUND, None, "fifteen", True, False, id="with-io-error"
+            ),
+            pytest.param(
+                git_error_code.ERROR, None, None, False, False, id="with-unspecified-no-info"
+            ),
         ),
     )
     def test_raise_if_error(
-        self, error_code: int, exc_msg_tmpl: Optional[str], key: str, last_error_set: bool
+        self,
+        error_code: int,
+        exc_msg_tmpl: Optional[str],
+        key: Optional[str],
+        io: bool,
+        last_error_set: bool,
     ):
         if error_code:
             if error_code == git_error_code.ENOTFOUND:
-                cls = KeyError
+                cls = KeyError if not io else IOError
             elif error_code == git_error_code.EEXISTS:
                 cls = exc.AlreadyExistsError
             else:
@@ -57,10 +74,10 @@ class TestLibraryUser:
             lib.git_error_last.return_value = error_p
 
             with expectation as excinfo:
-                wrapper.WrapperOfWrappings.raise_if_error(error_code, exc_msg_tmpl, key=key)
+                wrapper.WrapperOfWrappings.raise_if_error(error_code, exc_msg_tmpl, key=key, io=io)
 
         if error_code:
-            if error_code == git_error_code.ENOTFOUND:
+            if error_code == git_error_code.ENOTFOUND and not io and key:
                 lib.git_error_last.assert_not_called()
             else:
                 lib.git_error_last.assert_called_once_with()

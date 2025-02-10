@@ -1,22 +1,25 @@
 """Minimal wrapper for libgit2 - Repository"""
 
 from collections.abc import Sequence
-from ctypes import c_char_p, c_uint
+from ctypes import byref, c_char_p, c_uint
 from functools import cached_property
 from pathlib import Path
 from sys import getfilesystemencodeerrors, getfilesystemencoding
 from typing import TYPE_CHECKING, Optional, Union
 
 from .blob import Blob
+from .commit import Commit
 from .config import Config
 from .exc import InvalidSpecError
 from .index import Index
 from .native_adaptation import (
+    git_commit_p,
     git_config_p,
     git_diff_option_t,
     git_index_p,
     git_object_p,
     git_object_t,
+    git_oid,
     git_reference_p,
     git_repository_p,
     git_revwalk_p,
@@ -33,7 +36,6 @@ from .tree import Tree
 from .wrapper import WrapperOfWrappings
 
 if TYPE_CHECKING:
-    from .commit import Commit
     from .diff import Diff
 
 
@@ -144,8 +146,8 @@ class Repository(WrapperOfWrappings):
 
     def diff(
         self,
-        a: Optional[Union["Commit", "Reference"]] = None,
-        b: Optional[Union["Commit", "Reference"]] = None,
+        a: Optional[Union[Commit, "Reference"]] = None,
+        b: Optional[Union[Commit, "Reference"]] = None,
         cached: bool = False,
         flags: git_diff_option_t = git_diff_option_t.NORMAL,
         context_lines: int = 3,
@@ -202,3 +204,66 @@ class Repository(WrapperOfWrappings):
         error_code = lib.git_signature_default(native, self._native)
         self.raise_if_error(error_code)
         return Signature(native=native)
+
+    def lookup_reference_dwim(self, reference_name: str) -> Reference:
+        native = git_reference_p()
+        error_code = lib.git_reference_dwim(
+            byref(native),
+            self._native,
+            reference_name.encode(
+                encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors()
+            ),
+        )
+        self.raise_if_error(error_code)
+        return Reference(repo=self, native=native)
+
+    def resolve_refish(self, refish: str) -> Commit:
+        try:
+            reference = self.lookup_reference_dwim(refish)
+        except (KeyError, InvalidSpecError):
+            reference = None
+            commit = self.revparse_single(refish)
+        else:
+            commit = reference.peel(Commit)
+
+        return commit, reference
+
+    def create_commit(
+        self,
+        reference_name: str,
+        author: Signature,
+        committer: Signature,
+        message: Union[str, bytes],
+        tree_oid: Oid,
+        parent_oids: list[Oid],
+        encoding: str = "utf-8",
+    ) -> Oid:
+        if reference_name:
+            refname = reference_name.encode("utf-8")
+        else:
+            refname = c_char_p()
+        if isinstance(message, str):
+            message = message.encode(encoding=encoding)
+
+        tree = Tree._from_oid(self, tree_oid)
+
+        pcount = len(parent_oids)
+        parent_commits = [Commit._from_oid(self, poid) for poid in parent_oids]
+        native_parent_commits = (git_commit_p * pcount)(*(c._native for c in parent_commits))
+
+        native = git_oid()
+        error_code = lib.git_commit_create(
+            byref(native),
+            self._native,
+            refname,
+            author._native,
+            committer._native,
+            encoding.encode("ascii"),
+            message,
+            tree._native,
+            pcount,
+            native_parent_commits,
+        )
+        self.raise_if_error(error_code)
+
+        return Oid(native)

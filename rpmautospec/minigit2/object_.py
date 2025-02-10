@@ -3,7 +3,7 @@
 from ctypes import _SimpleCData, byref, c_char_p, cast
 from functools import cached_property
 from sys import getfilesystemencodeerrors, getfilesystemencoding
-from typing import TYPE_CHECKING, Literal, Optional, Union, overload
+from typing import TYPE_CHECKING, Literal, Optional, Type, Union, overload
 
 from .native_adaptation import (
     git_blob_p,
@@ -130,13 +130,17 @@ class Object(WrapperOfWrappings):
     @overload
     def peel(self, target_type: None) -> "Union[Commit, Tree, Blob]": ...
 
-    def peel(self, target_type: Optional[git_object_t] = None) -> "Union[Commit, Tree, Tag, Blob]":
+    def peel(
+        self, target_type: Optional[Union[git_object_t, Type["Object"]]] = None
+    ) -> "Union[Commit, Tree, Tag, Blob]":
         if not target_type:
             target_type = git_object_t.ANY
+        elif isinstance(target_type, type) and issubclass(target_type, Object):
+            target_type = target_type._object_t
 
         peeled = git_object_p()
         error_code = lib.git_object_peel(peeled, cast(self._native, git_object_p), target_type)
-        self.raise_if_error(error_code, "Can’t peel object: {message}")
+        self.raise_if_error(error_code)
 
         return Object._from_native(repo=self._repo, native=peeled)
 

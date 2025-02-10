@@ -244,3 +244,59 @@ class TestRepository:
         assert isinstance(repo.default_signature, Signature)
         assert repo.default_signature.name == "J Random Hacker"
         assert repo.default_signature.email == "j.random@hacker.org"
+
+    def test_lookup_reference_dwim(self, repo: Repository) -> None:
+        assert repo.lookup_reference_dwim(repo.head.name) == repo.head
+
+    def test_resolve_refish(self, repo: Repository) -> None:
+        commit, reference = repo.resolve_refish("HEAD")
+
+        assert isinstance(commit, Commit)
+        assert reference == repo.head
+
+        commit2, reference2 = repo.resolve_refish(str(commit.id))
+
+        assert commit2 == commit
+        assert reference2 is None
+
+    @pytest.mark.parametrize("with_refname", (True, False), ids=("with-refname", "without-refname"))
+    @pytest.mark.parametrize("msgtype", (str, bytes), ids=("msg-str", "msg-bytes"))
+    def test_create_commit(
+        self,
+        with_refname: bool,
+        msgtype: type,
+        repo_root: Path,
+        repo_root_str: str,
+        repo: Repository,
+    ) -> None:
+        b_file = repo_root / "b_file"
+        b_file.write_text("Another file.")
+
+        index = repo.index
+        index.add(b_file.relative_to(repo_root))
+        index.write()
+        tree_oid = index.write_tree()
+
+        parent, reference = repo.resolve_refish(repo.head.name)
+
+        msg = "Add another file"
+        if msgtype is bytes:
+            msg = msg.encode("utf-8")
+
+        oid = repo.create_commit(
+            reference_name=repo.head.name if with_refname else None,
+            author=repo.default_signature,
+            committer=repo.default_signature,
+            message=msg,
+            tree_oid=tree_oid,
+            parent_oids=[repo.head.target],
+        )
+
+        completed = subprocess.run(
+            ["git", "-C", repo_root_str, "show", oid.hex], check=True, capture_output=True
+        )
+
+        assert b"b/b_file" in completed.stdout
+        assert repo.default_signature.name.encode("utf-8") in completed.stdout
+        assert repo.default_signature.email.encode("utf-8") in completed.stdout
+        assert b"Add another file" in completed.stdout

@@ -1,5 +1,6 @@
 """Minimal wrapper for libgit2 - Reference"""
 
+from ctypes import byref
 from functools import cached_property
 from sys import getfilesystemencodeerrors, getfilesystemencoding
 from typing import TYPE_CHECKING, Optional, Type, Union
@@ -55,3 +56,13 @@ class Reference(WrapperOfWrappings):
         self.raise_if_error(error_code)
 
         return Object._from_native(repo=self._repo, native=peeled)
+
+    def resolve(self) -> "Reference":
+        if lib.git_reference_type(self._native) == git_reference_t.DIRECT:
+            return self
+
+        native = git_reference_p()
+        error_code = lib.git_reference_resolve(byref(native), self._native)
+        self.raise_if_error(error_code)
+
+        return Reference(repo=self._repo, native=native)

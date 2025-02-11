@@ -308,6 +308,47 @@ class git_diff_flag_t(IntEnumMixin, IntFlag):
         VALID_SIZE = auto()
 
 
+class git_checkout_notify_t(IntEnumMixin, IntFlag):
+    NONE = 0
+    CONFLICT = 1 << 0
+    DIRTY = auto()
+    UPDATED = auto()
+    UNTRACKED = auto()
+    IGNORED = auto()
+    ALL = (1 << 16) - 1
+
+
+class git_checkout_strategy_t(IntEnumMixin, IntFlag):
+    SAFE = 0
+    FORCE = 1 << 1
+    RECREATE_MISSING = auto()
+
+    ALLOW_CONFLICTS = 1 << 4
+    REMOVE_UNTRACKED = auto()
+    REMOVE_IGNORED = auto()
+    UPDATE_ONLY = auto()
+    DONT_UPDATE_INDEX = auto()
+    NO_REFRESH = auto()
+    SKIP_UNMERGED = auto()
+    USE_OURS = auto()
+    USE_THEIRS = auto()
+    DISABLE_PATHSPEC_MATCH = auto()
+
+    SKIP_LOCKED_DIRECTORIES = 1 << 18
+    DONT_OVERWRITE_IGNORED = auto()
+    CONFLICT_STYLE_MERGE = auto()
+    CONFLICT_STYLE_DIFF3 = auto()
+    DONT_REMOVE_EXISTING = auto()
+    DONT_WRITE_INDEX = auto()
+    DRY_RUN = auto()
+    CONFLICT_STYLE_ZDIFF3 = auto()
+
+    NONE = 1 << 30
+
+    UPDATE_SUBMODULES = 1 << 16
+    UPDATE_SUBMODULES_IF_CHANGED = auto()
+
+
 # Compound types
 
 
@@ -588,6 +629,76 @@ git_config_p = POINTER(git_config)
 git_config_p_p = POINTER(git_config_p)
 
 
+git_checkout_notify_cb = CFUNCTYPE(
+    c_int,
+    git_checkout_notify_t,
+    c_char_p,
+    git_diff_file_p,
+    git_diff_file_p,
+    git_diff_file_p,
+    c_void_p,
+)
+git_checkout_progress_cb = CFUNCTYPE(None, c_char_p, c_size_t, c_size_t, c_void_p)
+
+
+class git_checkout_perfdata(Structure):
+    _fields_ = (
+        ("mkdir_calls", c_size_t),
+        ("stat_calls", c_size_t),
+        ("chmod_calls", c_size_t),
+    )
+
+
+git_checkout_perfdata_p = POINTER(git_checkout_perfdata)
+git_checkout_perfdata_cb = CFUNCTYPE(None, git_checkout_perfdata_p, c_void_p)
+
+
+class git_checkout_options(Structure):
+    _fields_ = (
+        ("version", c_uint),
+        ("checkout_strategy", c_uint),
+        ("disable_filters", c_int),
+        ("dir_mode", c_uint),
+        ("file_mode", c_uint),
+        ("file_open_flags", c_int),
+        ("notify_flags", c_uint),
+        ("notify_cb", git_checkout_notify_cb),
+        ("notify_payload", c_void_p),
+        ("progress_cb", git_checkout_progress_cb),
+        ("progress_payload", c_void_p),
+        ("paths", git_strarray),
+        ("baseline", git_tree_p),
+        ("baseline_index", git_index_p),
+        ("target_directory", c_char_p),
+        ("ancestor_label", c_char_p),
+        ("our_label", c_char_p),
+        ("their_label", c_char_p),
+        ("perfdata_cb", git_checkout_perfdata_cb),
+        ("perfdata_payload", c_void_p),
+    )
+
+
+git_checkout_options_p = POINTER(git_checkout_options)
+git_checkout_options_p_p = POINTER(git_checkout_options_p)
+
+
+class git_repository_init_options(Structure):
+    _fields_ = (
+        ("version", c_uint),
+        ("flags", c_uint32),
+        ("mode", c_uint32),
+        ("workdir_path", c_char_p),
+        ("description", c_char_p),
+        ("template_path", c_char_p),
+        ("initial_head", c_char_p),
+        ("origin_url", c_char_p),
+    )
+
+
+git_repository_init_options_p = POINTER(git_repository_init_options)
+git_repository_init_options_p_p = POINTER(git_repository_init_options_p)
+
+
 # Native function declarations
 
 FUNC_DECLS = {
@@ -596,7 +707,13 @@ FUNC_DECLS = {
     "git_blob_lookup": (c_int, (git_blob_p_p, git_repository_p, git_oid_p)),
     "git_blob_rawcontent": (c_void_p, (git_blob_p,)),
     "git_blob_rawsize": (git_object_size_t, (git_blob_p,)),
+    "git_branch_create": (
+        c_int,
+        (git_reference_p_p, git_repository_p, c_char_p, git_commit_p, c_int),
+    ),
     "git_buf_dispose": (None, (git_buf_p,)),
+    "git_checkout_options_init": (c_int, (git_checkout_options_p, c_uint)),
+    "git_checkout_tree": (c_int, (git_repository_p, git_object_p, git_checkout_options_p)),
     "git_commit_author": (git_signature_p, (git_commit_p,)),
     "git_commit_committer": (git_signature_p, (git_commit_p,)),
     "git_commit_create": (
@@ -686,6 +803,7 @@ FUNC_DECLS = {
     "git_reference_lookup": (c_int, (git_reference_p_p, git_repository_p, c_char_p)),
     "git_reference_name": (c_char_p, (git_reference_p,)),
     "git_reference_peel": (c_int, (git_object_p_p, git_reference_p, git_object_t)),
+    "git_reference_resolve": (c_int, (git_reference_p_p, git_reference_p)),
     "git_reference_symbolic_create": (
         c_int,
         (git_reference_p_p, git_repository_p, c_char_p, c_char_p, c_int, c_char_p),
@@ -697,7 +815,11 @@ FUNC_DECLS = {
     "git_repository_free": (None, (git_repository_p,)),
     "git_repository_head": (c_int, (git_reference_p_p, git_repository_p)),
     "git_repository_index": (c_int, (git_index_p_p, git_repository_p)),
-    "git_repository_init": (c_int, (git_repository_p_p, c_char_p, c_uint)),
+    "git_repository_init_ext": (
+        c_int,
+        (git_repository_p_p, c_char_p, git_repository_init_options_p),
+    ),
+    "git_repository_init_options_init": (c_int, (git_repository_init_options_p, c_uint)),
     "git_repository_item_path": (c_int, (git_buf_p, git_repository_p, git_repository_item_t)),
     "git_repository_open_ext": (c_int, (git_repository_p_p, c_char_p, c_uint, c_char_p)),
     "git_repository_path": (c_char_p, (git_repository_p,)),

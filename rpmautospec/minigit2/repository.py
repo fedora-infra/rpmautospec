@@ -1,18 +1,22 @@
 """Minimal wrapper for libgit2 - Repository"""
 
 from collections.abc import Sequence
-from ctypes import byref, c_char_p, c_uint
+from ctypes import byref, c_char_p, c_uint, cast
 from functools import cached_property
 from pathlib import Path
 from sys import getfilesystemencodeerrors, getfilesystemencoding
 from typing import TYPE_CHECKING, Optional, Union
 
 from .blob import Blob
+from .branch import Branch
 from .commit import Commit
 from .config import Config
+from .constants import GIT_CHECKOUT_OPTIONS_VERSION, GIT_REPOSITORY_INIT_OPTIONS_VERSION
 from .exc import InvalidSpecError
 from .index import Index
 from .native_adaptation import (
+    git_checkout_options,
+    git_checkout_strategy_t,
     git_commit_p,
     git_config_p,
     git_diff_option_t,
@@ -21,6 +25,7 @@ from .native_adaptation import (
     git_object_t,
     git_oid,
     git_reference_p,
+    git_repository_init_options,
     git_repository_p,
     git_revwalk_p,
     git_signature_p,
@@ -70,10 +75,24 @@ class Repository(WrapperOfWrappings):
         # Currently, this is only used in tests, so implements only the bare minimum.
         if isinstance(path, Path):
             path = str(path)
-        path_c = c_char_p(path.encode("utf-8"))
+        path_bytes = path.encode(
+            encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors()
+        )
+
+        options = git_repository_init_options()
+        error_code = lib.git_repository_init_options_init(
+            byref(options), GIT_REPOSITORY_INIT_OPTIONS_VERSION
+        )
+        cls.raise_if_error(error_code)
+
+        if initial_head:
+            initial_head_bytes = initial_head.encode(
+                encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors()
+            )
+            options.initial_head = initial_head_bytes
 
         native = git_repository_p()
-        error_code = lib.git_repository_init(native, path_c, False)
+        error_code = lib.git_repository_init_ext(native, path_bytes, byref(options))
         cls.raise_if_error(error_code)
 
         return cls._from_native(native)
@@ -267,3 +286,29 @@ class Repository(WrapperOfWrappings):
         self.raise_if_error(error_code)
 
         return Oid(native)
+
+    def create_branch(self, reference_name: str, commit: Commit, force: bool = False) -> None:
+        ref = git_reference_p()
+        error_code = lib.git_branch_create(
+            byref(ref), self._native, reference_name.encode("utf-8"), commit._native, force
+        )
+        self.raise_if_error(error_code)
+
+        return Branch(repo=self, native=ref)
+
+    def checkout_tree(
+        self,
+        treeish: Optional[Object] = None,
+        *,
+        strategy: git_checkout_strategy_t = git_checkout_strategy_t.NONE,
+    ) -> None:
+        options = git_checkout_options()
+        error_code = lib.git_checkout_options_init(byref(options), GIT_CHECKOUT_OPTIONS_VERSION)
+        self.raise_if_error(error_code)
+
+        options.checkout_strategy = strategy
+
+        error_code = lib.git_checkout_tree(
+            self._native, cast(treeish._native, git_object_p), options
+        )
+        self.raise_if_error(error_code)

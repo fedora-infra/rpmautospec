@@ -12,6 +12,7 @@ from . import enums, settings
 from .blob import Blob
 from .commit import Commit
 from .constants import (
+    GIT_CHECKOUT_FORCE,
     GIT_CONFIG_LEVEL_GLOBAL,
     GIT_CONFIG_LEVEL_LOCAL,
     GIT_CONFIG_LEVEL_SYSTEM,

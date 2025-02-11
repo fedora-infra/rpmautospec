@@ -73,7 +73,7 @@ def create_commit(
     commit = repo[oid]
 
     if create_branch is not _UNSET:
-        repo.branches.local.create(create_branch or "rawhide", commit)
+        repo.create_branch(create_branch or "rawhide", commit)
 
     repo.checkout_tree(commit.tree, strategy=pygit2.GIT_CHECKOUT_FORCE)
 

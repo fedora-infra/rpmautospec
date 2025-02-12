@@ -378,6 +378,31 @@ class git_status_t(IntEnumMixin, IntFlag):
     CONFLICTED = auto()
 
 
+class git_status_show_t(IntEnumMixin, IntFlag):
+    INDEX_AND_WORKDIR = 0
+    INDEX_ONLY = auto()
+    WORKDIR_ONLY = auto()
+
+
+class git_status_opt_t(IntEnumMixin, IntFlag):
+    INCLUDE_UNTRACKED = 1 << 0
+    INCLUDE_IGNORED = auto()
+    INCLUDE_UNMODIFIED = auto()
+    EXCLUDE_SUBMODULES = auto()
+    RECURSE_UNTRACKED_DIRS = auto()
+    DISABLE_PATHSPEC_MATCH = auto()
+    RECURSE_IGNORED_DIRS = auto()
+    RENAMES_HEAD_TO_INDEX = auto()
+    RENAMES_INDEX_TO_WORKDIR = auto()
+    SORT_CASE_SENSITIVELY = auto()
+    SORT_CASE_INSENSITIVELY = auto()
+    RENAMES_FROM_REWRITES = auto()
+    NO_REFRESH = auto()
+    UPDATE_INDEX = auto()
+    INCLUDE_UNREADABLE = auto()
+    INCLUDE_UNREADABLE_AS_UNTRACKED = auto()
+
+
 # Compound types
 
 
@@ -728,6 +753,41 @@ git_repository_init_options_p = POINTER(git_repository_init_options)
 git_repository_init_options_p_p = POINTER(git_repository_init_options_p)
 
 
+class git_status_options(Structure):
+    _fields_ = (
+        ("version", c_uint),
+        ("show", c_uint),  # really git_status_show_t
+        ("flags", c_uint),  # really git_status_options
+        ("pathspec", git_strarray),
+        ("baseline", git_tree_p),
+        ("rename_threshold", c_uint16),
+    )
+
+
+git_status_options_p = POINTER(git_status_options)
+git_status_options_p_p = POINTER(git_status_options_p)
+
+
+class git_status_list(Structure):
+    pass
+
+
+git_status_list_p = POINTER(git_status_list)
+git_status_list_p_p = POINTER(git_status_list_p)
+
+
+class git_status_entry(Structure):
+    _fields_ = (
+        ("status", c_uint),  # really git_status_t
+        ("head_to_index", git_diff_delta_p),
+        ("index_to_workdir", git_diff_delta_p),
+    )
+
+
+git_status_entry_p = POINTER(git_status_entry)
+git_status_entry_p_p = POINTER(git_status_entry_p)
+
+
 # Native function declarations
 
 FUNC_DECLS = {
@@ -861,7 +921,11 @@ FUNC_DECLS = {
     "git_revwalk_sorting": (c_int, (git_revwalk_p, c_uint)),
     "git_signature_default": (c_int, (git_signature_p_p, git_repository_p)),
     "git_signature_now": (c_int, (git_signature_p_p, c_char_p, c_char_p)),
+    "git_status_byindex": (git_status_entry_p, (git_status_list_p, c_size_t)),
     "git_status_file": (c_int, (POINTER(c_uint), git_repository_p, c_char_p)),
+    "git_status_list_entrycount": (c_size_t, (git_status_list_p,)),
+    "git_status_list_new": (c_int, (git_status_list_p_p, git_repository_p, git_status_options_p)),
+    "git_status_options_init": (c_int, (git_status_options_p, c_uint)),
     "git_tag_free": (None, (git_tag_p,)),
     "git_tree_entry_byindex": (git_tree_entry_p, (git_tree_p, c_size_t)),
     "git_tree_entry_bypath": (c_int, (git_tree_entry_p_p, git_tree_p, c_char_p)),

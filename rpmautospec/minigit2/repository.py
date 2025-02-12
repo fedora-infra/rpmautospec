@@ -6,13 +6,17 @@ from functools import cached_property
 from os import PathLike, fspath
 from pathlib import Path
 from sys import getfilesystemencodeerrors, getfilesystemencoding
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Literal, Optional, Union
 
 from .blob import Blob
 from .branch import Branch
 from .commit import Commit
 from .config import Config
-from .constants import GIT_CHECKOUT_OPTIONS_VERSION, GIT_REPOSITORY_INIT_OPTIONS_VERSION
+from .constants import (
+    GIT_CHECKOUT_OPTIONS_VERSION,
+    GIT_REPOSITORY_INIT_OPTIONS_VERSION,
+    GIT_STATUS_OPTIONS_VERSION,
+)
 from .exc import InvalidSpecError
 from .index import Index
 from .native_adaptation import (
@@ -32,6 +36,9 @@ from .native_adaptation import (
     git_revwalk_p,
     git_signature_p,
     git_sort_t,
+    git_status_list_p,
+    git_status_opt_t,
+    git_status_options,
     git_status_t,
     lib,
 )
@@ -332,3 +339,40 @@ class Repository(WrapperOfWrappings):
         self.raise_if_error(error_code)
 
         return git_status_t(native.value)
+
+    def status(
+        self, untracked: Literal["all", "normal", "no"] = "all", ignored: bool = False
+    ) -> dict[str, git_status_t]:
+        options = git_status_options()
+        error_code = lib.git_status_options_init(byref(options), GIT_STATUS_OPTIONS_VERSION)
+        self.raise_if_error(error_code)
+
+        if untracked == "no":
+            options.flags &= ~(
+                git_status_opt_t.INCLUDE_UNTRACKED | git_status_opt_t.RECURSE_UNTRACKED_DIRS
+            )
+        elif untracked == "normal":
+            options.flags &= ~git_status_opt_t.RECURSE_UNTRACKED_DIRS
+
+        if ignored:
+            options.flags &= ~git_status_opt_t.INCLUDE_IGNORED
+
+        status_list = git_status_list_p()
+        error_code = lib.git_status_list_new(byref(status_list), self._native, options)
+        self.raise_if_error(error_code)
+
+        encoding = getfilesystemencoding()
+        errors = getfilesystemencodeerrors()
+
+        entries = {}
+        for idx in range(lib.git_status_list_entrycount(status_list)):
+            entry = lib.git_status_byindex(status_list, idx).contents
+            if entry.head_to_index:
+                diff_delta = entry.head_to_index.contents
+            else:
+                diff_delta = entry.index_to_workdir.contents
+            path = diff_delta.old_file.path.decode(encoding=encoding, errors=errors)
+
+            entries[path] = git_status_t(entry.status)
+
+        return entries

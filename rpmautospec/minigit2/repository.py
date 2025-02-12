@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from ctypes import byref, c_char_p, c_uint, cast
 from functools import cached_property
+from os import PathLike, fspath
 from pathlib import Path
 from sys import getfilesystemencodeerrors, getfilesystemencoding
 from typing import TYPE_CHECKING, Optional, Union
@@ -25,11 +26,13 @@ from .native_adaptation import (
     git_object_t,
     git_oid,
     git_reference_p,
+    git_repository_init_flag_t,
     git_repository_init_options,
     git_repository_p,
     git_revwalk_p,
     git_signature_p,
     git_sort_t,
+    git_status_t,
     lib,
 )
 from .object_ import Object
@@ -70,7 +73,11 @@ class Repository(WrapperOfWrappings):
 
     @classmethod
     def init_repository(
-        cls, path: Union[str, Path], initial_head: Optional[str] = None
+        cls,
+        path: Union[str, Path],
+        *,
+        flags: git_repository_init_flag_t = git_repository_init_flag_t.MKPATH,
+        initial_head: Optional[str] = None,
     ) -> "Repository":
         # Currently, this is only used in tests, so implements only the bare minimum.
         if isinstance(path, Path):
@@ -84,6 +91,8 @@ class Repository(WrapperOfWrappings):
             byref(options), GIT_REPOSITORY_INIT_OPTIONS_VERSION
         )
         cls.raise_if_error(error_code)
+
+        options.flags = flags
 
         if initial_head:
             initial_head_bytes = initial_head.encode(
@@ -312,3 +321,14 @@ class Repository(WrapperOfWrappings):
             self._native, cast(treeish._native, git_object_p), options
         )
         self.raise_if_error(error_code)
+
+    def status_file(self, path: Union[PathLike, str, bytes]) -> git_status_t:
+        path = fspath(path)
+        if isinstance(path, str):
+            path = path.encode(encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors())
+
+        native = c_uint()
+        error_code = lib.git_status_file(byref(native), self._native, path)
+        self.raise_if_error(error_code)
+
+        return git_status_t(native.value)

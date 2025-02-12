@@ -15,3 +15,18 @@ GIT_OID_HEXSZ = GIT_OID_SHA1_HEXSIZE = GIT_OID_SHA1_SIZE * 2
 
 GIT_REPOSITORY_INIT_OPTIONS_VERSION = 1
 GIT_REPOSITORY_OPEN_NO_SEARCH = native_adaptation.git_repository_open_flag_t.NO_SEARCH
+
+GIT_STATUS_CURRENT = native_adaptation.git_status_t.CURRENT
+GIT_STATUS_INDEX_NEW = native_adaptation.git_status_t.INDEX_NEW
+GIT_STATUS_INDEX_MODIFIED = native_adaptation.git_status_t.INDEX_MODIFIED
+GIT_STATUS_INDEX_DELETED = native_adaptation.git_status_t.INDEX_DELETED
+GIT_STATUS_INDEX_RENAMED = native_adaptation.git_status_t.INDEX_RENAMED
+GIT_STATUS_INDEX_TYPECHANGE = native_adaptation.git_status_t.INDEX_TYPECHANGE
+GIT_STATUS_WT_NEW = native_adaptation.git_status_t.WT_NEW
+GIT_STATUS_WT_MODIFIED = native_adaptation.git_status_t.WT_MODIFIED
+GIT_STATUS_WT_DELETED = native_adaptation.git_status_t.WT_DELETED
+GIT_STATUS_WT_TYPECHANGE = native_adaptation.git_status_t.WT_TYPECHANGE
+GIT_STATUS_WT_RENAMED = native_adaptation.git_status_t.WT_RENAMED
+GIT_STATUS_WT_UNREADABLE = native_adaptation.git_status_t.WT_UNREADABLE
+GIT_STATUS_IGNORED = native_adaptation.git_status_t.IGNORED
+GIT_STATUS_CONFLICTED = native_adaptation.git_status_t.CONFLICTED

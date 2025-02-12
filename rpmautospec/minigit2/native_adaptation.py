@@ -349,6 +349,35 @@ class git_checkout_strategy_t(IntEnumMixin, IntFlag):
     UPDATE_SUBMODULES_IF_CHANGED = auto()
 
 
+class git_repository_init_flag_t(IntEnumMixin, IntFlag):
+    BARE = 1 << 0
+    NO_REINIT = auto()
+
+    MKDIR = 1 << 3
+    MKPATH = auto()
+    EXTERNAL_TEMPLATE = auto()
+    RELATIVE_GITLINK = auto()
+
+
+class git_status_t(IntEnumMixin, IntFlag):
+    CURRENT = 0
+    INDEX_NEW = 1 << 0
+    INDEX_MODIFIED = auto()
+    INDEX_DELETED = auto()
+    INDEX_RENAMED = auto()
+    INDEX_TYPECHANGE = auto()
+
+    WT_NEW = 1 << 7
+    WT_MODIFIED = auto()
+    WT_DELETED = auto()
+    WT_TYPECHANGE = auto()
+    WT_RENAMED = auto()
+    WT_UNREADABLE = auto()
+
+    IGNORED = 1 << 14
+    CONFLICTED = auto()
+
+
 # Compound types
 
 
@@ -685,7 +714,7 @@ git_checkout_options_p_p = POINTER(git_checkout_options_p)
 class git_repository_init_options(Structure):
     _fields_ = (
         ("version", c_uint),
-        ("flags", c_uint32),
+        ("flags", c_uint32),  # really git_repository_init_flag_t
         ("mode", c_uint32),
         ("workdir_path", c_char_p),
         ("description", c_char_p),
@@ -823,6 +852,7 @@ FUNC_DECLS = {
     "git_revwalk_sorting": (c_int, (git_revwalk_p, c_uint)),
     "git_signature_default": (c_int, (git_signature_p_p, git_repository_p)),
     "git_signature_now": (c_int, (git_signature_p_p, c_char_p, c_char_p)),
+    "git_status_file": (c_int, (POINTER(c_uint), git_repository_p, c_char_p)),
     "git_tag_free": (None, (git_tag_p,)),
     "git_tree_entry_byindex": (git_tree_entry_p, (git_tree_p, c_size_t)),
     "git_tree_entry_bypath": (c_int, (git_tree_entry_p_p, git_tree_p, c_char_p)),

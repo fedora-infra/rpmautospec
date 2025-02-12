@@ -30,3 +30,5 @@ GIT_STATUS_WT_RENAMED = native_adaptation.git_status_t.WT_RENAMED
 GIT_STATUS_WT_UNREADABLE = native_adaptation.git_status_t.WT_UNREADABLE
 GIT_STATUS_IGNORED = native_adaptation.git_status_t.IGNORED
 GIT_STATUS_CONFLICTED = native_adaptation.git_status_t.CONFLICTED
+
+GIT_STATUS_OPTIONS_VERSION = 1

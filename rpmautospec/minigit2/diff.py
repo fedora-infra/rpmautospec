@@ -1,15 +1,18 @@
 """Minimal wrapper for libgit2 - Diff & DiffStat"""
 
 from collections.abc import Iterator
+from ctypes import byref, c_char_p, cast
 from functools import cached_property
 from sys import getfilesystemencodeerrors, getfilesystemencoding
 from typing import TYPE_CHECKING, Optional
 
 from .enums import DeltaStatus, DiffFlag
 from .native_adaptation import (
+    git_buf,
     git_diff_delta_p,
     git_diff_file,
     git_diff_flag_t,
+    git_diff_format_t,
     git_diff_p,
     git_diff_stats_p,
     git_filemode_t,
@@ -139,3 +142,18 @@ class Diff(WrapperOfWrappings):
         error_code = lib.git_diff_get_stats(native, self._native)
         self.raise_if_error(error_code, "Can’t get diff stats: {message}")
         return DiffStats(diff=self, native=native)
+
+    @cached_property
+    def patch(self) -> str:
+        buf = git_buf()
+        buf_p = byref(buf)
+
+        error_code = lib.git_diff_to_buf(buf, self._native, git_diff_format_t.PATCH)
+        self.raise_if_error(error_code)
+
+        patch_encoded = cast(buf.ptr, c_char_p).value
+        patch = patch_encoded.decode(encoding="utf-8", errors="replace")
+
+        lib.git_buf_dispose(buf_p)
+
+        return patch

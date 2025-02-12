@@ -403,6 +403,15 @@ class git_status_opt_t(IntEnumMixin, IntFlag):
     INCLUDE_UNREADABLE_AS_UNTRACKED = auto()
 
 
+class git_diff_format_t(IntEnumMixin, IntEnum):
+    PATCH = 1
+    PATCH_HEADER = auto()
+    RAW = auto()
+    NAME_ONLY = auto()
+    NAME_STATUS = auto()
+    PATCH_ID = auto()
+
+
 # Compound types
 
 
@@ -846,6 +855,7 @@ FUNC_DECLS = {
     "git_diff_num_deltas": (c_size_t, (git_diff_p,)),
     "git_diff_options_init": (c_int, (git_diff_options_p, c_uint)),
     "git_diff_stats_free": (None, (git_diff_stats_p,)),
+    "git_diff_to_buf": (c_int, (git_buf_p, git_diff_p, git_diff_format_t)),
     "git_diff_tree_to_index": (
         c_int,
         (git_diff_p_p, git_repository_p, git_tree_p, git_index_p, git_diff_options_p),
@@ -893,6 +903,7 @@ FUNC_DECLS = {
     "git_reference_name": (c_char_p, (git_reference_p,)),
     "git_reference_peel": (c_int, (git_object_p_p, git_reference_p, git_object_t)),
     "git_reference_resolve": (c_int, (git_reference_p_p, git_reference_p)),
+    "git_reference_shorthand": (c_char_p, (git_reference_p,)),
     "git_reference_symbolic_create": (
         c_int,
         (git_reference_p_p, git_repository_p, c_char_p, c_char_p, c_int, c_char_p),

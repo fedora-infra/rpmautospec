@@ -93,7 +93,7 @@ class Object(WrapperOfWrappings):
         return cls._from_native(repo=repo, native=native, _must_free=_must_free)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(oid={self.short_id!r})"
+        return f"{self.__class__.__name__}(oid={self.id.hex!r})"
 
     def __eq__(self, other: "Object") -> bool:
         return isinstance(other, Object) and self.id == other.id

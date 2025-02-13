@@ -50,11 +50,11 @@ class Commit(Object):
 
     @cached_property
     def author(self) -> "Signature":
-        return Signature(native=lib.git_commit_author(self._native), _owner=self)
+        return Signature._from_native(native=lib.git_commit_author(self._native), _owner=self)
 
     @cached_property
     def committer(self) -> "Signature":
-        return Signature(native=lib.git_commit_committer(self._native), _owner=self)
+        return Signature._from_native(native=lib.git_commit_committer(self._native), _owner=self)
 
     @cached_property
     def message_encoding(self) -> Optional[str]:

@@ -36,6 +36,7 @@ from .constants import (
 from .exc import GitError
 from .oid import Oid
 from .repository import Repository
+from .signature import Signature
 from .tree import Tree
 
 init_repository = Repository.init_repository

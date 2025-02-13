@@ -14,8 +14,8 @@ Installing `rpmautospec`
 Installing the Python Library
 -----------------------------
 
-This Python package is installed using the `poetry` tool. Install a recent version of it and run
-`poetry install` to install it and the command line tool.
+This Python package is installed using the `uv` tool. Install a recent version of it and run
+`uv sync` to install it and the command line tool.
 
 .. important:
     The library requires a minimum Python version of 3.9.

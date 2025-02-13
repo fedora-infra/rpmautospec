@@ -14,18 +14,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install absolufy and poetry
+      - name: Install absolufy and uv
         run: |
-          python3 -m pip install absolufy-imports poetry
+          python3 -m pip install absolufy-imports uv
 
       - name: Enforce relative imports in package
         run: >
           find rpmautospec -name \*.py -print0
           | xargs -0 absolufy-imports --never
 
-      - name: Check Poetry lock file consistency
+      - name: Check uv lock file consistency
         run: >
-          poetry lock --check
+          uv lock --check
 
   ci-testsuite:
     strategy:
@@ -56,9 +56,9 @@ jobs:
           gcc
           glibc-langpack-de
           glibc-langpack-en
+          hatch
           krb5-devel
           libffi-devel
-          poetry
           python3-rpm
           rpm
           rpm-build

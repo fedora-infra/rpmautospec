@@ -16,9 +16,13 @@ Dependencies:
 * pygit2 >= 1.4
 * rpmautospec-core >= 0.1.4
 
+Installation dependencies:
+
+* hatch
+
 Optional dependencies:
 
-* poetry >= 1.2 (if using poetry to install)
+* uv (if using uv to install)
 
 General
 -------
@@ -33,12 +37,12 @@ Running the Examples
 
 To run the examples with the ``rpmautospec`` command line tool from this repository (as opposed to a
 version that may be installed system-wide), you can install it into a Python virtualenv, managed
-either manually or by the ``poetry`` tool. For the latter, substitute running ``rpmautospec`` by
-running ``poetry run rpmautospec`` below.
+either manually or by the ``uv`` tool. For the latter, substitute running ``rpmautospec`` by
+running ``uv run rpmautospec`` below.
 
 To install the package, run this (optionally, within an activated virtualenv)::
 
-  poetry install
+  uv sync
 
 The examples work with the ``guake`` package. Clone its dist-git repository this way, in a location
 of your choice, and then change into the repository worktree::

@@ -1,80 +1,79 @@
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
-requires-python = ">=3.9"
-
-[tool.poetry]
 name = "rpmautospec"
 version = "0.7.3"
 description = "A package and CLI tool to generate RPM release fields and changelogs."
+license = {text = "MIT"}
 authors = [
-    "Pierre-Yves Chibon <pingou@pingoured.fr>",
-    "Nils Philippsen <nils@redhat.com>",
-    "Adam Saleh <asaleh@redhat.com>",
-    "Stephen Coady <scoady@redhat.com>",
-    "David Kirwan <dkirwan@redhat.com>",
-    "Elliott Sales de Andrade <quantum.analyst@gmail.com>",
-    "Zbigniew Jędrzejewski-Szmek <zbyszek@in.waw.pl>",
-    "Miro Hrončok <miro@hroncok.cz>",
+    {name = "Pierre-Yves Chibon", email = "pingou@pingoured.fr"},
+    {name = "Nils Philippsen", email = "nils@redhat.com"},
+    {name = "Adam Saleh", email = "asaleh@redhat.com"},
+    {name = "Stephen Coady", email = "scoady@redhat.com"},
+    {name = "David Kirwan", email = "dkirwan@redhat.com"},
+    {name = "Elliott Sales de Andrade", email = "quantum.analyst@gmail.com"},
+    {name = "Zbigniew Jędrzejewski-Szmek", email = "zbyszek@in.waw.pl"},
+    {name = "Miro Hrončok", email = "miro@hroncok.cz"},
 ]
-maintainers = ["Fedora Infrastructure <admin@fedoraproject.org>"]
-license = "MIT"
+maintainers = [
+    {name = "Fedora Infrastructure", email = "admin@fedoraproject.org"},
+]
 readme = "README.rst"
+requires-python = "<4.0,>=3.9"
+dependencies = [
+    "rpmautospec-core<1.0.0,>=0.1.4",
+    "pygit2<1.16.0,>=1.4.0; python_full_version >= \"3.9.0\" and python_full_version < \"3.10.0\"",
+    "pygit2<2.0.0,>=1.4.0; python_full_version >= \"3.10.0\" and python_full_version < \"4.0.0\"",
+    "rpm",
+    "click<9,>=8",
+    "click-plugins<2.0.0,>=1.1.1",
+]
+
+[dependency-groups]
+dev = [
+    "pyyaml<7.0.0,>=5.3.1",
+    "pytest<9.0.0,>=6.2.2",
+    "pytest-cov>=4.0.0,<7.0.0",
+    "pytest-xdist<3.0.0,>=2.5.0; python_version < \"3.12\" and python_full_version >= \"3.9.0\"",
+    "pytest-xdist<4.0.0,>=2.5.0; python_version ~= \"3.12\"",
+    "coverage<8.0.0,>=7.2.0",
+    "ruff<0.9.0,>=0.2.0",
+]
+
+[project.urls]
 repository = "https://github.com/fedora-infra/rpmautospec"
-packages = [
-    { include = "rpmautospec/**/*.py" },
-]
-include = [
-    { path = "DCO.txt", format = "sdist" },
-    { path = "rpm/macros.d/macros.rpmautospec", format = "sdist" },
-    { path = "tests/**/*.py", format = "sdist" },
-    { path = "tests/test-data/commitlogs/commit*.txt", format = "sdist" },
-    { path = "tests/test-data/commitlogs/expected*.txt", format = "sdist" },
-    { path = "tests/test-data/commitlogs/expected*.yaml", format = "sdist" },
-    { path = "tests/test-data/repodata/dummy-test-package-gloster-git.tar.gz", format = "sdist" },
-    { path = "tests/test-data/repodata/dummy-test-package-gloster.spec.expected", format = "sdist" },
-    { path = "tests/test-data/test-specfiles/*.spec", format = "sdist" },
-    { path = "tox.ini", format = "sdist" },
-]
-exclude = [
-    "**/.coverage",
-]
 
-[tool.poetry.dependencies]
-python = "^3.9"
-rpmautospec_core = "^0.1.4"
-pygit2 = [
-    { version = "^1.4.0,<1.16.0", python = ">=3.9.0,<3.10.0" },
-    { version = "^1.4.0", python = "^3.10.0" }
-]
-rpm = "*"
-click = "^8"
-click-plugins = "^1.1.1"
+[project.entry-points."rpmautospec.cli"]
+calculate-release = "rpmautospec.subcommands.release:calculate_release"
+convert = "rpmautospec.subcommands.convert:convert"
+generate-changelog = "rpmautospec.subcommands.changelog:generate_changelog"
+process-distgit = "rpmautospec.subcommands.process_distgit:process_distgit"
 
-[tool.poetry.group.dev.dependencies]
-pyyaml = "^5.3.1 || ^6"
-pytest = "^6.2.2 || ^7 || ^8.0.0"
-pytest-cov = "^4.0.0 || ^5.0.0 || ^6.0.0"
-pytest-xdist = [
-    { version = "^2.5.0", python = ">=3.9.0,<3.12" },
-    { version = "^2.5.0 || ^3", python = "^3.12" }
-]
-coverage = "^7.2.0"
-ruff = "^0.2.0 || ^0.3.0 || ^0.4.0 || ^0.5.0 || ^0.6.0 || ^0.7.0 || ^0.8.0"
-
-[tool.poetry.scripts]
+[project.scripts]
 rpmautospec = "rpmautospec.cli:cli"
 
-[tool.poetry.plugins."rpmautospec.cli"]
-"calculate-release" = "rpmautospec.subcommands.release:calculate_release"
-"convert" = "rpmautospec.subcommands.convert:convert"
-"generate-changelog" = "rpmautospec.subcommands.changelog:generate_changelog"
-"process-distgit" = "rpmautospec.subcommands.process_distgit:process_distgit"
+[tool.hatch.build.targets.wheel]
+packages = ["rpmautospec"]
 
-[tool.poetry.build]
-generate-setup-file = true
+[tool.hatch.build.targets.sdist]
+include = [
+    "README.rst",
+    "LICENSE",
+    "DCO.txt",
+    "pyproject.toml",
+    "rpmautospec/**/*.py",
+    "rpm/macros.d/macros.rpmautospec",
+    "tests/**/*.py",
+    "tests/test-data/commitlogs/commit*.txt",
+    "tests/test-data/commitlogs/expected*.txt",
+    "tests/test-data/commitlogs/expected*.yaml",
+    "tests/test-data/repodata/dummy-test-package-gloster-git.tar.gz",
+    "tests/test-data/repodata/dummy-test-package-gloster.spec.expected",
+    "tests/test-data/test-specfiles/*.spec",
+    "tox.ini",
+]
 
 [tool.ruff]
 line-length = 100

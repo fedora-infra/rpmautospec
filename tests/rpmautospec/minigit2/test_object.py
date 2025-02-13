@@ -55,7 +55,7 @@ class TestObject:
     def test___repr__(self, repo: "Repository") -> None:
         head_commit = repo[repo.head.target]
 
-        assert repr(head_commit) == f"Commit(oid={head_commit.short_id!r})"
+        assert repr(head_commit) == f"Commit(oid={head_commit.id.hex!r})"
 
     def test___eq__(self, repo: "Repository") -> None:
         head_commits = [repo[repo.head.target] for i in range(2)]

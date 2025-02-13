@@ -8,6 +8,7 @@ import pytest
 from rpmautospec.minigit2.blob import Blob
 from rpmautospec.minigit2.commit import Commit
 from rpmautospec.minigit2.config import Config
+from rpmautospec.minigit2.exc import GitError
 from rpmautospec.minigit2.index import Index
 from rpmautospec.minigit2.native_adaptation import (
     git_buf,
@@ -42,7 +43,7 @@ class TestRepository:
             not_a_repo = tmp_path / "not_a_repo"
             not_a_repo.mkdir()
             path = path_type(not_a_repo)
-            expectation = pytest.raises(KeyError)
+            expectation = pytest.raises(GitError)
 
         with expectation as excinfo:
             repo = Repository(path)
@@ -59,7 +60,7 @@ class TestRepository:
             )
             lib.git_buf_dispose(buf_p)
         else:
-            assert "Can’t open repository" in str(excinfo.value)
+            assert "Repository not found at" in str(excinfo.value)
             assert str(path) in str(excinfo.value)
 
     def test__from_native(self, repo: Repository) -> None:

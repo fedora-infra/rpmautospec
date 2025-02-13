@@ -17,7 +17,7 @@ from .constants import (
     GIT_REPOSITORY_INIT_OPTIONS_VERSION,
     GIT_STATUS_OPTIONS_VERSION,
 )
-from .exc import InvalidSpecError
+from .exc import GitError, InvalidSpecError
 from .index import Index
 from .native_adaptation import (
     git_checkout_options,
@@ -25,6 +25,7 @@ from .native_adaptation import (
     git_commit_p,
     git_config_p,
     git_diff_option_t,
+    git_error_code,
     git_index_p,
     git_object_p,
     git_object_t,
@@ -68,7 +69,9 @@ class Repository(WrapperOfWrappings):
 
         native = git_repository_p()
         error_code = lib.git_repository_open_ext(native, path_c, c_uint(flags), c_char_p())
-        self.raise_if_error(error_code, "Can’t open repository: {message}")
+        if error_code == git_error_code.ENOTFOUND:
+            raise GitError(f"Repository not found at {path}")
+        self.raise_if_error(error_code)
 
         super().__init__(native=native)
 
@@ -77,6 +80,9 @@ class Repository(WrapperOfWrappings):
         self = cls.__new__(cls)
         super(Repository, self).__init__(native=native)
         return self
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(path={self.path!r})"
 
     @classmethod
     def init_repository(

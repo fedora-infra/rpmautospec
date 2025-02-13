@@ -378,8 +378,8 @@ def test_commit(specfile, release, changelog, repo):
     head = repo.revparse_single("HEAD")
     diff = repo.diff("HEAD^", head)
     fileschanged = {
-        *(patch.delta.new_file.path for patch in diff),
-        *(patch.delta.old_file.path for patch in diff),
+        *(delta.new_file.path for delta in diff.deltas),
+        *(delta.old_file.path for delta in diff.deltas),
     }
 
     if changelog_should_change or release_should_change:

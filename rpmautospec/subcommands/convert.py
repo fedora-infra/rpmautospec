@@ -139,7 +139,7 @@ class PkgConverter:
             log.warning(f"'{self.specfile}' already uses %autorelease")
             return
 
-        line_numbers = ", ".join(f"{i+1}" for i in release_lines)
+        line_numbers = ", ".join(f"{i + 1}" for i in release_lines)
         log.debug("Found Release tag on line(s) %s", line_numbers)
 
         if len(release_lines) > 1:
@@ -156,7 +156,7 @@ class PkgConverter:
 
     def convert_to_autochangelog(self):
         changelog_lines = [i for i, line in enumerate(self.spec_lines) if changelog_re.match(line)]
-        line_numbers = ", ".join(f"{i+1}" for i in changelog_lines)
+        line_numbers = ", ".join(f"{i + 1}" for i in changelog_lines)
         log.debug("Found %%changelog on line(s) %s", line_numbers)
 
         if not changelog_lines:

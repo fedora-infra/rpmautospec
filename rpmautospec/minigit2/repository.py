@@ -238,7 +238,7 @@ class Repository(WrapperOfWrappings):
         native = git_signature_p()
         error_code = lib.git_signature_default(native, self._native)
         self.raise_if_error(error_code)
-        return Signature(native=native)
+        return Signature._from_native(native=native)
 
     def lookup_reference_dwim(self, reference_name: str) -> Reference:
         native = git_reference_p()

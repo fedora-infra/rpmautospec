@@ -26,13 +26,13 @@ class TestSignature:
         else:
             owner = None
 
-        sig = Signature(native=native_sig, _owner=owner)
+        sig = Signature._from_native(native=native_sig, _owner=owner)
 
         assert sig.name == "Some User"
         assert sig.email == "someuser@example.com"
 
         if with_owner:
-            assert sig._encoding == "ascii"
+            assert sig.encoding == "ascii"
             lib.git_signature_free(native_sig)
         else:
-            assert sig._encoding == "utf-8"
+            assert sig.encoding == "utf-8"

@@ -24,7 +24,7 @@ readme = "README.rst"
 requires-python = "<4.0,>=3.9"
 dependencies = [
     "rpmautospec-core<1.0.0,>=0.1.4",
-    "pygit2<1.16.0,>=1.4.0; python_full_version >= \"3.9.0\" and python_full_version < \"3.10.0\"",
+    "pygit2<1.17.1,>=1.4.0; python_full_version >= \"3.9.0\" and python_full_version < \"3.10.0\"",
     "pygit2<2.0.0,>=1.4.0; python_full_version >= \"3.10.0\" and python_full_version < \"4.0.0\"",
     "rpm",
     "click<9,>=8",
@@ -36,10 +36,10 @@ dev = [
     "pyyaml<7.0.0,>=5.3.1",
     "pytest<9.0.0,>=6.2.2",
     "pytest-cov>=4.0.0,<7.0.0",
-    "pytest-xdist<3.0.0,>=2.5.0; python_version < \"3.12\" and python_full_version >= \"3.9.0\"",
+    "pytest-xdist<3.7.0,>=2.5.0; python_version < \"3.12\" and python_full_version >= \"3.9.0\"",
     "pytest-xdist<4.0.0,>=2.5.0; python_version ~= \"3.12\"",
     "coverage<8.0.0,>=7.2.0",
-    "ruff<0.9.0,>=0.2.0",
+    "ruff<0.9.7,>=0.2.0",
 ]
 
 [project.urls]

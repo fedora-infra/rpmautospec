@@ -6,7 +6,7 @@ from functools import cached_property
 from os import PathLike, fspath
 from pathlib import Path
 from sys import getfilesystemencodeerrors, getfilesystemencoding
-from typing import TYPE_CHECKING, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 from .blob import Blob
 from .branch import Branch
@@ -246,6 +246,18 @@ class Repository(WrapperOfWrappings):
         self.raise_if_error(error_code)
         return Signature._from_native(native=native)
 
+    def lookup_reference(self, reference_name: str) -> Reference:
+        native = git_reference_p()
+        error_code = lib.git_reference_lookup(
+            byref(native),
+            self._native,
+            reference_name.encode(
+                encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors()
+            ),
+        )
+        self.raise_if_error(error_code)
+        return Reference(repo=self, native=native)
+
     def lookup_reference_dwim(self, reference_name: str) -> Reference:
         native = git_reference_p()
         error_code = lib.git_reference_dwim(
@@ -318,6 +330,45 @@ class Repository(WrapperOfWrappings):
 
         return Branch(repo=self, native=ref)
 
+    def set_head(self, target: Union[Oid, str, bytes]) -> None:
+        if isinstance(target, Oid):
+            error_code = lib.git_repository_set_head_detached(self._native, target._native)
+        else:
+            if isinstance(target, str):
+                target = target.encode(encoding="utf-8", errors="strict")
+            error_code = lib.git_repository_set_head(self._native, target)
+
+        self.raise_if_error(error_code)
+
+    def checkout_head(
+        self,
+        *,
+        strategy: git_checkout_strategy_t = git_checkout_strategy_t.NONE,
+    ) -> None:
+        options = git_checkout_options()
+        error_code = lib.git_checkout_options_init(byref(options), GIT_CHECKOUT_OPTIONS_VERSION)
+        self.raise_if_error(error_code)
+
+        options.checkout_strategy = strategy
+
+        error_code = lib.git_checkout_head(self._native, options)
+        self.raise_if_error(error_code)
+
+    def checkout_index(
+        self,
+        index: Optional[Index] = None,
+        *,
+        strategy: git_checkout_strategy_t = git_checkout_strategy_t.NONE,
+    ) -> None:
+        options = git_checkout_options()
+        error_code = lib.git_checkout_options_init(byref(options), GIT_CHECKOUT_OPTIONS_VERSION)
+        self.raise_if_error(error_code)
+
+        options.checkout_strategy = strategy
+
+        error_code = lib.git_checkout_index(self._native, index._native if index else None, options)
+        self.raise_if_error(error_code)
+
     def checkout_tree(
         self,
         treeish: Optional[Object] = None,
@@ -334,6 +385,30 @@ class Repository(WrapperOfWrappings):
             self._native, cast(treeish._native, git_object_p), options
         )
         self.raise_if_error(error_code)
+
+    def checkout(
+        self,
+        refname: Optional[Union[Reference, str]] = None,
+        **kwargs: dict[str, Any]
+    ) -> None:
+        if not refname:
+            self.checkout_index(**kwargs)
+
+        if refname == "HEAD":
+            self.checkout_head(**kwargs)
+
+        if isinstance(refname, Reference):
+            reference = refname
+            refname = reference.name
+        else:
+            reference = self.lookup_reference(refname)
+
+        oid = reference.resolve().target
+        treeish = self[oid]
+        self.checkout_tree(treeish, **kwargs)
+
+        if "paths" not in kwargs:
+            self.set_head(refname)
 
     def status_file(self, path: Union[PathLike, str, bytes]) -> git_status_t:
         path = fspath(path)

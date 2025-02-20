@@ -79,7 +79,7 @@ def commits(repo_root: "Path", repo_root_str: str, repo: "Repository") -> tuple[
 
     head_commit = repo[repo.head.target]
 
-    return head_commit, former_head_commit
+    return former_head_commit, head_commit
 
 
 @pytest.fixture
@@ -146,3 +146,11 @@ class TestDiff:
         assert stats is diff.stats
 
         assert stats.files_changed == 1
+
+    def test_patch(self, diff: Diff) -> None:
+        patch = diff.patch
+        patch_lines = patch.split("\n")
+        assert "--- a/a_file" in patch_lines
+        assert "+++ b/a_file" in patch_lines
+        assert "-A file." in patch_lines
+        assert "+Something new." in patch_lines

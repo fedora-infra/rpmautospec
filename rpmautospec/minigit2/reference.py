@@ -27,7 +27,11 @@ class Reference(WrapperOfWrappings):
         super().__init__(native=native)
 
     def __eq__(self, other: "Reference") -> bool:
-        return self._repo is other._repo and self.target == other.target
+        return (
+            isinstance(other, Reference)
+            and self._repo is other._repo
+            and self.target == other.target
+        )
 
     @cached_property
     def name(self) -> str:

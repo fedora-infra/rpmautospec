@@ -67,6 +67,7 @@ class Reference(WrapperOfWrappings):
 
         return Reference(repo=self._repo, native=native)
 
+    @cached_property
     def shorthand(self) -> str:
         return lib.git_reference_shorthand(self._native).decode(
             encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors()

@@ -3,19 +3,19 @@ from io import BytesIO
 
 try:
     import pygit2
-except ImportError:
+except ImportError:  # pragma: has-no-pygit2
     from . import minigit2 as pygit2
 
     uses_minigit2 = True
-else:
+else:  # pragma: has-pygit2
     import pygit2.enums
 
     uses_minigit2 = False
 
 needs_minimal_blobio = False
-if uses_minigit2:
+if uses_minigit2:  # pragma: has-no-pygit2
     needs_minimal_blobio = True
-else:
+else:  # pragma: has-pygit2
     try:
         from pygit2 import BlobIO
     except ImportError:  # pragma: no cover
@@ -38,7 +38,7 @@ class MinimalBlobIO:
         pass
 
 
-if needs_minimal_blobio:
+if needs_minimal_blobio:  # pragma: no cover
     BlobIO = MinimalBlobIO
 
 

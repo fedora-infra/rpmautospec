@@ -11,7 +11,7 @@ def repo_root(tmp_path: Path) -> Path:
     repo_root = tmp_path / "git_repo"
     repo_root.mkdir()
     repo_root_str = str(repo_root)
-    subprocess.run(["git", "-C", repo_root_str, "init"])
+    subprocess.run(["git", "-C", repo_root_str, "init", "--initial-branch", "main"])
 
     a_file = repo_root / "a_file"
     a_file.write_text("A file.\n")

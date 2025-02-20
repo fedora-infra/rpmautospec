@@ -80,7 +80,9 @@ class TestObject:
         assert head_commit.id.hex[: len(head_commit.short_id)] == head_commit.short_id
 
     def test_peel(self, repo: "Repository") -> None:
+        # cf. test_reference::TestReference::test_peel()
         head_commit = repo[repo.head.target]
+        assert head_commit.peel(Commit) == head_commit
         assert head_commit.peel(git_object_t.COMMIT) == head_commit
         assert isinstance(head_commit.peel(), Tree)
 

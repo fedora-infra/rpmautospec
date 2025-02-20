@@ -38,8 +38,13 @@ class Oid(WrapperOfWrappings):
 
         return Oid(native)
 
-    def __eq__(self, other: "Oid") -> bool:
-        return self._native.id == other._native.id
+    def __eq__(self, other: Union["Oid", str, bytes]) -> bool:
+        if isinstance(other, Oid):
+            return self._native.id == other._native.id
+        elif isinstance(other, str):
+            return self.hex == other
+        else:  # isinstance(other, bytes)
+            return self.hexb == other
 
     @cached_property
     def hexb(self) -> bytes:

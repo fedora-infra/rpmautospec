@@ -36,10 +36,19 @@ class TestOid:
         assert oid.hex == str(oid) == oid_hex
         assert oid.hexb == oid_hex.encode("ascii")
 
-    def test___eq__(self) -> None:
+    @pytest.mark.parametrize("other_type", (Oid, str, bytes))
+    def test___eq__(self, other_type: type) -> None:
         oid_hex = "".join(f"{x:02x}" for x in randbytes(constants.GIT_OID_SHA1_SIZE))
 
-        assert Oid._from_oid(oid_hex) == Oid._from_oid(oid_hex)
+        self = Oid._from_oid(oid_hex)
+        other = Oid._from_oid(oid_hex)
+
+        if other_type is bytes:
+            other = other.hexb
+        elif other_type is str:
+            other = other.hex
+
+        assert self == other
 
     def test_hexb_hex___str__(self) -> None:
         oid_hex = "".join(f"{x:02x}" for x in randbytes(constants.GIT_OID_SHA1_SIZE))

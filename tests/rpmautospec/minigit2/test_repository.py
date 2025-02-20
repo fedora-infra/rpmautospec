@@ -8,13 +8,15 @@ import pytest
 from rpmautospec.minigit2.blob import Blob
 from rpmautospec.minigit2.commit import Commit
 from rpmautospec.minigit2.config import Config
-from rpmautospec.minigit2.exc import GitError
+from rpmautospec.minigit2.exc import GitError, InvalidSpecError
 from rpmautospec.minigit2.index import Index
 from rpmautospec.minigit2.native_adaptation import (
     git_buf,
+    git_checkout_strategy_t,
     git_object_t,
     git_oid,
     git_repository_item_t,
+    git_status_t,
     lib,
 )
 from rpmautospec.minigit2.object_ import Object
@@ -74,10 +76,19 @@ class TestRepository:
         assert repo._real_native_refcounts[ptr] == refcount_before + 1
 
     @pytest.mark.parametrize("path_type", (str, Path))
-    def test_init_repository(self, path_type: type, tmp_path: Path) -> None:
+    @pytest.mark.parametrize(
+        "with_initial_head", (False, True), ids=("without-initial-head", "with-initial-head")
+    )
+    def test_init_repository(
+        self, path_type: type, with_initial_head: bool, tmp_path: Path
+    ) -> None:
         repo_root = path_type(tmp_path / "repo")
 
-        repo = Repository.init_repository(repo_root)
+        if with_initial_head:
+            initial_head = "devel"
+        else:
+            initial_head = None
+        repo = Repository.init_repository(repo_root, initial_head=initial_head)
 
         assert isinstance(repo, Repository)
         assert Path(repo.path).is_dir()
@@ -246,7 +257,14 @@ class TestRepository:
         assert repo.default_signature.name == "J Random Hacker"
         assert repo.default_signature.email == "j.random@hacker.org"
 
+    def test_lookup_reference(self, repo: Repository) -> None:
+        with pytest.raises(InvalidSpecError):
+            repo.lookup_reference(repo.head.name.split("/")[-1])
+
+        assert repo.lookup_reference(repo.head.name) == repo.head
+
     def test_lookup_reference_dwim(self, repo: Repository) -> None:
+        assert repo.lookup_reference_dwim(repo.head.name.split("/")[-1]) == repo.head
         assert repo.lookup_reference_dwim(repo.head.name) == repo.head
 
     def test_resolve_refish(self, repo: Repository) -> None:
@@ -301,3 +319,141 @@ class TestRepository:
         assert repo.default_signature.name.encode("utf-8") in completed.stdout
         assert repo.default_signature.email.encode("utf-8") in completed.stdout
         assert b"Add another file" in completed.stdout
+
+    def test_create_branch(self, repo_root_str: str, repo: Repository) -> None:
+        branch = repo.create_branch("new-branch", repo[repo.head.target])
+        assert branch == repo.head
+
+        completed = subprocess.run(
+            ["git", "-C", repo_root_str, "branch"], check=True, capture_output=True
+        )
+        assert b"new-branch" in completed.stdout
+
+    @pytest.mark.parametrize("target_type", (Oid, str, bytes))
+    def test_set_head(
+        self, target_type: type, repo_root: Path, repo_root_str: str, repo: Repository
+    ) -> None:
+        branch = repo.create_branch("new-branch", repo[repo.head.target])
+
+        a_file = repo_root / "a_file"
+        a_file.write_text("Blub.")
+
+        subprocess.run(["git", "-C", repo_root_str, "commit", "-a", "-m", "Blub"], check=True)
+
+        assert branch != repo.head
+
+        if target_type is Oid:
+            target = branch.target
+        elif target_type is str:
+            target = branch.name
+        else:
+            target = branch.name.encode("utf-8")
+
+        repo.set_head(target)
+
+        assert branch == repo.head
+
+    def test_checkout(self, repo_root: Path, repo_root_str: str, repo: Repository) -> None:
+        former_head = repo.head
+
+        a_file = repo_root / "a_file"
+        a_file.write_text("What’s this?")
+        subprocess.run(["git", "-C", repo_root_str, "add", str(a_file)], check=True)
+
+        a_file.write_text("It’s a change.")
+
+        repo.checkout(strategy=git_checkout_strategy_t.FORCE)
+
+        assert "A file." not in a_file.read_text()
+        assert "What’s this?" in a_file.read_text()
+        assert "It’s a change." not in a_file.read_text()
+
+        repo.checkout("HEAD", strategy=git_checkout_strategy_t.FORCE)
+
+        assert "A file." in a_file.read_text()
+        assert "What’s this?" not in a_file.read_text()
+        assert "It’s a change." not in a_file.read_text()
+
+        a_file.write_text("It’s a change.")
+
+        repo.checkout(former_head, strategy=git_checkout_strategy_t.FORCE)
+
+        assert "A file." in a_file.read_text()
+        assert "What’s this?" not in a_file.read_text()
+        assert "It’s a change." not in a_file.read_text()
+
+        a_file.write_text("It’s a change.")
+
+        repo.checkout(former_head.name, strategy=git_checkout_strategy_t.FORCE)
+
+        assert "A file." in a_file.read_text()
+        assert "What’s this?" not in a_file.read_text()
+        assert "It’s a change." not in a_file.read_text()
+
+    @pytest.mark.parametrize("path_type", (Path, str, bytes))
+    def test_status_file(
+        self, path_type: type, repo_root: Path, repo_root_str: str, repo: Repository
+    ) -> None:
+        a_file = repo_root / "a_file"
+        b_file = repo_root / "b_file"
+        b_file.write_text("This is b_file.")
+
+        if path_type is bytes:
+            a_path = a_file.name.encode("utf-8")
+            b_path = b_file.name.encode("utf-8")
+        else:
+            a_path = path_type(a_file.name)
+            b_path = path_type(b_file.name)
+
+        assert repo.status_file(a_path) == git_status_t.CURRENT
+
+        a_file.write_text("BOOP")
+        assert repo.status_file(a_path) == git_status_t.WT_MODIFIED
+
+        subprocess.run(["git", "-C", repo_root_str, "add", str(a_file)], check=True)
+        assert repo.status_file(a_path) == git_status_t.INDEX_MODIFIED
+
+        assert repo.status_file(b_path) == git_status_t.WT_NEW
+
+    @pytest.mark.parametrize("untracked_files", ("all", "normal", "no"))
+    @pytest.mark.parametrize("ignored", (False, True), ids=("without-ignored", "with-ignored"))
+    def test_status(
+        self,
+        untracked_files: str,
+        ignored: bool,
+        repo_root: Path,
+        repo_root_str: str,
+        repo: Repository,
+    ) -> None:
+        a_file = repo_root / "a_file"
+        a_file.write_text("This is a_file, changed.")
+        b_file = repo_root / "b_file"
+        b_file.write_text("This is b_file.")
+        c_file = repo_root / "c_file"
+        c_file.write_text("This is c_file.")
+        ignored_dir = repo_root / "ignored_dir"
+        ignored_dir.mkdir()
+        d_file = ignored_dir / "d_file"
+        d_file.write_text("This is d_file.")
+        gitignore = repo_root / ".gitignore"
+        gitignore.write_text("/c_file\n/ignored_dir")
+
+        subprocess.run(["git", "-C", repo_root_str, "add", str(b_file)], check=True)
+
+        status = repo.status(untracked_files=untracked_files, ignored=ignored)
+        assert status[a_file.name] == git_status_t.WT_MODIFIED
+        assert status[b_file.name] == git_status_t.INDEX_NEW
+        if untracked_files != "no":
+            assert status[gitignore.name] == git_status_t.WT_NEW
+        else:
+            assert gitignore.name not in status
+
+        if ignored:
+            assert status[c_file.name] == git_status_t.IGNORED
+            assert status[ignored_dir.name + "/"] == git_status_t.IGNORED
+        else:
+            assert c_file.name not in status
+            assert ignored_dir.name not in status
+
+        # git_status_t.RECURSE_IGNORED_DIRS is never set by .status()
+        assert str(d_file.relative_to(repo_root)) not in status

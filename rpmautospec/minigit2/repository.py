@@ -15,6 +15,7 @@ from .config import Config
 from .constants import (
     GIT_CHECKOUT_OPTIONS_VERSION,
     GIT_REPOSITORY_INIT_OPTIONS_VERSION,
+    GIT_STATUS_OPT_DEFAULTS,
     GIT_STATUS_OPTIONS_VERSION,
 )
 from .exc import GitError, InvalidSpecError
@@ -321,7 +322,7 @@ class Repository(WrapperOfWrappings):
 
         return Oid(native)
 
-    def create_branch(self, reference_name: str, commit: Commit, force: bool = False) -> None:
+    def create_branch(self, reference_name: str, commit: Commit, force: bool = False) -> Branch:
         ref = git_reference_p()
         error_code = lib.git_branch_create(
             byref(ref), self._native, reference_name.encode("utf-8"), commit._native, force
@@ -390,10 +391,10 @@ class Repository(WrapperOfWrappings):
         self, refname: Optional[Union[Reference, str]] = None, **kwargs: dict[str, Any]
     ) -> None:
         if not refname:
-            self.checkout_index(**kwargs)
+            return self.checkout_index(**kwargs)
 
         if refname == "HEAD":
-            self.checkout_head(**kwargs)
+            return self.checkout_head(**kwargs)
 
         if isinstance(refname, Reference):
             reference = refname
@@ -405,7 +406,8 @@ class Repository(WrapperOfWrappings):
         treeish = self[oid]
         self.checkout_tree(treeish, **kwargs)
 
-        if "paths" not in kwargs:
+        # The delegated "paths" parameter isn’t implemented in .checkout_*().
+        if "paths" not in kwargs:  # pragma: no branch
             self.set_head(refname)
 
     def status_file(self, path: Union[PathLike, str, bytes]) -> git_status_t:
@@ -420,20 +422,22 @@ class Repository(WrapperOfWrappings):
         return git_status_t(native.value)
 
     def status(
-        self, untracked: Literal["all", "normal", "no"] = "all", ignored: bool = False
+        self, untracked_files: Literal["all", "normal", "no"] = "all", ignored: bool = False
     ) -> dict[str, git_status_t]:
         options = git_status_options()
         error_code = lib.git_status_options_init(byref(options), GIT_STATUS_OPTIONS_VERSION)
         self.raise_if_error(error_code)
 
-        if untracked == "no":
+        options.flags = GIT_STATUS_OPT_DEFAULTS
+
+        if untracked_files == "no":
             options.flags &= ~(
                 git_status_opt_t.INCLUDE_UNTRACKED | git_status_opt_t.RECURSE_UNTRACKED_DIRS
             )
-        elif untracked == "normal":
+        elif untracked_files == "normal":
             options.flags &= ~git_status_opt_t.RECURSE_UNTRACKED_DIRS
 
-        if ignored:
+        if not ignored:
             options.flags &= ~git_status_opt_t.INCLUDE_IGNORED
 
         status_list = git_status_list_p()
@@ -453,5 +457,7 @@ class Repository(WrapperOfWrappings):
             path = diff_delta.old_file.path.decode(encoding=encoding, errors=errors)
 
             entries[path] = git_status_t(entry.status)
+
+        lib.git_status_list_free(status_list)
 
         return entries

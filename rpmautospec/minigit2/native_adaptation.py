@@ -939,6 +939,7 @@ FUNC_DECLS = {
     "git_status_byindex": (git_status_entry_p, (git_status_list_p, c_size_t)),
     "git_status_file": (c_int, (POINTER(c_uint), git_repository_p, c_char_p)),
     "git_status_list_entrycount": (c_size_t, (git_status_list_p,)),
+    "git_status_list_free": (None, (git_status_list_p,)),
     "git_status_list_new": (c_int, (git_status_list_p_p, git_repository_p, git_status_options_p)),
     "git_status_options_init": (c_int, (git_status_options_p, c_uint)),
     "git_tag_free": (None, (git_tag_p,)),

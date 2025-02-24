@@ -64,6 +64,7 @@ jobs:
           hatch
           krb5-devel
           libffi-devel
+          libgit2
           python3-rpm
           rpm
           rpm-build

@@ -50,6 +50,11 @@ jobs:
       - name: Mark the directory as safe for git
         run: git config --global --add safe.directory $PWD
 
+      - name: Configure git user
+        run: |
+          git config --global user.name "Git User"
+          git config --global user.email "git-user@example.com"
+
       - name: Install basic RPM dependencies
         run: >
           dnf -y install

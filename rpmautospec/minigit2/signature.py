@@ -67,7 +67,7 @@ class Signature(WrapperOfWrappings):
 
         if self._owner:
             try:
-                return self._owner.message_encoding
+                return self._owner.message_encoding or "utf-8"
             except AttributeError:
                 pass
 

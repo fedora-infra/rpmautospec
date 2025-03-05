@@ -5,10 +5,15 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
+from rpmautospec import minigit2
 from rpmautospec.compat import pygit2
 from rpmautospec.minigit2.wrapper import WrapperOfWrappings
 
 from .common import SPEC_FILE_TEMPLATE, create_commit
+
+PYGIT2_IMPLEMENTATIONS = [pygit2]
+if pygit2 != minigit2:
+    PYGIT2_IMPLEMENTATIONS.append(minigit2)
 
 
 def pytest_configure(config):
@@ -18,16 +23,17 @@ def pytest_configure(config):
 @pytest.fixture(autouse=True)
 def git_empty_config():
     """Ensure tests run with empty git configuration."""
-    for level in (
-        pygit2.GIT_CONFIG_LEVEL_SYSTEM,
-        pygit2.GIT_CONFIG_LEVEL_XDG,
-        pygit2.GIT_CONFIG_LEVEL_GLOBAL,
-        pygit2.GIT_CONFIG_LEVEL_LOCAL,
-    ):
-        try:
-            pygit2.settings.search_path[level] = "/dev/null"
-        except ValueError:
-            pass
+    for impl in PYGIT2_IMPLEMENTATIONS:
+        for level in (
+            impl.GIT_CONFIG_LEVEL_SYSTEM,
+            impl.GIT_CONFIG_LEVEL_XDG,
+            impl.GIT_CONFIG_LEVEL_GLOBAL,
+            impl.GIT_CONFIG_LEVEL_LOCAL,
+        ):
+            try:
+                impl.settings.search_path[level] = "/dev/null"
+            except ValueError:
+                pass
 
 
 @pytest.fixture(autouse=True)

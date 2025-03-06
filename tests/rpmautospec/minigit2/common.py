@@ -1,20 +1,8 @@
-import re
 from ctypes import c_void_p
 from typing import Type
 from unittest import mock
 
-import pytest
-
 from rpmautospec.minigit2.wrapper import WrapperOfWrappings
-
-
-def get_param_id_from_request(request: pytest.FixtureRequest) -> str:
-    node = request.node
-    name = node.name
-    originalname = node.originalname
-    if not (match := re.match(rf"^{originalname}\[(?P<id>[^\]]+)\]", name)):
-        raise ValueError(f"Can’t extract parameter id from request: {name}")
-    return match.group("id")
 
 
 class BaseTestWrapper:

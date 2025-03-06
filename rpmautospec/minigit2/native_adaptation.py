@@ -30,8 +30,9 @@ lib: Optional[CDLL] = None
 version: Optional[str] = None
 version_tuple: Optional[tuple[int]] = None
 
-LIBGIT2_MIN_VERSION = (1, 1)
-LIBGIT2_MAX_VERSION = (1, 9)
+LIBGIT2_KNOWN_VERSIONS = tuple((1, minor) for minor in range(1, 10))
+LIBGIT2_MIN_VERSION = LIBGIT2_KNOWN_VERSIONS[0]
+LIBGIT2_MAX_VERSION = LIBGIT2_KNOWN_VERSIONS[-1]
 LIBGIT2_MIN_VERSION_STR = ".".join(str(x) for x in LIBGIT2_MIN_VERSION)
 LIBGIT2_MAX_VERSION_STR = ".".join(str(x) for x in LIBGIT2_MAX_VERSION)
 
@@ -40,25 +41,43 @@ def _setup_lib():
     """Discover and load libgit2, and establish basic facts."""
     global _soname, lib, version, version_tuple
 
-    soname = find_library("git2")
-    if not soname:
-        raise Libgit2NotFoundError("libgit2 not found")
-    if not (match := re.match(r"libgit2\.so\.(?P<version>\d+(?:\.\d+)*)", soname)):
-        raise Libgit2VersionError(f"Can’t parse libgit2 version: {_soname}")
-    version = match.group("version")
-    version_tuple = tuple(int(x) for x in match.group("version").split("."))
-    if LIBGIT2_MIN_VERSION > version_tuple:
-        raise Libgit2VersionError(
-            f"Version {version} of libgit2 too low (must be >= {LIBGIT2_MIN_VERSION_STR})"
-        )
-    if LIBGIT2_MAX_VERSION < version_tuple[: len(LIBGIT2_MAX_VERSION)]:
-        warn(
-            f"Version {version} of libgit2 is unknown (latest known is {LIBGIT2_MAX_VERSION_STR}).",
-            Libgit2VersionWarning,
-        )
+    for version_tuple in reversed(LIBGIT2_KNOWN_VERSIONS):
+        # Prefer known to unknown versions
+        major, minor = version_tuple
+        version = ".".join(str(num) for num in version_tuple)
+        soname = f"libgit2.so.{version}"
+        try:
+            _lib = CDLL(soname)
+        except Exception:
+            continue
+        else:
+            _version_tuple = version_tuple
+            _version = version
+            _soname = soname
+            lib = _lib
+            break
+    else:
+        # None found by explicit naming, attempt a newer version 🤞
+        soname = find_library("git2")
+        if not soname:
+            raise Libgit2NotFoundError("libgit2 not found")
+        if not (match := re.match(r"libgit2\.so\.(?P<version>\d+(?:\.\d+)*)", soname)):
+            raise Libgit2VersionError(f"Can’t parse libgit2 version: {_soname}")
+        version = match.group("version")
+        version_tuple = tuple(int(x) for x in match.group("version").split("."))
+        if LIBGIT2_MIN_VERSION > version_tuple:
+            raise Libgit2VersionError(
+                f"Version {version} of libgit2 too low (must be >= {LIBGIT2_MIN_VERSION_STR})"
+            )
+        if LIBGIT2_MAX_VERSION < version_tuple[: len(LIBGIT2_MAX_VERSION)]:
+            warn(
+                f"Version {version} of libgit2 is unknown (latest known is"
+                + f" {LIBGIT2_MAX_VERSION_STR}).",
+                Libgit2VersionWarning,
+            )
+        lib = CDLL(soname)
 
     _soname = soname
-    lib = CDLL(soname)
     lib.git_libgit2_init()
 
 

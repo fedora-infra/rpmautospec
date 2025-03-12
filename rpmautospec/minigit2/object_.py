@@ -1,4 +1,4 @@
-"""Minimal wrapper for libgit2 - High Level Wrappers"""
+"""Minimal wrapper for libgit2 - Object"""
 
 from ctypes import _SimpleCData, byref, c_char_p, cast
 from functools import cached_property

@@ -1,4 +1,4 @@
-"""Minimal wrapper for libgit2 - Diff & DiffStat"""
+"""Minimal wrapper for libgit2 - Diff, DiffStats & related"""
 
 from collections.abc import Iterator
 from ctypes import byref, c_char_p, cast

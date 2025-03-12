@@ -1,3 +1,5 @@
+"""Minimal wrapper for libgit2 - Config"""
+
 from os import PathLike, fspath
 from typing import Optional, Union
 

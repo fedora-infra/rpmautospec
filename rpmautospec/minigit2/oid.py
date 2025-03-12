@@ -1,4 +1,4 @@
-"""Minimal wrapper for libgit2 - High Level Wrappers"""
+"""Minimal wrapper for libgit2 - Oid"""
 
 from ctypes import byref, c_char, memmove, sizeof
 from functools import cached_property

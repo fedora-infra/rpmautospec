@@ -1,4 +1,4 @@
-"""Minimal wrapper for libgit2 - High Level Wrappers"""
+"""Minimal wrapper for libgit2 - Tree"""
 
 from ctypes import byref
 from typing import TYPE_CHECKING, Optional, Union

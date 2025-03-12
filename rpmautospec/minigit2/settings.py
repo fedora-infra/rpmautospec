@@ -1,3 +1,5 @@
+"""Minimal wrapper for libgit2 - SearchPathList"""
+
 from ctypes import byref, c_char_p, c_int, cast
 from sys import getfilesystemencodeerrors, getfilesystemencoding
 from typing import Union

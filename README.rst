@@ -93,6 +93,13 @@ certify this is adding a ``Signed-off-by`` trailer to git commit log messages, y
 using the ``--signoff/-s`` option to ``git commit``.
 
 
----
+License
+-------
 
-License: MIT
+The majority of rpmautospec is licensed under the MIT license, with one notable exception: Small
+parts of the rpmautospec.minigit2 package are derived from pygit2, licensed under version 2
+of the GNU General Public License, with a linking exception. Code in the rpmautospec.minigit2
+package which isn’t derived from pygit2 is dual-licensed under the MIT license or the GNU GPL
+version 2 or later (with the linking exception).
+
+Find the texts of both licenses in the licenses/ subdirectory.

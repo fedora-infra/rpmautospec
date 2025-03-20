@@ -1,5 +1,6 @@
-import pygit2
-from pygit2.enums import DeltaStatus
+from rpmautospec.compat import pygit2
+
+DeltaStatus = pygit2.enums.DeltaStatus
 
 SPEC_FILE_TEMPLATE = """Summary: Boo
 Name: boo
@@ -72,7 +73,7 @@ def create_commit(
     commit = repo[oid]
 
     if create_branch is not _UNSET:
-        repo.branches.local.create(create_branch or "rawhide", commit)
+        repo.create_branch(create_branch or "rawhide", commit)
 
     repo.checkout_tree(commit.tree, strategy=pygit2.GIT_CHECKOUT_FORCE)
 

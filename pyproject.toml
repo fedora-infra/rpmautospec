@@ -6,8 +6,8 @@ build-backend = "hatchling.build"
 name = "rpmautospec"
 version = "0.7.3"
 description = "A package and CLI tool to generate RPM release fields and changelogs."
-license = "MIT"
-license-files = ["LICENSE"]
+license = "MIT AND GPL-2.0-only WITH GCC-exception-2.0 AND (MIT OR GPL-2.0-or-later WITH GCC-exception-2.0)"
+license-files = ["licenses/*"]
 authors = [
     {name = "Pierre-Yves Chibon", email = "pingou@pingoured.fr"},
     {name = "Nils Philippsen", email = "nils@redhat.com"},
@@ -25,11 +25,15 @@ readme = "README.rst"
 requires-python = "<4.0,>=3.9"
 dependencies = [
     "rpmautospec-core<1.0.0,>=0.1.4",
-    "pygit2<1.17.1,>=1.4.0; python_full_version >= \"3.9.0\" and python_full_version < \"3.10.0\"",
-    "pygit2<2.0.0,>=1.4.0; python_full_version >= \"3.10.0\" and python_full_version < \"4.0.0\"",
     "rpm",
     "click<9,>=8",
     "click-plugins<2.0.0,>=1.1.1",
+]
+
+[project.optional-dependencies]
+pygit2 = [
+    "pygit2<1.17.1,>=1.4.0; python_full_version >= \"3.9.0\" and python_full_version < \"3.10.0\"",
+    "pygit2<2.0.0,>=1.4.0; python_full_version >= \"3.10.0\" and python_full_version < \"4.0.0\"",
 ]
 
 [dependency-groups]
@@ -39,8 +43,10 @@ dev = [
     "pytest-cov>=4.0.0,<7.0.0",
     "pytest-xdist<3.7.0,>=2.5.0; python_version < \"3.12\" and python_full_version >= \"3.9.0\"",
     "pytest-xdist<4.0.0,>=2.5.0; python_version ~= \"3.12\"",
-    "coverage<8.0.0,>=7.2.0",
     "ruff<0.11.3,>=0.2.0",
+    # coverage v7.8.0 doesn’t work with coverage-conditional-plugin v0.9.0
+    "coverage<7.8.0,>=7.2.0",
+    "coverage-conditional-plugin>=0.9.0",
 ]
 
 [project.urls]

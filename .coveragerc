@@ -2,6 +2,8 @@
 branch = True
 source = rpmautospec
 omit =
+plugins =
+    coverage_conditional_plugin
 
 [report]
 precision = 2
@@ -9,4 +11,13 @@ fail_under = 100
 exclude_also =
     def __repr__
     if log.isEnabledFor\([^\)]*\):
+    if TYPE_CHECKING:
+    @overload
 show_missing = True
+
+[coverage_conditional_plugin]
+# These rules are kinda “backwards”, i.e. the marker is for lines that should be ignored for
+# coverage.
+rules =
+    "is_installed('pygit2')": has-no-pygit2
+    "not is_installed('pygit2')": has-pygit2

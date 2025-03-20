@@ -8,10 +8,10 @@ from pathlib import Path
 from shutil import SpecialFileError
 from unittest import mock
 
-import pygit2
 import pytest
 from rpmautospec_core.main import autochangelog_re, autorelease_re
 
+from rpmautospec.compat import pygit2
 from rpmautospec.exc import SpecParseFailure
 from rpmautospec.subcommands import convert
 
@@ -378,8 +378,8 @@ def test_commit(specfile, release, changelog, repo):
     head = repo.revparse_single("HEAD")
     diff = repo.diff("HEAD^", head)
     fileschanged = {
-        *(patch.delta.new_file.path for patch in diff),
-        *(patch.delta.old_file.path for patch in diff),
+        *(delta.new_file.path for delta in diff.deltas),
+        *(delta.old_file.path for delta in diff.deltas),
     }
 
     if changelog_should_change or release_should_change:

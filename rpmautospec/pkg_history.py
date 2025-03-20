@@ -11,16 +11,11 @@ from shutil import SpecialFileError
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Optional, Sequence, Union
 
-import pygit2
 import rpm
-
-try:
-    from pygit2 import BlobIO
-except ImportError:  # pragma: no cover
-    from .compat import MinimalBlobIO as BlobIO
 from rpmautospec_core import AUTORELEASE_MACRO
 
 from .changelog import ChangelogEntry
+from .compat import BlobIO, pygit2
 from .magic_comments import parse_magic_comments
 
 log = logging.getLogger(__name__)

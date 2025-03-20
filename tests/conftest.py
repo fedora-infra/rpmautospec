@@ -1,30 +1,39 @@
+import gc
 import locale as locale_mod
 from pathlib import Path
 
-import pygit2
 import pytest
 from click.testing import CliRunner
 
+from rpmautospec import minigit2
+from rpmautospec.compat import pygit2
+from rpmautospec.minigit2.wrapper import WrapperOfWrappings
+
 from .common import SPEC_FILE_TEMPLATE, create_commit
+
+PYGIT2_IMPLEMENTATIONS = [pygit2]
+if pygit2 != minigit2:
+    PYGIT2_IMPLEMENTATIONS.append(minigit2)
 
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "repo_config")
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(autouse=True)
 def git_empty_config():
     """Ensure tests run with empty git configuration."""
-    for level in (
-        pygit2.GIT_CONFIG_LEVEL_SYSTEM,
-        pygit2.GIT_CONFIG_LEVEL_XDG,
-        pygit2.GIT_CONFIG_LEVEL_GLOBAL,
-        pygit2.GIT_CONFIG_LEVEL_LOCAL,
-    ):
-        try:
-            pygit2.settings.search_path[level] = "/dev/null"
-        except ValueError:
-            pass
+    for impl in PYGIT2_IMPLEMENTATIONS:
+        for level in (
+            impl.GIT_CONFIG_LEVEL_SYSTEM,
+            impl.GIT_CONFIG_LEVEL_XDG,
+            impl.GIT_CONFIG_LEVEL_GLOBAL,
+            impl.GIT_CONFIG_LEVEL_LOCAL,
+        ):
+            try:
+                impl.settings.search_path[level] = "/dev/null"
+            except ValueError:
+                pass
 
 
 @pytest.fixture(autouse=True)
@@ -42,6 +51,26 @@ def locale():
 
     for category, locale_settings in saved_locale_settings.items():
         locale_mod.setlocale(getattr(locale_mod, category), locale_settings)
+
+
+@pytest.fixture(autouse=True)
+def validate_minigit2_native_refcounting() -> None:
+    yield
+
+    gc.collect()
+
+    # We can’t just check that WrapperOfWrappings._real_native_refcounts and
+    # WrapperOfWrappings._real_native_must_free are empty because finalization of refcounted
+    # objects may happen after this fixture finalized, so take still living objects into account.
+
+    num_unfinalized_objs = 0
+    for ref in WrapperOfWrappings._live_obj_refs.values():
+        obj = ref()
+        if obj is None or obj._real_native and obj._libgit2_native_finalizer:
+            num_unfinalized_objs += 1
+
+    assert len(WrapperOfWrappings._real_native_refcounts) <= num_unfinalized_objs
+    assert len(WrapperOfWrappings._real_native_must_free) <= num_unfinalized_objs
 
 
 @pytest.fixture

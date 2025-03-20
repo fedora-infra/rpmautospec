@@ -32,15 +32,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - pyver: 39
+          - toxenv: py39
             fedver: f38
-          - pyver: 310
+          - toxenv: py39-pygit2
             fedver: f38
-          - pyver: 311
+          - toxenv: py310
             fedver: f38
-          - pyver: 312
+          - toxenv: py310-pygit2
+            fedver: f38
+          - toxenv: py311
+            fedver: f38
+          - toxenv: py311-pygit2
+            fedver: f38
+          - toxenv: py312
             fedver: latest
-          - pyver: 313
+          - toxenv: py312-pygit2
+            fedver: latest
+          - toxenv: py313
+            fedver: latest
+          - toxenv: py313-pygit2
             fedver: latest
     runs-on: ubuntu-latest
     container: "fedorapython/fedora-python-tox:${{ matrix.fedver }}"
@@ -64,12 +74,13 @@ jobs:
           hatch
           krb5-devel
           libffi-devel
+          libgit2
           python3-rpm
           rpm
           rpm-build
 
       - name: run tests through tox
-        run: "tox -e py${{ matrix.pyver }}"
+        run: "tox -e ${{ matrix.toxenv }}"
 
   ci-statictests:
     strategy:

@@ -5,9 +5,9 @@ from shutil import SpecialFileError
 from typing import Optional, Union
 
 import click
-import pygit2
 from rpmautospec_core.main import autochangelog_re, autorelease_re, changelog_re
 
+from ..compat import pygit2
 from ..exc import SpecParseFailure
 from ..util import handle_expected_exceptions
 

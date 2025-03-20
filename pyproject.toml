@@ -6,7 +6,8 @@ build-backend = "hatchling.build"
 name = "rpmautospec"
 version = "0.7.3"
 description = "A package and CLI tool to generate RPM release fields and changelogs."
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     {name = "Pierre-Yves Chibon", email = "pingou@pingoured.fr"},
     {name = "Nils Philippsen", email = "nils@redhat.com"},

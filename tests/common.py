@@ -1,3 +1,9 @@
+import contextlib
+import os
+import tarfile
+from pathlib import Path
+from subprocess import run
+
 from rpmautospec.compat import pygit2
 
 DeltaStatus = pygit2.enums.DeltaStatus
@@ -17,6 +23,9 @@ Boo
 """
 
 _UNSET = object()
+
+__HERE__ = Path(__file__).parent
+TESTREPO_TARBALL = __HERE__ / "test-data" / "repodata" / "dummy-test-package-gloster-git.tar.gz"
 
 
 def create_commit(
@@ -105,3 +114,35 @@ class MainArgs:
         # Set this on the object so it shows up in repr()
         setattr(self, attr, None)
         return None
+
+
+@contextlib.contextmanager
+def temporary_cd(path: str):
+    cwd = os.getcwd()
+    try:
+        os.chdir(path)
+        yield
+    finally:
+        os.chdir(cwd)
+
+
+def gen_testrepo(path: Path, branch: str):
+    with tarfile.open(TESTREPO_TARBALL) as tar:
+        # Ensure unpackaged files are owned by user
+        for member in tar:
+            member.uid = os.getuid()
+            member.gid = os.getgid()
+
+        try:
+            tar.extractall(path=path, numeric_owner=True, filter="data")
+        except TypeError:
+            # Filtering was introduced in Python 3.12.
+            tar.extractall(path=path, numeric_owner=True)
+
+    unpacked_repo_dir = path / "dummy-test-package-gloster"
+    test_spec_file_path = unpacked_repo_dir / "dummy-test-package-gloster.spec"
+
+    with temporary_cd(unpacked_repo_dir):
+        run(["git", "checkout", branch])
+
+    return unpacked_repo_dir, test_spec_file_path

@@ -3,7 +3,6 @@ import locale as locale_mod
 from pathlib import Path
 
 import pytest
-from click.testing import CliRunner
 
 from rpmautospec import minigit2
 from rpmautospec.compat import pygit2
@@ -233,8 +232,3 @@ def repo(repopath, specfile, specfile_content, _repo_config):
         create_commit(repo, message="Did something!")
 
     yield repo
-
-
-@pytest.fixture
-def cli_runner() -> CliRunner:
-    return CliRunner(mix_stderr=False)

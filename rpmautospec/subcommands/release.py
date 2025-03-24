@@ -1,11 +1,8 @@
 from pathlib import Path
-from typing import Any, Union
-
-import click
+from typing import Union
 
 from ..exc import SpecParseFailure
 from ..pkg_history import PkgHistoryProcessor
-from ..util import handle_expected_exceptions
 
 
 def do_calculate_release(
@@ -52,28 +49,3 @@ def do_calculate_release_number(
     return do_calculate_release(
         spec_or_path, complete_release=False, error_on_unparseable_spec=error_on_unparseable_spec
     )
-
-
-@click.command()
-@click.option(
-    "--complete-release/--number-only",
-    "-c/-n",
-    default=True,
-    help="Print the complete release with flags (without dist tag) or only the calculated release"
-    + " number",
-    show_default=True,
-)
-@click.argument("spec_or_path", type=click.Path(), default=".")
-@click.pass_obj
-@handle_expected_exceptions
-def calculate_release(obj: dict[str, Any], complete_release: bool, spec_or_path: Path) -> None:
-    """Calculate the next release tag for a package build"""
-    try:
-        release = do_calculate_release(
-            spec_or_path,
-            complete_release=complete_release,
-            error_on_unparseable_spec=obj["error_on_unparseable_spec"],
-        )
-    except SpecParseFailure as exc:
-        raise click.ClickException(*exc.args) from exc
-    print("Calculated release number:", release)

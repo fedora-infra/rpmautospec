@@ -1,6 +1,7 @@
 import os.path
 import tarfile
 import tempfile
+from contextlib import nullcontext
 from pathlib import Path
 from unittest import mock
 
@@ -15,8 +16,13 @@ __here__ = os.path.dirname(__file__)
 class TestRelease:
     """Test the rpmautospec.subcommands.release module"""
 
-    @pytest.mark.parametrize("method_to_test", ("do_calculate_release", "calculate_release"))
-    def test_calculate_release(self, method_to_test, cli_runner):
+    @pytest.mark.parametrize(
+        "testcase", ("complete-release", "numbers-only", "specfile-parse-failure")
+    )
+    def test_do_calculate_release(self, testcase):
+        complete_release = "complete-release" in testcase
+        specfile_parse_failure = "specfile-parse-failure" in testcase
+
         with tempfile.TemporaryDirectory() as workdir:
             with tarfile.open(
                 os.path.join(
@@ -41,57 +47,27 @@ class TestRelease:
 
             unpacked_repo_dir = Path(workdir) / "dummy-test-package-gloster"
 
-            expected_release = "11"
+            expected_release = "11" if complete_release else 11
 
-            with mock.patch("rpm.setLogFile"):
-                if method_to_test == "do_calculate_release":
-                    assert (
-                        release.do_calculate_release(
-                            unpacked_repo_dir, error_on_unparseable_spec=True
-                        )
-                        == expected_release
-                    )
-                else:
-                    args = [str(unpacked_repo_dir)]
-                    result = cli_runner.invoke(
-                        release.calculate_release,
-                        args,
-                        obj={"error_on_unparseable_spec": True},
-                    )
+            if specfile_parse_failure:
+                expectation = pytest.raises(SpecParseFailure)
+                specfile = unpacked_repo_dir / "dummy-test-package-gloster.spec"
+                txt = specfile.read_text()
+                specfile.write_text("Eat this!\n" + txt)
+            else:
+                expectation = nullcontext()
 
-                    assert result.exit_code == 0
+            with mock.patch("rpm.setLogFile"), expectation as excinfo:
+                result = release.do_calculate_release(
+                    unpacked_repo_dir,
+                    complete_release=complete_release,
+                    error_on_unparseable_spec=True,
+                )
 
-                    assert f"Calculated release number: {expected_release}" in result.stdout
-
-    def test_calculate_release_specfile_parse_failure(self, cli_runner):
-        error_on_unparseable_spec_sentinel = object()
-        ctx_obj = {"error_on_unparseable_spec": error_on_unparseable_spec_sentinel}
-
-        with mock.patch.object(release, "do_calculate_release") as do_calculate_release:
-            do_calculate_release.side_effect = release.SpecParseFailure("BOO")
-            result = cli_runner.invoke(release.calculate_release, ["some_path"], obj=ctx_obj)
-
-        do_calculate_release.assert_called_once_with(
-            "some_path",
-            complete_release=True,
-            error_on_unparseable_spec=error_on_unparseable_spec_sentinel,
-        )
-
-        assert result.exit_code != 0
-        assert "Error: BOO" in result.stderr
-
-    def test_do_calculate_release_error(self, cli_runner):
-        with mock.patch.object(release, "PkgHistoryProcessor") as PkgHistoryProcessor:
-            processor = PkgHistoryProcessor.return_value
-            processor.run.return_value = {
-                "verflags": {"error": "specfile-parse-error", "error-detail": "HAHA"}
-            }
-            processor.specfile.name = "test.spec"
-
-            with pytest.raises(SpecParseFailure) as excinfo:
-                release.do_calculate_release("test")
-
-        assert str(excinfo.value) == "Couldn’t parse spec file test.spec:\nHAHA"
+            if specfile_parse_failure:
+                assert str(excinfo.value) == f"Couldn’t parse spec file {specfile.name}"
+            else:
+                assert result == expected_release
 
     def test_do_calculate_release_number(self):
         with mock.patch.object(release, "do_calculate_release") as do_calculate_release:

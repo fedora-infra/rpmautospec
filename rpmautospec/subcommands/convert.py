@@ -4,12 +4,10 @@ from pathlib import Path
 from shutil import SpecialFileError
 from typing import Optional, Union
 
-import click
 from rpmautospec_core.main import autochangelog_re, autorelease_re, changelog_re
 
 from ..compat import pygit2
 from ..exc import SpecParseFailure
-from ..util import handle_expected_exceptions
 
 log = logging.getLogger(__name__)
 
@@ -217,70 +215,3 @@ class PkgConverter:
             self.made_commit = True
         else:
             log.warning("Nothing to commit")
-
-
-@click.command()
-@click.option(
-    "--message", "-m", required=False, help="Override message to use when committing changes"
-)
-@click.option(
-    "--commit/--no-commit",
-    " /-n",
-    default=True,
-    help="Commit after making changes",
-    show_default=True,
-)
-@click.option(
-    "--changelog/--no-changelog", default=True, help="Convert the RPM changelog", show_default=True
-)
-@click.option(
-    "--release/--no-release", default=True, help="Convert the RPM release field", show_default=True
-)
-@click.option(
-    "--signoff/--no-signoff",
-    default=False,
-    help="Whether or not to add a Signed-off-by: line to the commit log",
-    show_default=True,
-)
-@click.argument("spec_or_path", type=click.Path(), default=".")
-@handle_expected_exceptions
-def convert(
-    message: Optional[str],
-    commit: bool,
-    changelog: bool,
-    release: bool,
-    signoff: bool,
-    spec_or_path: Path,
-) -> None:
-    """Convert a package repository to use rpmautospec"""
-    if commit and message == "":
-        raise click.UsageError("Commit message cannot be empty")
-
-    if not changelog and not release:
-        raise click.UsageError("All changes are disabled")
-
-    try:
-        pkg = PkgConverter(spec_or_path)
-    except (
-        ValueError,
-        FileNotFoundError,
-        SpecialFileError,
-        FileUntrackedError,
-        FileModifiedError,
-    ) as exc:
-        raise click.ClickException(*exc.args) from exc
-
-    pkg.load()
-    try:
-        if changelog:
-            pkg.convert_to_autochangelog()
-        if release:
-            pkg.convert_to_autorelease()
-    except SpecParseFailure as exc:
-        raise click.ClickException(*exc.args) from exc
-    pkg.save()
-    if commit:
-        pkg.commit(message=message, signoff=signoff)
-
-    # print final report so the user knows what happened
-    log.info(pkg.describe_changes(for_git=False))

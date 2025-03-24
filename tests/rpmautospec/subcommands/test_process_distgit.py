@@ -1,8 +1,6 @@
-import contextlib
 import difflib
 import os
 import re
-import tarfile
 import tempfile
 from contextlib import nullcontext
 from pathlib import Path
@@ -15,42 +13,9 @@ from rpmautospec.exc import SpecParseFailure
 from rpmautospec.subcommands import process_distgit
 from rpmautospec.version import __version__
 
+from ...common import gen_testrepo
+
 __HERE__ = Path(__file__).parent
-TESTREPO_TARBALL = (
-    __HERE__.parent.parent / "test-data" / "repodata" / "dummy-test-package-gloster-git.tar.gz"
-)
-
-
-@contextlib.contextmanager
-def temporary_cd(path: str):
-    cwd = os.getcwd()
-    try:
-        os.chdir(path)
-        yield
-    finally:
-        os.chdir(cwd)
-
-
-def gen_testrepo(path: Path, branch: str):
-    with tarfile.open(TESTREPO_TARBALL) as tar:
-        # Ensure unpackaged files are owned by user
-        for member in tar:
-            member.uid = os.getuid()
-            member.gid = os.getgid()
-
-        try:
-            tar.extractall(path=path, numeric_owner=True, filter="data")
-        except TypeError:
-            # Filtering was introduced in Python 3.12.
-            tar.extractall(path=path, numeric_owner=True)
-
-    unpacked_repo_dir = path / "dummy-test-package-gloster"
-    test_spec_file_path = unpacked_repo_dir / "dummy-test-package-gloster.spec"
-
-    with temporary_cd(unpacked_repo_dir):
-        run(["git", "checkout", branch])
-
-    return unpacked_repo_dir, test_spec_file_path
 
 
 def _generate_branch_testcase_combinations():
@@ -482,45 +447,3 @@ def test_do_process_distgit(
             ]
         else:
             assert test_output == expected_output
-
-
-@pytest.mark.parametrize(
-    "testcase", ("locale-unset", "locale-C", "locale-de", "specfile-parse-failure")
-)
-def test_process_distgit(testcase, tmp_path, locale, cli_runner):
-    override_locale = False
-    if "locale-C" in testcase:
-        override_locale = "C"
-    elif "locale-de" in testcase:
-        override_locale = "de_DE.UTF-8"
-
-    output_spec_file = tmp_path / "test.spec"
-    unpacked_repo_dir, test_spec_file_path = gen_testrepo(tmp_path, "rawhide")
-
-    args = [str(test_spec_file_path), str(output_spec_file)]
-    ctx_obj = {"error_on_unparseable_spec": object()}
-
-    if override_locale:
-        locale.setlocale(locale.LC_ALL, override_locale)
-
-    with (
-        mock.patch.object(
-            process_distgit, "do_process_distgit", wraps=process_distgit.do_process_distgit
-        ) as do_process_distgit_fn,
-        mock.patch("rpm.setLogFile"),  # rpm can’t cope with fake sys.stderr
-    ):
-        if "specfile-parse-failure" in testcase:
-            do_process_distgit_fn.side_effect = process_distgit.SpecParseFailure("BOO")
-        result = cli_runner.invoke(process_distgit.process_distgit, args, obj=ctx_obj)
-
-    do_process_distgit_fn.assert_called_once_with(
-        str(test_spec_file_path),
-        str(output_spec_file),
-        error_on_unparseable_spec=ctx_obj["error_on_unparseable_spec"],
-    )
-
-    if "specfile-parse-failure" in testcase:
-        assert result.exit_code != 0
-        assert "Error: BOO" in result.stderr
-    else:
-        assert result.exit_code == 0

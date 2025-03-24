@@ -3,14 +3,12 @@ import shutil
 import stat
 import tempfile
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
-import click
 from rpmautospec_core import check_specfile_features
 
 from ..exc import SpecParseFailure
 from ..pkg_history import PkgHistoryProcessor
-from ..util import handle_expected_exceptions
 from ..version import __version__
 
 log = logging.getLogger(__name__)
@@ -142,18 +140,3 @@ def do_process_distgit(
         # ...and copy it back (potentially across device boundaries)
         shutil.copy2(tmp_specfile.name, target)
         target.chmod(specfile_mode)
-
-
-@click.command()
-@click.argument("spec_or_path", type=click.Path())
-@click.argument("target", type=click.Path())
-@click.pass_obj
-@handle_expected_exceptions
-def process_distgit(obj: dict[str, Any], spec_or_path: Path, target: Path) -> None:
-    """Work repository history and commit logs into a spec file"""
-    try:
-        do_process_distgit(
-            spec_or_path, target, error_on_unparseable_spec=obj["error_on_unparseable_spec"]
-        )
-    except SpecParseFailure as exc:
-        raise click.ClickException(*exc.args) from exc

@@ -26,11 +26,10 @@ requires-python = "<4.0,>=3.9"
 dependencies = [
     "rpmautospec-core<1.0.0,>=0.1.4",
     "rpm",
-    "click<9,>=8",
-    "click-plugins<2.0.0,>=1.1.1",
 ]
 
 [project.optional-dependencies]
+click = ["click<9,>=8"]
 pygit2 = [
     "pygit2<1.17.1,>=1.4.0; python_full_version >= \"3.9.0\" and python_full_version < \"3.10.0\"",
     "pygit2<2.0.0,>=1.4.0; python_full_version >= \"3.10.0\" and python_full_version < \"4.0.0\"",
@@ -47,16 +46,11 @@ dev = [
     # coverage v7.8.0 doesn’t work with coverage-conditional-plugin v0.9.0
     "coverage<7.8.0,>=7.2.0",
     "coverage-conditional-plugin>=0.9.0",
+    "click<9,>=8",
 ]
 
 [project.urls]
 repository = "https://github.com/fedora-infra/rpmautospec"
-
-[project.entry-points."rpmautospec.cli"]
-calculate-release = "rpmautospec.subcommands.release:calculate_release"
-convert = "rpmautospec.subcommands.convert:convert"
-generate-changelog = "rpmautospec.subcommands.changelog:generate_changelog"
-process-distgit = "rpmautospec.subcommands.process_distgit:process_distgit"
 
 [project.scripts]
 rpmautospec = "rpmautospec.cli:cli"

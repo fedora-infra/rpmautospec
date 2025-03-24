@@ -3,7 +3,7 @@ from unittest import mock
 
 import pytest
 
-from rpmautospec import pager
+from rpmautospec.cli import pager
 
 
 @pytest.mark.parametrize("testcase", ("enabled-withenv", "enabled-withoutenv", "disabled"))

@@ -156,77 +156,6 @@ class TestPkgConverter:
         assert head_commit.message == expected_message
 
 
-@mock.patch.object(convert, "PkgConverter")
-def test_convert_empty_commit_message(PkgConverter, cli_runner, specfile):
-    result = cli_runner.invoke(
-        convert.convert, ["--commit", "--message=", str(specfile)], catch_exceptions=False
-    )
-    assert result.exit_code != 0
-    assert "Error: Commit message cannot be empty" in result.stderr
-
-
-@mock.patch.object(convert, "PkgConverter")
-def test_convert_no_changes(PkgConverter, cli_runner, specfile):
-    result = cli_runner.invoke(
-        convert.convert, ["--no-changelog", "--no-release", str(specfile)], catch_exceptions=False
-    )
-    assert result.exit_code != 0
-    assert "Error: All changes are disabled" in result.stderr
-
-
-@mock.patch("rpmautospec.subcommands.convert.PkgConverter")
-@pytest.mark.parametrize(
-    "with_release, with_changelog",
-    ((True, True), (True, False), (False, True)),
-    ids=(
-        "with-release-with-changelog",
-        "with-release-without-changelog",
-        "without-release-without-changelog",
-    ),
-)
-@pytest.mark.parametrize(
-    "with_commit, with_signoff",
-    ((True, False), (True, True), (False, False)),
-    ids=("with-commit-without-signoff", "with-commit-with-signoff", "without-commit"),
-)
-def test_convert_valid_args(
-    PkgConverter, with_release, with_changelog, with_commit, with_signoff, specfile, cli_runner
-):
-    PkgConverter.return_value = pkg_converter = mock.MagicMock()
-
-    args = [
-        "--release" if with_release else "--no-release",
-        "--changelog" if with_changelog else "--no-changelog",
-        "--commit" if with_commit else "--no-commit",
-        "--signoff" if with_signoff else "--no-signoff",
-        "--message=message",
-        str(specfile),
-    ]
-
-    result = cli_runner.invoke(convert.convert, args)
-
-    assert result.exit_code == 0
-
-    pkg_converter.load.assert_called_once()
-
-    if with_changelog:
-        pkg_converter.convert_to_autochangelog.assert_called_once_with()
-    else:
-        pkg_converter.convert_to_autochangelog.assert_not_called()
-
-    if with_release:
-        pkg_converter.convert_to_autorelease.assert_called_once_with()
-    else:
-        pkg_converter.convert_to_autorelease.assert_not_called()
-
-    pkg_converter.save.assert_called()
-
-    if with_commit:
-        pkg_converter.commit.assert_called_once_with(message="message", signoff=with_signoff)
-    else:
-        pkg_converter.commit.assert_not_called()
-
-
 @pytest.mark.parametrize(
     "release, expected",
     [
@@ -389,28 +318,3 @@ def test_commit(specfile, release, changelog, repo):
     assert head.message == expected_message
     assert specfile.name in fileschanged
     assert ("changelog" in fileschanged) == changelog_should_change
-
-
-@pytest.mark.parametrize(
-    "method, exception",
-    (
-        ("__init__", ValueError),
-        ("__init__", FileNotFoundError),
-        ("__init__", SpecialFileError),
-        ("__init__", convert.FileUntrackedError),
-        ("__init__", convert.FileModifiedError),
-        ("convert_to_autorelease", SpecParseFailure),
-        ("convert_to_autochangelog", SpecParseFailure),
-    ),
-)
-@mock.patch.object(convert, "PkgConverter")
-def test_rewrap_exceptions(PkgConverter, method, exception, cli_runner, specfile):
-    if method == "__init__":
-        PkgConverter.side_effect = exception("BOOP")
-    else:
-        obj = PkgConverter.return_value
-        getattr(obj, method).side_effect = exception("BOOP")
-
-    result = cli_runner.invoke(convert.convert, str(specfile))
-    assert result.exit_code != 0
-    assert "Error: BOOP" in result.stderr

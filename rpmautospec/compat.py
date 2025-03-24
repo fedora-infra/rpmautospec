@@ -1,7 +1,8 @@
-from importlib.metadata import EntryPoint, entry_points
 from io import BytesIO
+from typing import TYPE_CHECKING
 
-import pygit2
+if TYPE_CHECKING:
+    from pygit2 import Blob, Oid
 
 
 class MinimalBlobIO:
@@ -9,23 +10,12 @@ class MinimalBlobIO:
 
     This doesn’t do any of the filtering"""
 
-    def __init__(self, blob: pygit2.Blob, *, as_path: str = None, commit_id: pygit2.Oid = None):
+    def __init__(self, blob: "Blob", *, as_path: str = None, commit_id: "Oid" = None) -> None:
         self.blob = blob
         # the rest is ignored
 
-    def __enter__(self):
+    def __enter__(self) -> BytesIO:
         return BytesIO(self.blob.data)
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
         pass
-
-
-def cli_plugin_entry_points() -> tuple[EntryPoint]:
-    """Find entry points for CLI plugins.
-
-    :return: Entry points implementing CLI commands
-    """
-    try:
-        return entry_points(group="rpmautospec.cli")
-    except TypeError:
-        return entry_points()["rpmautospec.cli"]

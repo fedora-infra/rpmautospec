@@ -3,7 +3,6 @@ from pathlib import Path
 
 import pygit2
 import pytest
-from click.testing import CliRunner
 
 from .common import SPEC_FILE_TEMPLATE, create_commit
 
@@ -204,8 +203,3 @@ def repo(repopath, specfile, specfile_content, _repo_config):
         create_commit(repo, message="Did something!")
 
     yield repo
-
-
-@pytest.fixture
-def cli_runner() -> CliRunner:
-    return CliRunner(mix_stderr=False)

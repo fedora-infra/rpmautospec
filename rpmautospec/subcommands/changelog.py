@@ -1,12 +1,8 @@
 from pathlib import Path
 from typing import Any, Union
 
-import click
-
-from .. import pager
 from ..exc import SpecParseFailure
 from ..pkg_history import PkgHistoryProcessor
-from ..util import handle_expected_exceptions
 
 
 def _coerce_to_str(str_or_bytes: Union[str, bytes]) -> str:
@@ -31,18 +27,3 @@ def do_generate_changelog(
             f"Couldn’t parse spec file {processor.specfile.name}", code=error, detail=error_detail
         )
     return collate_changelog(result)
-
-
-@click.command()
-@click.argument("spec_or_path", type=click.Path(), default=".")
-@click.pass_obj
-@handle_expected_exceptions
-def generate_changelog(obj: dict[str, Any], spec_or_path: Path) -> None:
-    """Generate changelog entries from git commit logs"""
-    try:
-        changelog = do_generate_changelog(
-            spec_or_path, error_on_unparseable_spec=obj["error_on_unparseable_spec"]
-        )
-    except SpecParseFailure as exc:
-        raise click.ClickException(*exc.args) from exc
-    pager.page(changelog, enabled=obj["pager"])

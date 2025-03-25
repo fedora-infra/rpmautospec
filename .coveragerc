@@ -9,4 +9,5 @@ fail_under = 100
 exclude_also =
     def __repr__
     if log.isEnabledFor\([^\)]*\):
+    if TYPE_CHECKING:
 show_missing = True

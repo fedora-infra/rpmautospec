@@ -5,6 +5,7 @@ import re
 import tarfile
 import tempfile
 from contextlib import nullcontext
+from enum import Enum
 from pathlib import Path
 from subprocess import check_output, run
 from unittest import mock
@@ -19,6 +20,11 @@ __HERE__ = Path(__file__).parent
 TESTREPO_TARBALL = (
     __HERE__.parent.parent / "test-data" / "repodata" / "dummy-test-package-gloster-git.tar.gz"
 )
+
+class TargetType(Enum):
+    NONE = None
+    FILE = 1
+    DIRECTORY = 2
 
 
 @contextlib.contextmanager
@@ -216,8 +222,8 @@ def run_git_amend(worktree_dir):
 )
 @pytest.mark.parametrize(
     "overwrite_specfile",
-    (False, True),
-    ids=("without-overwrite-specfile", "with-overwrite-specfile"),
+    (TargetType.NONE, TargetType.FILE, TargetType.DIRECTORY),
+    ids=("without-overwrite-specfile", "with-overwrite-specfile-with-file", "with-overwrite-specfile-with-directory"),
 )
 @pytest.mark.parametrize("dirty_worktree", (False, True), ids=("clean-worktree", "dirty-worktree"))
 @pytest.mark.parametrize("bump_release", (0, 15), ids=("without-bump-release", "with-bump-release"))
@@ -287,10 +293,12 @@ def test_do_process_distgit(
     ) and not dirty_worktree:
         run_git_amend(unpacked_repo_dir)
 
-    if overwrite_specfile:
+    if overwrite_specfile == TargetType.NONE:
         target_spec_file_path = None
-    else:
+    elif overwrite_specfile == TargetType.FILE:
         target_spec_file_path = tmp_path / "test-this-specfile-please.spec"
+    else:
+        target_spec_file_path = tmp_path
 
     orig_test_spec_file_stat = test_spec_file_path.stat()
 
@@ -412,7 +420,10 @@ def test_do_process_distgit(
         ]
 
         if target_spec_file_path:
-            test_cmd = rpm_cmd + [target_spec_file_path]
+            if target_spec_file_path.is_dir():
+                test_cmd = rpm_cmd + [target_spec_file_path / test_spec_file_path.name]
+            else:
+                test_cmd = rpm_cmd + [target_spec_file_path]
         else:
             test_cmd = rpm_cmd + [test_spec_file_path]
         expected_cmd = rpm_cmd + [expected_spec_file_path]

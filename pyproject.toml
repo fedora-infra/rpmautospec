@@ -44,7 +44,7 @@ dev = [
     "pytest-xdist<4.0.0,>=2.5.0; python_version ~= \"3.12\"",
     "ruff<0.11.3,>=0.2.0",
     # coverage v7.8.0 doesn’t work with coverage-conditional-plugin v0.9.0
-    "coverage<7.8.0,>=7.2.0",
+    "coverage<7.8.1,>=7.2.0",
     "coverage-conditional-plugin>=0.9.0",
     "click<9,>=8",
 ]

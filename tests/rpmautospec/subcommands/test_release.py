@@ -7,6 +7,7 @@ from unittest import mock
 
 import pytest
 
+from rpmautospec.compat import rpm
 from rpmautospec.exc import SpecParseFailure
 from rpmautospec.subcommands import release
 
@@ -57,7 +58,7 @@ class TestRelease:
             else:
                 expectation = nullcontext()
 
-            with mock.patch("rpm.setLogFile"), expectation as excinfo:
+            with mock.patch.object(rpm, "setLogFile"), expectation as excinfo:
                 result = release.do_calculate_release(
                     unpacked_repo_dir,
                     complete_release=complete_release,

@@ -19,6 +19,11 @@ else:  # pragma: has-pygit2
     except ImportError:  # pragma: no cover
         needs_minimal_blobio = True
 
+try:
+    import rpm
+except ImportError:  # pragma: has-no-rpm
+    from ._wrappers import minirpm as rpm  # noqa: F401
+
 if TYPE_CHECKING:
     if uses_minigit2:
         from .minigit2 import Blob, Oid

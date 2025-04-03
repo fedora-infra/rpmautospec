@@ -4,6 +4,7 @@ from unittest import mock
 
 import pytest
 
+from rpmautospec.compat import rpm
 from rpmautospec.exc import SpecParseFailure
 
 from ...common import gen_testrepo
@@ -206,7 +207,7 @@ def test_process_distgit(testcase, tmp_path, locale, cli_runner):
         mock.patch.object(
             cli_click, "do_process_distgit", wraps=cli_click.do_process_distgit
         ) as do_process_distgit_fn,
-        mock.patch("rpm.setLogFile"),  # rpm can’t cope with fake sys.stderr
+        mock.patch.object(rpm, "setLogFile"),  # rpm can’t cope with fake sys.stderr
     ):
         if "specfile-parse-failure" in testcase:
             do_process_distgit_fn.side_effect = cli_click.SpecParseFailure("BOO")

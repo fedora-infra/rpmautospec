@@ -449,7 +449,6 @@ name = "rpmautospec"
 version = "0.7.3"
 source = { editable = "." }
 dependencies = [
-    { name = "rpm" },
     { name = "rpmautospec-core" },
 ]
 
@@ -458,6 +457,7 @@ all = [
     { name = "click" },
     { name = "pygit2", version = "1.15.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pygit2", version = "1.17.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "rpm" },
 ]
 click = [
     { name = "click" },
@@ -465,6 +465,9 @@ click = [
 pygit2 = [
     { name = "pygit2", version = "1.15.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pygit2", version = "1.17.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+]
+rpm = [
+    { name = "rpm" },
 ]
 
 [package.dev-dependencies]
@@ -478,6 +481,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
     { name = "pyyaml" },
+    { name = "rpm" },
     { name = "ruff" },
 ]
 test = [
@@ -498,10 +502,11 @@ requires-dist = [
     { name = "pygit2", marker = "python_full_version == '3.9.*' and extra == 'pygit2'", specifier = ">=1.4.0,<1.17.1" },
     { name = "pygit2", marker = "python_full_version >= '3.10' and python_full_version < '4.0.0' and extra == 'all'", specifier = ">=1.4.0,<2.0.0" },
     { name = "pygit2", marker = "python_full_version >= '3.10' and python_full_version < '4.0.0' and extra == 'pygit2'", specifier = ">=1.4.0,<2.0.0" },
-    { name = "rpm" },
+    { name = "rpm", marker = "extra == 'all'" },
+    { name = "rpm", marker = "extra == 'rpm'" },
     { name = "rpmautospec-core", specifier = ">=0.1.4,<1.0.0" },
 ]
-provides-extras = ["click", "pygit2", "all"]
+provides-extras = ["click", "pygit2", "rpm", "all"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -515,6 +520,7 @@ dev = [
     { name = "pytest-xdist", marker = "python_full_version >= '3.9' and python_full_version < '3.12'", specifier = ">=2.5.0,<3.7.0" },
     { name = "pytest-xdist", marker = "python_full_version >= '3.12' and python_full_version < '4.0.0'", specifier = ">=2.5.0,<4.0.0" },
     { name = "pyyaml", specifier = ">=5.3.1,<7.0.0" },
+    { name = "rpm" },
     { name = "ruff", specifier = ">=0.2.0,<0.11.4" },
 ]
 test = [

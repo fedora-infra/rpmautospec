@@ -1,6 +1,5 @@
 """Minimal wrapper for libgit2 - Native Adaptation"""
 
-import re
 from ctypes import (
     CDLL,
     CFUNCTYPE,
@@ -18,71 +17,22 @@ from ctypes import (
     c_uint64,
     c_void_p,
 )
-from ctypes.util import find_library
 from enum import IntEnum, IntFlag, auto
 from typing import Optional
-from warnings import warn
 
-from .exc import Libgit2NotFoundError, Libgit2VersionError, Libgit2VersionWarning
+from ..common import IntEnumMixin, install_func_decls, load_lib
 
-_soname: Optional[str] = None
 lib: Optional[CDLL] = None
+soname: Optional[str] = None
 version: Optional[str] = None
 version_tuple: Optional[tuple[int]] = None
 
 LIBGIT2_KNOWN_VERSIONS = tuple((1, minor) for minor in range(1, 10))
-LIBGIT2_MIN_VERSION = LIBGIT2_KNOWN_VERSIONS[0]
-LIBGIT2_MAX_VERSION = LIBGIT2_KNOWN_VERSIONS[-1]
-LIBGIT2_MIN_VERSION_STR = ".".join(str(x) for x in LIBGIT2_MIN_VERSION)
-LIBGIT2_MAX_VERSION_STR = ".".join(str(x) for x in LIBGIT2_MAX_VERSION)
-
-
-def _setup_lib():
-    """Discover and load libgit2, and establish basic facts."""
-    global _soname, lib, version, version_tuple
-
-    for version_tuple in reversed(LIBGIT2_KNOWN_VERSIONS):
-        # Prefer known to unknown versions
-        major, minor = version_tuple
-        version = ".".join(str(num) for num in version_tuple)
-        soname = f"libgit2.so.{version}"
-        try:
-            _lib = CDLL(soname)
-        except Exception:
-            continue
-        else:
-            _version_tuple = version_tuple
-            _version = version
-            _soname = soname
-            lib = _lib
-            break
-    else:
-        # None found by explicit naming, attempt a newer version 🤞
-        soname = find_library("git2")
-        if not soname:
-            raise Libgit2NotFoundError("libgit2 not found")
-        if not (match := re.match(r"libgit2\.so\.(?P<version>\d+(?:\.\d+)*)", soname)):
-            raise Libgit2VersionError(f"Can’t parse libgit2 version: {_soname}")
-        version = match.group("version")
-        version_tuple = tuple(int(x) for x in match.group("version").split("."))
-        if LIBGIT2_MIN_VERSION > version_tuple:
-            raise Libgit2VersionError(
-                f"Version {version} of libgit2 too low (must be >= {LIBGIT2_MIN_VERSION_STR})"
-            )
-        if LIBGIT2_MAX_VERSION < version_tuple[: len(LIBGIT2_MAX_VERSION)]:
-            warn(
-                f"Version {version} of libgit2 is unknown (latest known is"
-                + f" {LIBGIT2_MAX_VERSION_STR}).",
-                Libgit2VersionWarning,
-            )
-        lib = CDLL(soname)
-
-    _soname = soname
-    lib.git_libgit2_init()
 
 
 try:
-    _setup_lib()
+    lib, soname, version, version_tuple = load_lib("git2", known_versions=LIBGIT2_KNOWN_VERSIONS)
+    lib.git_libgit2_init()
 except Exception as exc:  # pragma: no cover
     raise ImportError from exc
 
@@ -92,12 +42,6 @@ except Exception as exc:  # pragma: no cover
 git_object_size_t = c_uint64
 git_off_t = c_uint64
 git_time_t = c_int64
-
-
-class IntEnumMixin:
-    @classmethod
-    def from_param(cls, obj):
-        return int(obj)
 
 
 class git_error_code(IntEnumMixin, IntEnum):
@@ -977,15 +921,7 @@ FUNC_DECLS = {
 # Set up native function argument types.
 
 
-def _install_func_decls() -> None:
-    global lib
-    for func_name, (restype, argtypes) in FUNC_DECLS.items():
-        func = getattr(lib, func_name)
-        func.restype = restype
-        func.argtypes = argtypes
-
-
 try:
-    _install_func_decls()
+    install_func_decls(lib, FUNC_DECLS)
 except Exception as exc:  # pragma: no cover
     raise ImportError from exc

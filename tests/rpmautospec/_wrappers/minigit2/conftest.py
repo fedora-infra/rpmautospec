@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from rpmautospec.minigit2.repository import Repository
+from rpmautospec._wrappers.minigit2.repository import Repository
 
 
 @pytest.fixture

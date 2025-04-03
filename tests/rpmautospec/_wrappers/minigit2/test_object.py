@@ -5,12 +5,12 @@ from unittest import mock
 
 import pytest
 
-from rpmautospec.minigit2.blob import Blob
-from rpmautospec.minigit2.commit import Commit
-from rpmautospec.minigit2.native_adaptation import git_object_p, git_object_t, lib
-from rpmautospec.minigit2.object_ import Object
-from rpmautospec.minigit2.oid import Oid
-from rpmautospec.minigit2.tree import Tree
+from rpmautospec._wrappers.minigit2.blob import Blob
+from rpmautospec._wrappers.minigit2.commit import Commit
+from rpmautospec._wrappers.minigit2.native_adaptation import git_object_p, git_object_t, lib
+from rpmautospec._wrappers.minigit2.object_ import Object
+from rpmautospec._wrappers.minigit2.oid import Oid
+from rpmautospec._wrappers.minigit2.tree import Tree
 
 if TYPE_CHECKING:
     from rpmautospec.minigit2.repository import Repository

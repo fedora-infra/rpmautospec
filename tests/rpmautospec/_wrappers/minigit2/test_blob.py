@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING
 
-from rpmautospec.minigit2 import blob, native_adaptation
+from rpmautospec._wrappers.minigit2 import blob, native_adaptation
 
 if TYPE_CHECKING:
-    from rpmautospec.minigit2.repository import Repository
+    from rpmautospec._wrappers.minigit2.repository import Repository
 
 
 class TestBlob:

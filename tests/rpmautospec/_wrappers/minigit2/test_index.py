@@ -3,15 +3,15 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from rpmautospec.minigit2.index import Index
-from rpmautospec.minigit2.oid import Oid
+from rpmautospec._wrappers.minigit2.index import Index
+from rpmautospec._wrappers.minigit2.oid import Oid
 
 from .common import BaseTestWrapper
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from rpmautospec.minigit2.repository import Repository
+    from rpmautospec._wrappers.minigit2.repository import Repository
 
 
 class TestIndex(BaseTestWrapper):

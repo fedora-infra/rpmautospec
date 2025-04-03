@@ -2,7 +2,7 @@ from ctypes import c_void_p
 from typing import Type
 from unittest import mock
 
-from rpmautospec.minigit2.wrapper import WrapperOfWrappings
+from rpmautospec._wrappers.minigit2.wrapper import WrapperOfWrappings
 
 
 class BaseTestWrapper:

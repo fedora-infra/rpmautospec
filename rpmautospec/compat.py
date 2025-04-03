@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 try:
     import pygit2
 except ImportError:  # pragma: has-no-pygit2
-    from . import minigit2 as pygit2  # noqa: F401
+    from ._wrappers import minigit2 as pygit2  # noqa: F401
 
     uses_minigit2 = True
 else:  # pragma: has-pygit2

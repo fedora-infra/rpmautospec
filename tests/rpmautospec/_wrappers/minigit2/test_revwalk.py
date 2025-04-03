@@ -2,11 +2,11 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from rpmautospec.minigit2.commit import Commit
-from rpmautospec.minigit2.revwalk import RevWalk
+from rpmautospec._wrappers.minigit2.commit import Commit
+from rpmautospec._wrappers.minigit2.revwalk import RevWalk
 
 if TYPE_CHECKING:
-    from rpmautospec.minigit2.repository import Repository
+    from rpmautospec._wrappers.minigit2.repository import Repository
 
 
 @pytest.fixture

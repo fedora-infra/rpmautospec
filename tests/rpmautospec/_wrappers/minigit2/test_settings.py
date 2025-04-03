@@ -2,8 +2,8 @@ import sys
 
 import pytest
 
-from rpmautospec.minigit2.native_adaptation import git_config_level_t
-from rpmautospec.minigit2.settings import SearchPathList
+from rpmautospec._wrappers.minigit2.native_adaptation import git_config_level_t
+from rpmautospec._wrappers.minigit2.settings import SearchPathList
 
 _UNSET = object()
 

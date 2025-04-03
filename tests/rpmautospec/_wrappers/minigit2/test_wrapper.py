@@ -7,8 +7,8 @@ from unittest import mock
 
 import pytest
 
-from rpmautospec.minigit2 import exc, wrapper
-from rpmautospec.minigit2.native_adaptation import git_error_code
+from rpmautospec._wrappers.minigit2 import exc, wrapper
+from rpmautospec._wrappers.minigit2.native_adaptation import git_error_code
 
 
 class TestLibraryUser:

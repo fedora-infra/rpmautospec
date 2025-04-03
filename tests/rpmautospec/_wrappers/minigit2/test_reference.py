@@ -6,15 +6,15 @@ from unittest import mock
 
 import pytest
 
-from rpmautospec.minigit2.commit import Commit
-from rpmautospec.minigit2.native_adaptation import git_object_t, git_reference_p, lib
-from rpmautospec.minigit2.oid import Oid
-from rpmautospec.minigit2.reference import Reference
+from rpmautospec._wrappers.minigit2.commit import Commit
+from rpmautospec._wrappers.minigit2.native_adaptation import git_object_t, git_reference_p, lib
+from rpmautospec._wrappers.minigit2.oid import Oid
+from rpmautospec._wrappers.minigit2.reference import Reference
 
 from .common import BaseTestWrapper
 
 if TYPE_CHECKING:
-    from rpmautospec.minigit2.repository import Repository
+    from rpmautospec._wrappers.minigit2.repository import Repository
 
 
 class TestReference(BaseTestWrapper):

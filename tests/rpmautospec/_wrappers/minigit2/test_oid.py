@@ -3,9 +3,9 @@ from random import randbytes
 
 import pytest
 
-from rpmautospec.minigit2 import constants
-from rpmautospec.minigit2.native_adaptation import git_oid
-from rpmautospec.minigit2.oid import Oid
+from rpmautospec._wrappers.minigit2 import constants
+from rpmautospec._wrappers.minigit2.native_adaptation import git_oid
+from rpmautospec._wrappers.minigit2.oid import Oid
 
 
 class TestOid:

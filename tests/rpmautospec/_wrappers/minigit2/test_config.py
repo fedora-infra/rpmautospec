@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from rpmautospec.minigit2.config import Config
-from rpmautospec.minigit2.native_adaptation import git_config_p, lib
+from rpmautospec._wrappers.minigit2.config import Config
+from rpmautospec._wrappers.minigit2.native_adaptation import git_config_p, lib
 
 if TYPE_CHECKING:
     from pathlib import Path

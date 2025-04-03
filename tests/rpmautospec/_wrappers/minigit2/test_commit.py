@@ -5,12 +5,12 @@ from unittest import mock
 
 import pytest
 
-from rpmautospec.minigit2 import commit, signature, tree
+from rpmautospec._wrappers.minigit2 import commit, signature, tree
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from rpmautospec.minigit2.repository import Repository
+    from rpmautospec._wrappers.minigit2.repository import Repository
 
 
 class TestCommit:

@@ -5,12 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from rpmautospec.minigit2.blob import Blob
-from rpmautospec.minigit2.commit import Commit
-from rpmautospec.minigit2.config import Config
-from rpmautospec.minigit2.exc import GitError, InvalidSpecError
-from rpmautospec.minigit2.index import Index
-from rpmautospec.minigit2.native_adaptation import (
+from rpmautospec._wrappers.minigit2.blob import Blob
+from rpmautospec._wrappers.minigit2.commit import Commit
+from rpmautospec._wrappers.minigit2.config import Config
+from rpmautospec._wrappers.minigit2.exc import GitError, InvalidSpecError
+from rpmautospec._wrappers.minigit2.index import Index
+from rpmautospec._wrappers.minigit2.native_adaptation import (
     git_buf,
     git_checkout_strategy_t,
     git_object_t,
@@ -19,13 +19,13 @@ from rpmautospec.minigit2.native_adaptation import (
     git_status_t,
     lib,
 )
-from rpmautospec.minigit2.object_ import Object
-from rpmautospec.minigit2.oid import Oid
-from rpmautospec.minigit2.reference import Reference
-from rpmautospec.minigit2.repository import Repository
-from rpmautospec.minigit2.revwalk import RevWalk
-from rpmautospec.minigit2.signature import Signature
-from rpmautospec.minigit2.tree import Tree
+from rpmautospec._wrappers.minigit2.object_ import Object
+from rpmautospec._wrappers.minigit2.oid import Oid
+from rpmautospec._wrappers.minigit2.reference import Reference
+from rpmautospec._wrappers.minigit2.repository import Repository
+from rpmautospec._wrappers.minigit2.revwalk import RevWalk
+from rpmautospec._wrappers.minigit2.signature import Signature
+from rpmautospec._wrappers.minigit2.tree import Tree
 
 
 class TestRepository:

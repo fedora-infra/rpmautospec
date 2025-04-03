@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from rpmautospec import minigit2
+from rpmautospec._wrappers import minigit2
+from rpmautospec._wrappers.minigit2.wrapper import WrapperOfWrappings
 from rpmautospec.compat import pygit2
-from rpmautospec.minigit2.wrapper import WrapperOfWrappings
 
 from .common import SPEC_FILE_TEMPLATE, create_commit
 

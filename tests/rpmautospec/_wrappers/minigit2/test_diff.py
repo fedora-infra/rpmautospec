@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from rpmautospec.minigit2.constants import GIT_OID_SHA1_HEXSIZE, GIT_OID_SHA1_SIZE
-from rpmautospec.minigit2.diff import DeltasIter, Diff, DiffDelta, DiffFile, DiffStats
-from rpmautospec.minigit2.enums import DeltaStatus, DiffFlag
-from rpmautospec.minigit2.native_adaptation import (
+from rpmautospec._wrappers.minigit2.constants import GIT_OID_SHA1_HEXSIZE, GIT_OID_SHA1_SIZE
+from rpmautospec._wrappers.minigit2.diff import DeltasIter, Diff, DiffDelta, DiffFile, DiffStats
+from rpmautospec._wrappers.minigit2.enums import DeltaStatus, DiffFlag
+from rpmautospec._wrappers.minigit2.native_adaptation import (
     git_delta_t,
     git_diff_file,
     git_diff_flag_t,
@@ -19,8 +19,8 @@ from rpmautospec.minigit2.native_adaptation import (
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from rpmautospec.minigit2.commit import Commit
-    from rpmautospec.minigit2.repository import Repository
+    from rpmautospec._wrappers.minigit2.commit import Commit
+    from rpmautospec._wrappers.minigit2.repository import Repository
 
 
 class TestDiffFile:

@@ -4,14 +4,14 @@ from unittest import mock
 
 import pytest
 
-from rpmautospec.minigit2.diff import Diff
-from rpmautospec.minigit2.native_adaptation import lib
-from rpmautospec.minigit2.tree import Tree
+from rpmautospec._wrappers.minigit2.diff import Diff
+from rpmautospec._wrappers.minigit2.native_adaptation import lib
+from rpmautospec._wrappers.minigit2.tree import Tree
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from rpmautospec.minigit2.repository import Repository
+    from rpmautospec._wrappers.minigit2.repository import Repository
 
 
 @pytest.fixture

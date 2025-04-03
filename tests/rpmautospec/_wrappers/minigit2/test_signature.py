@@ -5,8 +5,8 @@ from unittest import mock
 
 import pytest
 
-from rpmautospec.minigit2.native_adaptation import git_signature_p, lib
-from rpmautospec.minigit2.signature import Signature
+from rpmautospec._wrappers.minigit2.native_adaptation import git_signature_p, lib
+from rpmautospec._wrappers.minigit2.signature import Signature
 
 
 @pytest.fixture

@@ -454,6 +454,11 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+all = [
+    { name = "click" },
+    { name = "pygit2", version = "1.15.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pygit2", version = "1.17.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+]
 click = [
     { name = "click" },
 ]
@@ -487,13 +492,16 @@ test = [
 
 [package.metadata]
 requires-dist = [
+    { name = "click", marker = "extra == 'all'", specifier = ">=8,<9" },
     { name = "click", marker = "extra == 'click'", specifier = ">=8,<9" },
+    { name = "pygit2", marker = "python_full_version == '3.9.*' and extra == 'all'", specifier = ">=1.4.0,<1.17.1" },
     { name = "pygit2", marker = "python_full_version == '3.9.*' and extra == 'pygit2'", specifier = ">=1.4.0,<1.17.1" },
+    { name = "pygit2", marker = "python_full_version >= '3.10' and python_full_version < '4.0.0' and extra == 'all'", specifier = ">=1.4.0,<2.0.0" },
     { name = "pygit2", marker = "python_full_version >= '3.10' and python_full_version < '4.0.0' and extra == 'pygit2'", specifier = ">=1.4.0,<2.0.0" },
     { name = "rpm" },
     { name = "rpmautospec-core", specifier = ">=0.1.4,<1.0.0" },
 ]
-provides-extras = ["click", "pygit2"]
+provides-extras = ["click", "pygit2", "all"]
 
 [package.metadata.requires-dev]
 dev = [

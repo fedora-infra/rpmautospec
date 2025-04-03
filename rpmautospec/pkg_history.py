@@ -11,11 +11,10 @@ from shutil import SpecialFileError
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Optional, Sequence, Union
 
-import rpm
 from rpmautospec_core import AUTORELEASE_MACRO
 
 from .changelog import ChangelogEntry
-from .compat import BlobIO, pygit2
+from .compat import BlobIO, pygit2, rpm
 from .magic_comments import parse_magic_comments
 
 log = logging.getLogger(__name__)

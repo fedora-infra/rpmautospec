@@ -9,10 +9,9 @@ from shutil import SpecialFileError, rmtree
 from unittest import mock
 
 import pytest
-from rpm import spec as rpm_spec
 
 from rpmautospec import pkg_history
-from rpmautospec.compat import pygit2
+from rpmautospec.compat import pygit2, rpm
 
 from ..common import SPEC_FILE_TEMPLATE, create_commit
 
@@ -220,10 +219,13 @@ class TestPkgHistoryProcessor:
             specfile.unlink()
             specfile.touch()
 
-        with caplog.at_level("DEBUG"), mock.patch("rpm.spec", wraps=rpm_spec) as mock_rpm_spec:
+        with (
+            caplog.at_level("DEBUG"),
+            mock.patch.object(rpm, "spec", wraps=rpm.spec) as mock_rpm_spec,
+        ):
             if abridged_fails:
                 mock_rpm_spec.side_effect = [
-                    ValueError("can't parse specfile"),
+                    ValueError("can't parse specfile\n"),
                     mock.DEFAULT,
                 ]
 

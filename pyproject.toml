@@ -23,10 +23,7 @@ maintainers = [
 ]
 readme = "README.rst"
 requires-python = "<4.0,>=3.9"
-dependencies = [
-    "rpmautospec-core<1.0.0,>=0.1.4",
-    "rpm",
-]
+dependencies = ["rpmautospec-core<1.0.0,>=0.1.4"]
 
 [project.optional-dependencies]
 click = ["click<9,>=8"]
@@ -34,10 +31,12 @@ pygit2 = [
     "pygit2<1.17.1,>=1.4.0; python_full_version >= \"3.9.0\" and python_full_version < \"3.10.0\"",
     "pygit2<2.0.0,>=1.4.0; python_full_version >= \"3.10.0\" and python_full_version < \"4.0.0\"",
 ]
+rpm = ["rpm"]
 all = [
     "click<9,>=8",
     "pygit2<1.17.1,>=1.4.0; python_full_version >= \"3.9.0\" and python_full_version < \"3.10.0\"",
     "pygit2<2.0.0,>=1.4.0; python_full_version >= \"3.10.0\" and python_full_version < \"4.0.0\"",
+    "rpm",
 ]
 
 [dependency-groups]
@@ -53,6 +52,7 @@ dev = [
     "coverage<7.8.1,>=7.2.0",
     "coverage-conditional-plugin>=0.9.0",
     "click<9,>=8",
+    "rpm",
 ]
 test = [
     "pyyaml<7.0.0,>=5.3.1",
@@ -81,7 +81,7 @@ include = [
     "DCO.txt",
     "pyproject.toml",
     "rpmautospec/**/*.py",
-    "rpm/macros.d/macros.rpmautospec",
+    "rpm_macros.d/macros.rpmautospec",
     "tests/**/*.py",
     "tests/test-data/commitlogs/commit*.txt",
     "tests/test-data/commitlogs/expected*.txt",
@@ -140,3 +140,5 @@ show_missing = true
 "has-click" = "not is_installed('click')"
 "has-no-pygit2" = "is_installed('pygit2')"
 "has-pygit2" = "not is_installed('pygit2')"
+"has-no-rpm" = "is_installed('rpm')"
+"has-rpm" = "not is_installed('rpm')"

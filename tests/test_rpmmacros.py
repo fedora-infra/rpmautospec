@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 HERE = Path(__file__).parent
-MACROS_FILE = HERE.parent / "rpm" / "macros.d" / "macros.rpmautospec"
+MACROS_FILE = HERE.parent / "rpm_macros.d" / "macros.rpmautospec"
 
 
 @pytest.mark.parametrize("nodisttag", (False, True))

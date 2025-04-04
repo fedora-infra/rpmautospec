@@ -47,6 +47,16 @@ dev = [
     "coverage-conditional-plugin>=0.9.0",
     "click<9,>=8",
 ]
+test = [
+    "pyyaml<7.0.0,>=5.3.1",
+    "pytest<9.0.0,>=6.2.2",
+    "pytest-cov>=4.0.0,<7.0.0",
+    "pytest-xdist<3.7.0,>=2.5.0; python_version < \"3.12\" and python_full_version >= \"3.9.0\"",
+    "pytest-xdist<4.0.0,>=2.5.0; python_version ~= \"3.12\"",
+    "ruff<0.11.4,>=0.2.0",
+    "coverage<7.8.1,>=7.2.0",
+    "coverage-conditional-plugin>=0.9.0",
+]
 
 [project.urls]
 repository = "https://github.com/fedora-infra/rpmautospec"
@@ -113,6 +123,11 @@ exclude_also = [
 ]
 show_missing = true
 
+[tool.coverage.coverage_conditional_plugin.omit]
+"is_installed('click')" = "rpmautospec/cli/click.py"
+
 [tool.coverage.coverage_conditional_plugin.rules]
+"has-no-click" = "is_installed('click')"
+"has-click" = "not is_installed('click')"
 "has-no-pygit2" = "is_installed('pygit2')"
 "has-pygit2" = "not is_installed('pygit2')"

@@ -27,7 +27,7 @@ soname: Optional[str] = None
 version: Optional[str] = None
 version_tuple: Optional[tuple[int]] = None
 
-LIBGIT2_KNOWN_VERSIONS = tuple((1, minor) for minor in range(1, 10))
+LIBGIT2_KNOWN_VERSIONS = tuple((1, minor) for minor in range(4, 10))
 
 
 try:

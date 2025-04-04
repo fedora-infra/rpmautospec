@@ -96,3 +96,24 @@ tmp_path_retention_policy = "failed"
 
 [tool.black]
 line_length = 100
+
+[tool.coverage.run]
+branch = true
+source = ["rpmautospec"]
+omit = []
+plugins = ["coverage_conditional_plugin"]
+
+[tool.coverage.report]
+precision = 2
+fail_under = 100
+exclude_also = [
+    "def __repr__",
+    'if log.isEnabledFor\([^\)]*\):',
+    "if TYPE_CHECKING:",
+    "@overload",
+]
+show_missing = true
+
+[tool.coverage.coverage_conditional_plugin.rules]
+"has-no-pygit2" = "is_installed('pygit2')"
+"has-pygit2" = "not is_installed('pygit2')"

@@ -127,6 +127,8 @@ show_missing = true
 "not is_installed('click')" = "rpmautospec/cli/click.py"
 
 [tool.coverage.coverage_conditional_plugin.rules]
+"has-no-py310" = "sys_version_info >= (3, 10)"
+"has-py310" = "sys_version_info < (3, 10)"
 "has-no-click" = "is_installed('click')"
 "has-click" = "not is_installed('click')"
 "has-no-pygit2" = "is_installed('pygit2')"

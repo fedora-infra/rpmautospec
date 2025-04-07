@@ -34,23 +34,23 @@ jobs:
         include:
           - toxenv: py39
             fedver: f38
-          - toxenv: py39-pygit2
+          - toxenv: py39-all-extras
             fedver: f38
           - toxenv: py310
             fedver: f38
-          - toxenv: py310-pygit2
+          - toxenv: py310-all-extras
             fedver: f38
           - toxenv: py311
             fedver: f38
-          - toxenv: py311-pygit2
+          - toxenv: py311-all-extras
             fedver: f38
           - toxenv: py312
             fedver: latest
-          - toxenv: py312-pygit2
+          - toxenv: py312-all-extras
             fedver: latest
           - toxenv: py313
             fedver: latest
-          - toxenv: py313-pygit2
+          - toxenv: py313-all-extras
             fedver: latest
     runs-on: ubuntu-latest
     container: "fedorapython/fedora-python-tox:${{ matrix.fedver }}"

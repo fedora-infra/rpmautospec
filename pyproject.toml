@@ -124,7 +124,7 @@ exclude_also = [
 show_missing = true
 
 [tool.coverage.coverage_conditional_plugin.omit]
-"is_installed('click')" = "rpmautospec/cli/click.py"
+"not is_installed('click')" = "rpmautospec/cli/click.py"
 
 [tool.coverage.coverage_conditional_plugin.rules]
 "has-no-click" = "is_installed('click')"

@@ -3,12 +3,16 @@ from shutil import SpecialFileError
 from unittest import mock
 
 import pytest
-from click.testing import CliRunner
 
-from rpmautospec.cli import click as cli_click
 from rpmautospec.exc import SpecParseFailure
 
 from ...common import gen_testrepo
+
+_click_testing = pytest.importorskip("click.testing")
+if _click_testing:
+    CliRunner = _click_testing.CliRunner
+
+cli_click = pytest.importorskip("rpmautospec.cli.click")
 
 
 @pytest.fixture

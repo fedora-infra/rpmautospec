@@ -1,6 +1,8 @@
 import gc
 import locale as locale_mod
+import os
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -20,7 +22,7 @@ def pytest_configure(config):
 
 
 @pytest.fixture(autouse=True)
-def git_empty_config():
+def git_empty_config(tmp_path: Path):
     """Ensure tests run with empty git configuration."""
     for impl in PYGIT2_IMPLEMENTATIONS:
         for level in (
@@ -33,6 +35,13 @@ def git_empty_config():
                 impl.settings.search_path[level] = "/dev/null"
             except ValueError:
                 pass
+
+    git_config = tmp_path / "ignorance-is-bliss"
+    git_config.write_text("[user]\n\tname = The Man in the Moon\n\temail = man@moon.luna\n")
+    with mock.patch.dict(
+        os.environ, {"GIT_CONFIG_NOSYSTEM": "true", "GIT_CONFIG_GLOBAL": str(git_config)}
+    ):
+        yield
 
 
 @pytest.fixture(autouse=True)

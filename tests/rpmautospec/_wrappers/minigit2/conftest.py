@@ -28,7 +28,4 @@ def repo_root_str(repo_root: Path) -> str:
 
 @pytest.fixture
 def repo(repo_root: Path) -> Repository:
-    repo = Repository(repo_root)
-    repo.config["user.name"] = "The Man in the Moon"
-    repo.config["user.email"] = "man@moon.luna"
-    return repo
+    return Repository(repo_root)

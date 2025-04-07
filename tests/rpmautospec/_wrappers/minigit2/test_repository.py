@@ -288,6 +288,9 @@ class TestRepository:
         repo_root_str: str,
         repo: Repository,
     ) -> None:
+        repo.config["user.name"] = "J Random Hacker"
+        repo.config["user.email"] = "j.random@hacker.org"
+
         b_file = repo_root / "b_file"
         b_file.write_text("Another file.")
 

@@ -562,7 +562,7 @@ class PkgHistoryProcessor:
                                 ],
                             )
 
-                        break
+                        break  # pragma: has-py310
 
                     # For all visitor coroutines, merge their produced info, e.g. to determine if
                     # any of the children must continue.

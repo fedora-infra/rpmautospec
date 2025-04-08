@@ -1,16 +1,42 @@
 import datetime as dt
+import locale
 import re
 from pathlib import Path
+from unittest import mock
 
 import pytest
 import yaml
 
-from rpmautospec.changelog import ChangelogEntry
+from rpmautospec import changelog
 
 HERE = Path(__file__).parent
 COMMITLOG_CHANGELOG_DIR = HERE.parent / "test-data" / "commitlogs"
 COMMITLOGFILE_RE = re.compile(r"^commit-(?P<variant>.*)\.txt$")
 TESTDATA = {}
+
+
+@pytest.mark.parametrize("testcase", ("success-immediately", "success-eventually", "failure"))
+def test_TimeLocaleManager(testcase):
+    with mock.patch.object(changelog.locale, "setlocale") as setlocale:
+        locale_error = locale.Error("unsupported locale setting")
+        setlocale.side_effect = [
+            "BOO",
+            "en_US" if testcase == "success-immediately" else locale_error,
+            "C" if "success" in testcase else locale_error,
+        ]
+
+        expected_calls = [mock.call(locale.LC_TIME), mock.call(locale.LC_TIME, "en_US")]
+
+        if testcase != "success-immediately":
+            expected_calls.append(mock.call(locale.LC_TIME, "C"))
+
+        with changelog.TimeLocaleManager("en_US", "C"):
+            # testing __enter__()
+            assert setlocale.call_args_list == expected_calls
+            setlocale.reset_mock()
+
+        # testing __exit__()
+        setlocale.assert_called_once_with(locale.LC_TIME, "BOO")
 
 
 def _read_commitlog_changelog_testdata():
@@ -78,7 +104,7 @@ class TestChangelogEntry:
             commitlog, subject_with_dash=subject_with_dash, trailing_newline=trailing_newline
         )
 
-        changelog_items = ChangelogEntry.commitlog_to_changelog_items(commitlog)
+        changelog_items = changelog.ChangelogEntry.commitlog_to_changelog_items(commitlog)
         assert changelog_items == expected_changelog_items
 
     @pytest.mark.parametrize("with_epoch_version_release", (True, "epoch-version", False))
@@ -99,7 +125,7 @@ class TestChangelogEntry:
             commitlog, subject_with_dash=subject_with_dash, trailing_newline=trailing_newline
         )
 
-        changelog_entry = ChangelogEntry(
+        changelog_entry = changelog.ChangelogEntry(
             {
                 "timestamp": dt.datetime(1970, 1, 1, 0, 0, 0),
                 "authorblurb": "An Author <anauthor@example.com>",
@@ -130,7 +156,7 @@ class TestChangelogEntry:
 
     @pytest.mark.parametrize("error", ("string", "list"))
     def test_format_error(self, error):
-        changelog_entry = ChangelogEntry(
+        changelog_entry = changelog.ChangelogEntry(
             {
                 "timestamp": dt.datetime(1970, 1, 1, 0, 0, 0),
                 "authorblurb": "An Author <anauthor@example.com>",

@@ -13,15 +13,24 @@ class CommitLogParseState(int, Enum):
 
 
 class TimeLocaleManager:
-    def __init__(self, localename):
-        self.name = localename
+    def __init__(self, *localenames):
+        self.names = localenames
 
     def __enter__(self):
         self.orig = locale.setlocale(locale.LC_TIME)
-        locale.setlocale(locale.LC_TIME, self.name)
+        for name in self.names:
+            try:
+                locale.setlocale(locale.LC_TIME, name)
+            except Exception:
+                pass
+            else:
+                break
 
     def __exit__(self, exc_type, exc_value, traceback):  # pylint: disable=unused-argument
-        locale.setlocale(locale.LC_TIME, self.orig)
+        try:
+            locale.setlocale(locale.LC_TIME, self.orig)
+        except Exception:  # pragma: no cover
+            pass
 
 
 class ChangelogEntry(dict):
@@ -110,7 +119,7 @@ class ChangelogEntry(dict):
             return entry_info["data"]
 
         # WARNING: the following is NOT thread-safe
-        with TimeLocaleManager("en_US"):
+        with TimeLocaleManager("en_US", "C"):
             changelog_date = entry_info["timestamp"].strftime("%a %b %d %Y")
 
         if entry_info["epoch-version"]:

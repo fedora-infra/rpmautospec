@@ -18,12 +18,14 @@ cli_click = pytest.importorskip("rpmautospec.cli.click")
 
 @pytest.fixture
 def cli_runner() -> CliRunner:
-    return CliRunner(mix_stderr=False)
+    try:
+        return CliRunner(mix_stderr=False)  # click < 8.2
+    except TypeError:
+        return CliRunner()  # click >= 8.2
 
 
 def test_cli_help(cli_runner):
     """Test that getting top-level help works"""
-    cli_runner.mix_stderr = False
     result = cli_runner.invoke(cli_click.cli, ["--help"])
 
     assert result.exit_code == 0

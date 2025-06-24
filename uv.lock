@@ -560,7 +560,7 @@ dev = [
     { name = "pytest", specifier = ">=6.2.2,<9.0.0" },
     { name = "pytest-cov", specifier = ">=4.0.0,<7.0.0" },
     { name = "pytest-xdist", marker = "python_full_version >= '3.9' and python_full_version < '3.12'", specifier = ">=2.5.0,<3.7.1" },
-    { name = "pytest-xdist", marker = "python_full_version >= '3.12' and python_full_version < '4.0.0'", specifier = ">=2.5.0,<4.0.0" },
+    { name = "pytest-xdist", marker = "python_full_version >= '3.12' and python_full_version < '4'", specifier = ">=2.5.0,<4.0.0" },
     { name = "pyyaml", specifier = ">=5.3.1,<7.0.0" },
     { name = "rpm" },
     { name = "ruff", specifier = ">=0.2.0,<0.12.1" },
@@ -571,7 +571,7 @@ test = [
     { name = "pytest", specifier = ">=6.2.2,<9.0.0" },
     { name = "pytest-cov", specifier = ">=4.0.0,<7.0.0" },
     { name = "pytest-xdist", marker = "python_full_version >= '3.9' and python_full_version < '3.12'", specifier = ">=2.5.0,<3.7.1" },
-    { name = "pytest-xdist", marker = "python_full_version >= '3.12' and python_full_version < '4.0.0'", specifier = ">=2.5.0,<4.0.0" },
+    { name = "pytest-xdist", marker = "python_full_version >= '3.12' and python_full_version < '4'", specifier = ">=2.5.0,<4.0.0" },
     { name = "pyyaml", specifier = ">=5.3.1,<7.0.0" },
     { name = "ruff", specifier = ">=0.2.0,<0.12.1" },
 ]

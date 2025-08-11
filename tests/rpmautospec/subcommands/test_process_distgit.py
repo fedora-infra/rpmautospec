@@ -190,6 +190,7 @@ def run_git_amend(worktree_dir):
     "branch, autorelease_case, autochangelog_case, remove_changelog_file, is_processed",
     _generate_branch_testcase_combinations(),
 )
+@pytest.mark.parametrize("spec_parser", ("rpm", "norpm"), ids=("with-rpm", "with-norpm"))
 def test_do_process_distgit(
     override_locale,
     overwrite_specfile,
@@ -200,14 +201,19 @@ def test_do_process_distgit(
     remove_changelog_file,
     is_processed,
     bump_release,
+    spec_parser,
     locale,
     tmp_path,
+    monkeypatch,
 ):
     """Test the do_process_distgit() function"""
     if override_locale:
         locale.setlocale(locale.LC_ALL, override_locale)
 
     unpacked_repo_dir, test_spec_file_path = gen_testrepo(tmp_path, branch)
+
+    if spec_parser == "norpm":
+        monkeypatch.setenv("RPMAUTOSPEC_SPEC_PARSER", "norpm")
 
     if bump_release:
         commit_timestamp = check_output(

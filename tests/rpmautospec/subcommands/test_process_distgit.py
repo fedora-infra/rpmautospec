@@ -9,6 +9,11 @@ from unittest import mock
 
 import pytest
 
+try:
+    import norpm
+except ImportError:
+    norpm = None
+
 from rpmautospec.exc import SpecParseFailure
 from rpmautospec.subcommands import process_distgit
 from rpmautospec.version import __version__
@@ -190,6 +195,17 @@ def run_git_amend(worktree_dir):
     "branch, autorelease_case, autochangelog_case, remove_changelog_file, is_processed",
     _generate_branch_testcase_combinations(),
 )
+@pytest.mark.parametrize(
+    "spec_parser",
+    (
+        pytest.param("rpm", id="with-rpm"),
+        pytest.param(
+            "norpm",
+            id="with-norpm",
+            marks=pytest.mark.skipif(not norpm, reason="norpm isn’t available"),
+        ),
+    ),
+)
 def test_do_process_distgit(
     override_locale,
     overwrite_specfile,
@@ -200,14 +216,19 @@ def test_do_process_distgit(
     remove_changelog_file,
     is_processed,
     bump_release,
+    spec_parser,
     locale,
     tmp_path,
+    monkeypatch,
 ):
     """Test the do_process_distgit() function"""
     if override_locale:
         locale.setlocale(locale.LC_ALL, override_locale)
 
     unpacked_repo_dir, test_spec_file_path = gen_testrepo(tmp_path, branch)
+
+    if spec_parser == "norpm":
+        monkeypatch.setenv("RPMAUTOSPEC_SPEC_PARSER", "norpm")
 
     if bump_release:
         commit_timestamp = check_output(
@@ -447,3 +468,9 @@ def test_do_process_distgit(
             ]
         else:
             assert test_output == expected_output
+
+
+def test_do_process_distgit_processor_error(repo, monkeypatch):
+    monkeypatch.setenv("RPMAUTOSPEC_SPEC_PARSER", "BOO")
+    with pytest.raises(SpecParseFailure):
+        process_distgit.do_process_distgit(repo.workdir, None, enable_caching=False)

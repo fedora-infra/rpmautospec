@@ -2,20 +2,20 @@ import datetime as dt
 import logging
 import re
 import stat
-import sys
-import tempfile
 from collections import defaultdict
 from functools import reduce
 from pathlib import Path, PurePath
 from shutil import SpecialFileError
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Any, Optional, Sequence, Union
-
-from rpmautospec_core import AUTORELEASE_MACRO
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Union
 
 from .changelog import ChangelogEntry
 from .compat import BlobIO, pygit2, rpm
 from .magic_comments import parse_magic_comments
+from .specparser import AutoSpecParser, SpecParserError
+
+if TYPE_CHECKING:
+    from .specparser import SpecParser
 
 log = logging.getLogger(__name__)
 
@@ -51,7 +51,11 @@ class PkgHistoryProcessor:
         r"^E(?P<extraver>[^_]*)_S(?P<snapinfo>[^_]*)_P(?P<prerelease>[01])_B(?P<base>\d*)$"
     )
 
+    specparser: "SpecParser"
+
     def __init__(self, spec_or_path: Union[str, Path]):
+        self.specparser = AutoSpecParser()
+
         if isinstance(spec_or_path, str):
             spec_or_path = Path(spec_or_path)
 
@@ -92,9 +96,8 @@ class PkgHistoryProcessor:
         except Exception:
             return fallback
 
-    @classmethod
     def _get_rpmverflags(
-        cls, path: str, name: Optional[str] = None, log_error: bool = True
+        self, path: str, name: Optional[str] = None, log_error: bool = True
     ) -> dict[str, Union[str, int]]:
         """Retrieve the epoch/version and %autorelease flags set in spec file."""
         path = Path(path)
@@ -107,12 +110,6 @@ class PkgHistoryProcessor:
         if not specfile.exists():
             log.debug("spec file missing: %s", specfile)
             return {"error": "specfile-missing", "error-detail": "Spec file is missing."}
-
-        query = "%|epoch?{%{epoch}:}:{}|%{version}\n%{release}\n"
-
-        autorelease_definition = "E%{?-e*}_S%{?-s*}_P%{?-p:1}%{!?-p:0}_B%{?-b*}"
-
-        python_version = str(sys.version_info[0]) + "." + str(sys.version_info[1])
 
         with (
             specfile.open(mode="rb") as unabridged,
@@ -130,54 +127,26 @@ class PkgHistoryProcessor:
                 abridged.write(line)
             abridged.flush()
 
-            for spec_candidate in (abridged.name, str(specfile)):
-                with tempfile.NamedTemporaryFile(mode="w", prefix="rpmautospec-rpmerr-") as rpmerr:
-                    try:
-                        # Note: These calls will alter the results of any subsequent macro expansion
-                        # when the rpm Python module is used from
-                        # within this very same Python instance.
-                        # We call rpm.reloadConfig() immediately after parsing the spec,
-                        # but it is likely not thread/multiprocess-safe.
-                        # If another thread/process of this interpreter calls RPM Python bindings
-                        # in the meantime, they might be surprised a bit,
-                        # but there's not much we can do.
-                        rpm.setLogFile(rpmerr)
-                        rpm.addMacro("_invalid_encoding_terminates_build", "0")
-                        # rpm.addMacro() doesn’t work for parametrized macros
-                        rpm.expandMacro(f"%define {AUTORELEASE_MACRO} {autorelease_definition}")
-                        rpm.addMacro("autochangelog", "%nil")
-                        rpm.addMacro("__python", f"/usr/bin/python{python_version}")
-                        rpm.addMacro(
-                            "python_sitelib", f"/usr/lib/python{python_version}/site-packages"
-                        )
-                        rpm.addMacro("_sourcedir", f"{path}")
-                        rpm.addMacro("_builddir", f"{path}")
-                        spec = rpm.spec(spec_candidate)
-                        output = spec.sourceHeader.format(query)
-                    except Exception:
-                        error = True
-                        if spec_candidate == str(specfile):
-                            with open(rpmerr.name, "r", errors="replace") as rpmerr_read:
-                                rpmerr_out = rpmerr_read.read()
-                    else:
-                        error = False
-                        rpmerr_out = None
-                        break
-                    finally:
-                        rpm.setLogFile(sys.stderr)
-                        rpm.reloadConfig()
+            candidates = (abridged.name, str(specfile))
+            for spec_candidate in candidates:
+                try:
+                    epoch_version, info = self.specparser.query(path, spec_candidate)
+                except SpecParserError as err:
+                    error = True
+                    if spec_candidate == str(specfile):
+                        rpmerr_out = str(err)
+                else:
+                    error = False
+                    rpmerr_out = None
+                    break
             else:
                 pass  # pragma: no cover
         if error:
             if log_error:
-                log.debug("rpm query for %r failed: %s", query, rpmerr_out)
+                log.debug("spec file query failed: %s", rpmerr_out)
             return {"error": "specfile-parse-error", "error-detail": rpmerr_out}
 
-        split_output = output.split("\n")
-        epoch_version = split_output[0]
-        info = split_output[1]
-
-        match = cls.autorelease_flags_re.match(info)
+        match = self.autorelease_flags_re.match(info)
         if match:
             extraver = match.group("extraver") or None
             snapinfo = match.group("snapinfo") or None

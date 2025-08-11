@@ -70,6 +70,11 @@ class TestRelease:
             else:
                 assert result == expected_release
 
+    def test_do_calculate_release_processor_error(self, repo, monkeypatch):
+        monkeypatch.setenv("RPMAUTOSPEC_SPEC_PARSER", "BOO")
+        with pytest.raises(SpecParseFailure):
+            release.do_calculate_release(repo.workdir)
+
     def test_do_calculate_release_number(self):
         with mock.patch.object(release, "do_calculate_release") as do_calculate_release:
             do_calculate_release.return_value = retval_sentinel = object()

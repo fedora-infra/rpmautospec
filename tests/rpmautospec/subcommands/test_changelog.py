@@ -54,7 +54,13 @@ def test_do_generate_changelog(repo):
     assert "- Initial commit" in result
 
 
-def test_do_generate_changelog_error():
+def test_do_generate_changelog_processor_error(repo, monkeypatch):
+    monkeypatch.setenv("RPMAUTOSPEC_SPEC_PARSER", "BOO")
+    with pytest.raises(SpecParseFailure):
+        changelog.do_generate_changelog(repo.workdir)
+
+
+def test_do_generate_changelog_run_error():
     with mock.patch.object(changelog, "PkgHistoryProcessor") as PkgHistoryProcessor:
         processor = PkgHistoryProcessor.return_value
         processor.run.return_value = {

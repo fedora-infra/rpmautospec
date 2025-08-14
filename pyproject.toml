@@ -54,9 +54,12 @@ dev = [
     "click<9,>=8",
     "rpm",
 ]
-test = [
+test_basic = [
     "pyyaml<7.0.0,>=5.3.1",
     "pytest<9.0.0,>=6.2.2",
+]
+test = [
+    {include-group = "test_basic"},
     "pytest-cov>=4.0.0,<7.0.0",
     "pytest-xdist<3.8.1,>=2.5.0; python_version < \"3.12\" and python_full_version >= \"3.9.0\"",
     "pytest-xdist<4.0.0,>=2.5.0; python_version ~= \"3.12\"",

@@ -33,7 +33,7 @@ def git_empty_config(tmp_path: Path):
         ):
             try:
                 impl.settings.search_path[level] = "/dev/null"
-            except ValueError:
+            except (ValueError, impl.GitError):
                 pass
 
     git_config = tmp_path / "ignorance-is-bliss"

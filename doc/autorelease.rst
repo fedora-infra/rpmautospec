@@ -39,7 +39,7 @@ One-off bumping release numbers
 ===============================
 
 You can bump the release to a higher value in a commit by adding a magic comment like this to the
-commit log (one its own line)::
+commit log (on its own line)::
 
   [bump release: <number>]
 

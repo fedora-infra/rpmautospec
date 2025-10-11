@@ -45,7 +45,7 @@ dev = [
     "pygit2<2.0.0,>=1.4.0; python_full_version >= \"3.10.0\" and python_full_version < \"4.0.0\"",
     "pyyaml<7.0.0,>=5.3.1",
     "pytest<9.0.0,>=6.2.2",
-    "pytest-cov>=4.0.0,<7.0.0",
+    "pytest-cov>=4.0.0,<7.1.0",
     "pytest-xdist<3.8.1,>=2.5.0; python_version < \"3.12\" and python_full_version >= \"3.9.0\"",
     "pytest-xdist<4.0.0,>=2.5.0; python_version ~= \"3.12\"",
     "ruff<0.14.1,>=0.2.0",
@@ -57,7 +57,7 @@ dev = [
 test = [
     "pyyaml<7.0.0,>=5.3.1",
     "pytest<9.0.0,>=6.2.2",
-    "pytest-cov>=4.0.0,<7.0.0",
+    "pytest-cov>=4.0.0,<7.1.0",
     "pytest-xdist<3.8.1,>=2.5.0; python_version < \"3.12\" and python_full_version >= \"3.9.0\"",
     "pytest-xdist<4.0.0,>=2.5.0; python_version ~= \"3.12\"",
     "ruff<0.14.1,>=0.2.0",

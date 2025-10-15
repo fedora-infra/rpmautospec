@@ -52,6 +52,11 @@ jobs:
             fedver: latest
           - toxenv: py313-all-extras
             fedver: latest
+          - toxenv: py314
+            fedver: latest
+          - toxenv: py314-all-extras
+            fedver: latest
+            extrapkgs: libgit2-devel
     runs-on: ubuntu-latest
     container: "fedorapython/fedora-python-tox:${{ matrix.fedver }}"
     steps:
@@ -78,6 +83,7 @@ jobs:
           python3-rpm
           rpm
           rpm-build
+          ${{ matrix.extrapkgs }}
 
       - name: run tests through tox
         run: "tox -e ${{ matrix.toxenv }}"

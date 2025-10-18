@@ -23,7 +23,10 @@ maintainers = [
 ]
 readme = "README.rst"
 requires-python = "<4.0,>=3.9"
-dependencies = ["rpmautospec-core<1.0.0,>=0.1.4"]
+dependencies = [
+    "rpmautospec-core<1.0.0,>=0.1.4",
+    "norpm>=1.6",
+]
 
 [project.optional-dependencies]
 click = ["click<9,>=8"]

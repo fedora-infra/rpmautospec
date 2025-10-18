@@ -194,9 +194,22 @@ class TestPkgHistoryProcessor:
         ids=("with-prep", "without-prep", "with-prep-inadequate"),
         indirect=["prep"],
     )
+    @pytest.mark.parametrize("spec_parser", ("rpm", "norpm"), ids=("with-rpm", "with-norpm"))
     def test__get_rpmverflags(
-        self, testcase, release, prep, abridged_fails, specfile, processor, caplog
+        self,
+        testcase,
+        release,
+        prep,
+        abridged_fails,
+        spec_parser,
+        specfile,
+        processor,
+        monkeypatch,
+        caplog,
     ):
+        if spec_parser == "norpm":
+            monkeypatch.setenv("RPMAUTOSPEC_SPEC_PARSER", "norpm")
+
         with_name = "with-name" in testcase
         specfile_missing = "specfile-missing" in testcase
         specfile_broken = "specfile-broken" in testcase
@@ -678,3 +691,64 @@ class TestPkgHistoryProcessor:
 - Import the package
 """
         )
+
+    @pytest.mark.parametrize("spec_parser", ("rpm", "norpm"), ids=("with-rpm", "with-norpm"))
+    @pytest.mark.parametrize("epoch", (None, "2"), ids=("without-epoch", "with-epoch"))
+    @pytest.mark.repo_config(uses_rpmautospec=False, converted=False, add_commit=False)
+    def test_run_epoch(self, spec_parser, epoch, repo, monkeypatch, processor):
+        workdir = Path(repo.workdir)
+        specfile = workdir / "test.spec"
+        if spec_parser == "norpm":
+            monkeypatch.setenv("RPMAUTOSPEC_SPEC_PARSER", "norpm")
+
+        rawhide_tmpl_args = {
+            "version": "Version: 1",
+            "release": "Release: 2%{?dist}",
+            "prep": "%prep",
+            "changelog": "%changelog\n"
+            + "* Jane Doe <jane.doe@example.com> - 0.8-2\n- Do the thing\n\n"
+            + "* Jane Doe <jane.doe@example.com> - 0.8-1\n- Import the package\n",
+        }
+
+        def _write_it(message):
+            epoch_text = f"Epoch: {epoch}\n" if epoch else ""
+            specfile.write_text(epoch_text + SPEC_FILE_TEMPLATE.format(**rawhide_tmpl_args))
+            create_commit(repo, message=message)
+
+        # One non-rpmautospec commit
+        _write_it("Initial commit")
+
+        # Convert to autorelease
+        rawhide_tmpl_args["release"] = "Release: %autorelease"
+        _write_it("Use %autorelease")
+
+        # Simulate activity
+        rawhide_tmpl_args["prep"] = "%prep\necho Hello\n\n"
+        _write_it("Do something")
+
+        res = processor.run(
+            visitors=[processor.release_number_visitor, processor.changelog_visitor],
+        )
+
+        assert res["epoch-version"] == "2:1" if epoch else "1"
+        assert res["release-number"] == 3
+
+    @pytest.mark.repo_config(uses_rpmautospec=False, converted=False, add_commit=False)
+    def test_norpm_and_lua_in_epoch(self, repo, processor, monkeypatch):
+        workdir = Path(repo.workdir)
+        specfile = workdir / "test.spec"
+        monkeypatch.setenv("RPMAUTOSPEC_SPEC_PARSER", "norpm")
+        rawhide_tmpl_args = {
+            "version": "Version: 1",
+            "release": "Release: %autorelease",
+            "prep": "%prep",
+            "changelog": "%changelog\n",
+        }
+        epoch_text = "Epoch: %{lua: something}\n"
+        specfile.write_text(epoch_text + SPEC_FILE_TEMPLATE.format(**rawhide_tmpl_args))
+        create_commit(repo, message="initial commit")
+        res = processor.run(
+            visitors=[processor.release_number_visitor, processor.changelog_visitor],
+        )
+        assert res["release-number"] == 2
+        assert "unexpanded macro in epoch_version" in res["verflags"]["error-detail"]

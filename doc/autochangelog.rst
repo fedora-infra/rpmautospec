@@ -9,10 +9,9 @@ which is inserted in the spec file where the ``%autochangelog`` macro is set.
 These two sources of information are:
 
 * An optional ``changelog`` file in the dist-git repository of the package. If
-  this file is present, it is included **as is** in the spec file. It should
-  be formatted according to the rules required for the changelog text, but
-  **without** the escaping of rpm macros that would be needed if it was part
-  of the spec file.
+  this file is present, it is included **as is** in the spec file. It must be
+  formatted according to the rules required for changelog text in the
+  specfile, including any necessary escaping of RPM macros.
 
 * The git history of the package between the most recent commit touching
   ``changelog`` and the latest commit made to the package.

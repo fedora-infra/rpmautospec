@@ -431,17 +431,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/2c/e1/e6716421ea10d38022b952c159d5161ca1193197fb744506875fbb87ea7b/iniconfig-2.1.0-py3-none-any.whl", hash = "sha256:9deba5723312380e77435581c6bf4935c94cbfab9b1ed33ef8d238ea168eb760", size = 6050, upload-time = "2025-03-19T20:10:01.071Z" },
 ]
 
-
-[[package]]
-name = "norpm"
-version = "1.6"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "ply" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/de/1a/5c4a5d0deada5e420ab07d7aeef8ab8c285566c9e33ec5800c38edcdaf14/norpm-1.6.tar.gz", hash = "sha256:ee4aba29df817883bf6e4bc0a6e7f0b796f931f7395c645e84acfb536aa4360d", size = 50221, upload-time = "2025-10-14T10:55:15.594Z" }
-
-
 [[package]]
 name = "iniconfig"
 version = "2.3.0"
@@ -455,6 +444,15 @@ sdist = { url = "https://files.pythonhosted.org/packages/72/34/14ca021ce8e5dfedc
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl", hash = "sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12", size = 7484, upload-time = "2025-10-18T21:55:41.639Z" },
 ]
+
+[[package]]
+name = "norpm"
+version = "1.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "ply" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/de/1a/5c4a5d0deada5e420ab07d7aeef8ab8c285566c9e33ec5800c38edcdaf14/norpm-1.6.tar.gz", hash = "sha256:ee4aba29df817883bf6e4bc0a6e7f0b796f931f7395c645e84acfb536aa4360d", size = 50221, upload-time = "2025-10-14T10:55:15.594Z" }
 
 [[package]]
 name = "packaging"
@@ -817,7 +815,6 @@ name = "rpmautospec"
 version = "0.8.3"
 source = { editable = "." }
 dependencies = [
-    { name = "norpm" },
     { name = "rpmautospec-core" },
 ]
 
@@ -825,6 +822,7 @@ dependencies = [
 all = [
     { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "click", version = "8.3.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "norpm" },
     { name = "pygit2", version = "1.15.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pygit2", version = "1.18.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
     { name = "pygit2", version = "1.19.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -833,6 +831,9 @@ all = [
 click = [
     { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "click", version = "8.3.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+]
+norpm = [
+    { name = "norpm" },
 ]
 pygit2 = [
     { name = "pygit2", version = "1.15.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -850,6 +851,7 @@ dev = [
     { name = "coverage", version = "7.10.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "coverage", version = "7.11.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "coverage-conditional-plugin" },
+    { name = "norpm" },
     { name = "pygit2", version = "1.15.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pygit2", version = "1.18.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
     { name = "pygit2", version = "1.19.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -877,7 +879,8 @@ test = [
 requires-dist = [
     { name = "click", marker = "extra == 'all'", specifier = ">=8,<9" },
     { name = "click", marker = "extra == 'click'", specifier = ">=8,<9" },
-    { name = "norpm", specifier = ">=1.6" },
+    { name = "norpm", marker = "extra == 'all'", specifier = ">=1.6,<2" },
+    { name = "norpm", marker = "extra == 'norpm'", specifier = ">=1.6,<2" },
     { name = "pygit2", marker = "python_full_version == '3.9.*' and extra == 'all'", specifier = ">=1.4.0,<1.19.1" },
     { name = "pygit2", marker = "python_full_version == '3.9.*' and extra == 'pygit2'", specifier = ">=1.4.0,<1.19.1" },
     { name = "pygit2", marker = "python_full_version >= '3.10' and python_full_version < '4' and extra == 'all'", specifier = ">=1.4.0,<2.0.0" },
@@ -886,13 +889,14 @@ requires-dist = [
     { name = "rpm", marker = "extra == 'rpm'" },
     { name = "rpmautospec-core", specifier = ">=0.1.4,<1.0.0" },
 ]
-provides-extras = ["click", "pygit2", "rpm", "all"]
+provides-extras = ["click", "pygit2", "rpm", "norpm", "all"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "click", specifier = ">=8,<9" },
     { name = "coverage", specifier = ">=7.2.0,<7.11.4" },
     { name = "coverage-conditional-plugin", specifier = ">=0.9.0" },
+    { name = "norpm", specifier = ">=1.6,<2" },
     { name = "pygit2", marker = "python_full_version == '3.9.*'", specifier = ">=1.4.0,<1.19.1" },
     { name = "pygit2", marker = "python_full_version >= '3.10' and python_full_version < '4'", specifier = ">=1.4.0,<2.0.0" },
     { name = "pytest", specifier = ">=6.2.2,<9.1.0" },

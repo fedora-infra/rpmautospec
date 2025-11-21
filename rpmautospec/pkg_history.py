@@ -7,13 +7,15 @@ from functools import reduce
 from pathlib import Path, PurePath
 from shutil import SpecialFileError
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Any, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Union
 
 from .changelog import ChangelogEntry
 from .compat import BlobIO, pygit2, rpm
 from .magic_comments import parse_magic_comments
-from .specparser import AutoSpecParser as RPMSpecParser
-from .specparser import SpecParserError
+from .specparser import AutoSpecParser, SpecParserError
+
+if TYPE_CHECKING:
+    from .specparser import SpecParser
 
 log = logging.getLogger(__name__)
 
@@ -49,9 +51,11 @@ class PkgHistoryProcessor:
         r"^E(?P<extraver>[^_]*)_S(?P<snapinfo>[^_]*)_P(?P<prerelease>[01])_B(?P<base>\d*)$"
     )
 
-    specparser = RPMSpecParser()
+    specparser: "SpecParser"
 
     def __init__(self, spec_or_path: Union[str, Path]):
+        self.specparser = AutoSpecParser()
+
         if isinstance(spec_or_path, str):
             spec_or_path = Path(spec_or_path)
 
@@ -92,9 +96,8 @@ class PkgHistoryProcessor:
         except Exception:
             return fallback
 
-    @classmethod
     def _get_rpmverflags(
-        cls, path: str, name: Optional[str] = None, log_error: bool = True
+        self, path: str, name: Optional[str] = None, log_error: bool = True
     ) -> dict[str, Union[str, int]]:
         """Retrieve the epoch/version and %autorelease flags set in spec file."""
         path = Path(path)
@@ -127,7 +130,7 @@ class PkgHistoryProcessor:
             candidates = (abridged.name, str(specfile))
             for spec_candidate in candidates:
                 try:
-                    epoch_version, info = cls.specparser.query(path, spec_candidate)
+                    epoch_version, info = self.specparser.query(path, spec_candidate)
                 except SpecParserError as err:
                     error = True
                     if spec_candidate == str(specfile):
@@ -143,7 +146,7 @@ class PkgHistoryProcessor:
                 log.debug("spec file query failed: %s", rpmerr_out)
             return {"error": "specfile-parse-error", "error-detail": rpmerr_out}
 
-        match = cls.autorelease_flags_re.match(info)
+        match = self.autorelease_flags_re.match(info)
         if match:
             extraver = match.group("extraver") or None
             snapinfo = match.group("snapinfo") or None

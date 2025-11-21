@@ -12,6 +12,7 @@ import pytest
 
 from rpmautospec import pkg_history
 from rpmautospec.compat import pygit2, rpm
+from rpmautospec.specparser import SpecParserError
 
 from ..common import SPEC_FILE_TEMPLATE, create_commit
 
@@ -55,10 +56,47 @@ def test__checkout_tree_files(repopath, specfile, repo, tmp_path):
 
 
 @pytest.fixture
-def processor(repo):
-    processor = pkg_history.PkgHistoryProcessor(repo.workdir)
-    processor.repo = repo
-    return processor
+def processor(request: pytest.FixtureRequest, repo):
+    specfile_parser = None
+    exc = None
+    expectation = nullcontext()
+
+    for node in request.node.listchain():
+        for marker in node.own_markers:
+            if marker.name == "specfile_parser":
+                if not marker.args:
+                    specfile_parser = None
+                elif len(marker.args) > 2:
+                    raise ValueError("specfile_parser takes no more than two arguments")
+                else:
+                    specfile_parser = marker.args[0]
+                    if len(marker.args) > 1:
+                        exc = marker.args[1]
+                    else:
+                        exc = None
+
+                    if exc:
+                        expectation = pytest.raises(exc)
+                        pytest.xfail("Invalid value of RPMAUTOSPEC_SPEC_PARSER")
+                    else:
+                        expectation = nullcontext()
+
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.delenv("RPMAUTOSPEC_SPEC_PARSER", raising=False)
+        if specfile_parser is not None:
+            if specfile_parser == "norpm":
+                pytest.importorskip("norpm")
+            monkeypatch.setenv("RPMAUTOSPEC_SPEC_PARSER", specfile_parser)
+
+        with expectation:
+            processor = pkg_history.PkgHistoryProcessor(repo.workdir)
+
+        if exc:
+            yield None
+        else:
+            processor.repo = repo
+
+            yield processor
 
 
 class TestPkgHistoryProcessor:
@@ -161,55 +199,79 @@ class TestPkgHistoryProcessor:
             else:
                 assert result == "BOOP"
 
-    @pytest.mark.parametrize(
-        "testcase",
-        (
+    @staticmethod
+    def parametrize_test__get_rpmverflags() -> tuple[pytest.param, ...]:
+        testcases = (
             "normal",
             "with-name",
             "specfile-missing",
             "specfile-broken",
             "specfile-broken-without-log-error",
-        ),
-    )
+        )
+
+        releases_by_id = {
+            "autorelease": "Release: %autorelease",
+            "autorelease-base": "Release: %autorelease -b 5",
+            "manual": "Release: 1",
+        }
+
+        prep_abridged_fails_by_id = {
+            "with-prep": ("%prep", False),
+            "without-prep": ("", False),
+            "with-prep-inadequate": (
+                "%package boo\nSummary: Boo boo\n%prep\n%description boo", True
+            ),
+        }
+
+        specfile_parser_by_id = {
+            "with-rpm-default": None,
+            "with-rpm": "rpm",
+            "with-norpm": "norpm",
+            "with-illegal-specfile-parser": "illegal",
+        }
+
+        param_sets = [
+            pytest.param(
+                testcase,
+                release,
+                prep,
+                abridged_fails,
+                specfile_parser,
+                marks=(
+                    pytest.mark.specfile_parser(specfile_parser)
+                    if specfile_parser != "illegal"
+                    else pytest.mark.specfile_parser(specfile_parser, SpecParserError)
+                ),
+                id=f"{testcase}-{release_id}-{prep_af_id}-{specfile_parser_id}",
+            )
+            for testcase in testcases
+            for release_id, release in releases_by_id.items()
+            for prep_af_id, (prep, abridged_fails) in prep_abridged_fails_by_id.items()
+            for specfile_parser_id, specfile_parser in specfile_parser_by_id.items()
+            if (
+                specfile_parser != "illegal"
+                or (testcase, release_id, prep_af_id) == ("normal", "autorelease", "with-prep")
+            )  # Test illegal specfile parser only once
+        ]
+
+        return param_sets
+
+
     @pytest.mark.parametrize(
-        "release",
-        (
-            "Release: %autorelease",
-            "Release: %autorelease -b 5",
-            "Release: 1",
-        ),
-        ids=(
-            "autorelease",
-            "autorelease-base",
-            "manual",
-        ),
+        "testcase, release, prep, abridged_fails, specfile_parser",
+        parametrize_test__get_rpmverflags(),
     )
-    @pytest.mark.parametrize(
-        "prep, abridged_fails",
-        (
-            ("%prep", False),
-            ("", False),
-            ("%package boo\nSummary: Boo boo\n%prep\n%description boo", True),
-        ),
-        ids=("with-prep", "without-prep", "with-prep-inadequate"),
-        indirect=["prep"],
-    )
-    @pytest.mark.parametrize("spec_parser", ("rpm", "norpm"), ids=("with-rpm", "with-norpm"))
     def test__get_rpmverflags(
         self,
         testcase,
         release,
         prep,
         abridged_fails,
-        spec_parser,
+        specfile_parser,
         specfile,
         processor,
-        monkeypatch,
         caplog,
     ):
-        if spec_parser == "norpm":
-            monkeypatch.setenv("RPMAUTOSPEC_SPEC_PARSER", "norpm")
-
         with_name = "with-name" in testcase
         specfile_missing = "specfile-missing" in testcase
         specfile_broken = "specfile-broken" in testcase
@@ -692,14 +754,18 @@ class TestPkgHistoryProcessor:
 """
         )
 
-    @pytest.mark.parametrize("spec_parser", ("rpm", "norpm"), ids=("with-rpm", "with-norpm"))
+    @pytest.mark.parametrize(
+        "specfile_parser",
+        (
+            pytest.param("rpm", marks=pytest.mark.specfile_parser("rpm"), id="with-rpm"),
+            pytest.param("norpm", marks=pytest.mark.specfile_parser("norpm"), id="with-norpm"),
+        ),
+    )
     @pytest.mark.parametrize("epoch", (None, "2"), ids=("without-epoch", "with-epoch"))
     @pytest.mark.repo_config(uses_rpmautospec=False, converted=False, add_commit=False)
-    def test_run_epoch(self, spec_parser, epoch, repo, monkeypatch, processor):
+    def test_run_epoch(self, specfile_parser, epoch, repo, processor):
         workdir = Path(repo.workdir)
         specfile = workdir / "test.spec"
-        if spec_parser == "norpm":
-            monkeypatch.setenv("RPMAUTOSPEC_SPEC_PARSER", "norpm")
 
         rawhide_tmpl_args = {
             "version": "Version: 1",
@@ -734,10 +800,11 @@ class TestPkgHistoryProcessor:
         assert res["release-number"] == 3
 
     @pytest.mark.repo_config(uses_rpmautospec=False, converted=False, add_commit=False)
-    def test_norpm_and_lua_in_epoch(self, repo, processor, monkeypatch):
+    @pytest.mark.specfile_parser("norpm")
+    def test_norpm_and_lua_in_epoch(self, repo, processor):
         workdir = Path(repo.workdir)
         specfile = workdir / "test.spec"
-        monkeypatch.setenv("RPMAUTOSPEC_SPEC_PARSER", "norpm")
+
         rawhide_tmpl_args = {
             "version": "Version: 1",
             "release": "Release: %autorelease",
@@ -754,10 +821,14 @@ class TestPkgHistoryProcessor:
         assert "unexpanded macro in epoch_version" in res["verflags"]["error-detail"]
 
     @pytest.mark.repo_config(uses_rpmautospec=False, converted=False, add_commit=False)
-    @pytest.mark.parametrize("spec_parser", ("rpm", "norpm"), ids=("with-rpm", "with-norpm"))
-    def test_spec_syntax_error(self, spec_parser, repo, processor, monkeypatch):
-        monkeypatch.setenv("RPMAUTOSPEC_SPEC_PARSER", spec_parser)
-
+    @pytest.mark.parametrize(
+        "specfile_parser",
+        (
+            pytest.param("rpm", marks=pytest.mark.specfile_parser("rpm"), id="with-rpm"),
+            pytest.param("norpm", marks=pytest.mark.specfile_parser("norpm"), id="with-norpm"),
+        ),
+    )
+    def test_spec_syntax_error(self, specfile_parser, repo, processor):
         workdir = Path(repo.workdir)
         specfile = workdir / "test.spec"
         rawhide_tmpl_args = {

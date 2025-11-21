@@ -9,6 +9,7 @@ from rpmautospec_core import check_specfile_features
 
 from ..exc import SpecParseFailure
 from ..pkg_history import PkgHistoryProcessor
+from ..specparser import SpecParserError
 from ..version import __version__
 
 log = logging.getLogger(__name__)
@@ -43,7 +44,10 @@ def do_process_distgit(
         the current spec file should raise an exception.
     :return: whether or not the spec file needed processing
     """
-    processor = PkgHistoryProcessor(spec_or_path)
+    try:
+        processor = PkgHistoryProcessor(spec_or_path)
+    except SpecParserError as exc:
+        raise SpecParseFailure(exc) from exc
 
     if target is None:
         target = processor.specfile

@@ -3,6 +3,7 @@ from typing import Union
 
 from ..exc import SpecParseFailure
 from ..pkg_history import PkgHistoryProcessor
+from ..specparser import SpecParserError
 
 
 def do_calculate_release(
@@ -20,7 +21,11 @@ def do_calculate_release(
         the current spec file should raise an exception.
     :return: the release value or number
     """
-    processor = PkgHistoryProcessor(spec_or_path)
+    try:
+        processor = PkgHistoryProcessor(spec_or_path)
+    except SpecParserError as exc:
+        raise SpecParseFailure(exc) from exc
+
     result = processor.run(visitors=(processor.release_number_visitor,))
     error = result["verflags"].get("error")
     if error and error_on_unparseable_spec:

@@ -32,10 +32,12 @@ pygit2 = [
     "pygit2<2.0.0,>=1.4.0; python_full_version >= \"3.10.0\" and python_full_version < \"4.0.0\"",
 ]
 rpm = ["rpm"]
+norpm = ["norpm<2,>=1.6"]
 all = [
     "click<9,>=8",
     "pygit2<1.19.1,>=1.4.0; python_full_version >= \"3.9.0\" and python_full_version < \"3.10.0\"",
     "pygit2<2.0.0,>=1.4.0; python_full_version >= \"3.10.0\" and python_full_version < \"4.0.0\"",
+    "norpm<2,>=1.6",
     "rpm",
 ]
 
@@ -52,6 +54,7 @@ dev = [
     "coverage<7.12.1,>=7.2.0",
     "coverage-conditional-plugin>=0.9.0",
     "click<9,>=8",
+    "norpm<2,>=1.6",
     "rpm",
 ]
 test = [
@@ -142,3 +145,5 @@ show_missing = true
 "has-pygit2" = "not is_installed('pygit2')"
 "has-no-rpm" = "is_installed('rpm')"
 "has-rpm" = "not is_installed('rpm')"
+"has-no-norpm" = "is_installed('norpm')"
+"has-norpm" = "not is_installed('norpm')"

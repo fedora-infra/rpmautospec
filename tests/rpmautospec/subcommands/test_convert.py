@@ -213,20 +213,22 @@ def test_autorelease_invalid(specfile, expected):
 
 
 @pytest.mark.parametrize(
-    "changelog",
+    "changelog, is_empty",
     [
-        "%changelog\n- log line",
-        "%ChAnGeLoG\n- log line      ",  # trailing whitespace here
-        "%changelog\n- log line\n\n\n",  # trailing newlines here
+        ("%changelog\n- log line", False),
+        ("%ChAnGeLoG\n- log line      ", False),  # trailing whitespace here
+        ("%changelog\n- log line\n\n\n", False),  # trailing newlines here
+        ("%changelog", True),  # empty changelog, only a single newline character
     ],
     ids=[
         "regular",
         "case+whitespace",
         "regular+newlines",
+        "empty",
     ],
-    indirect=True,
+    indirect=("changelog",),
 )
-def test_autochangelog(specfile):
+def test_autochangelog(is_empty, specfile):
     assert autochangelog_re.search(specfile.read_text()) is None
 
     converter = convert.PkgConverter(specfile)
@@ -237,7 +239,10 @@ def test_autochangelog(specfile):
     assert autochangelog_re.search(specfile.read_text()) is not None
     changelog = specfile.parent / "changelog"
     assert changelog.exists()
-    assert changelog.read_text() == "- log line\n"
+    if is_empty:
+        assert changelog.read_text() == "\n"
+    else:
+        assert changelog.read_text() == "- log line\n"
 
 
 def test_autochangelog_already_converted(specfile, caplog):

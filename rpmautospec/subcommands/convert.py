@@ -168,8 +168,8 @@ class PkgConverter:
             )
 
         lineno = changelog_lines[0] + 1
-        if autochangelog_re.match(self.spec_lines[lineno]):
-            log.warning(f"'{self.specfile}' already uses %autochangelog")
+        if lineno < len(self.spec_lines) and autochangelog_re.match(self.spec_lines[lineno]):
+            log.warning("'%s' already uses %%autochangelog", self.specfile)
             return
         self.changelog_lines = [line.rstrip() for line in self.spec_lines[lineno:]]
         while self.changelog_lines and not self.changelog_lines[-1]:

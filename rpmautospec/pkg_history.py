@@ -87,6 +87,7 @@ class PkgHistoryProcessor:
             self.repo = None
 
         self._rpmverflags_for_commits = {}
+        self.rightmost_bumps = False
 
     @staticmethod
     def _get_rpm_packager() -> str:
@@ -217,10 +218,13 @@ class PkgHistoryProcessor:
             base = verflags["base"]
             if base is None:
                 base = 1
+            right_base = verflags.get("right_base", 1)
+            if right_base is None:
+                right_base = 1
             tag_string = "".join(f".{t}" for t in (verflags["extraver"], verflags["snapinfo"]) if t)
         else:
             epoch_version = prerelease = None
-            base = 1
+            base = right_base = 1
             tag_string = ""
 
         if not epoch_version:
@@ -247,12 +251,21 @@ class PkgHistoryProcessor:
 
         commit_result["verflags"] = commit_verflags
         commit_result["epoch-version"] = epoch_version
-        commit_result["magic-comment-result"] = parse_magic_comments(commit.message)
+        magic_comments = parse_magic_comments(commit.message)
+        commit_result["magic-comment-result"] = magic_comments
+
+        if magic_comments.start_rightmost:
+            log.debug("\tstarting rightmost bumps")
+            self.rightmost_bumps = True
 
         log.debug("\tepoch_version: %s", epoch_version)
         log.debug(
             "\tparent rel numbers: %s",
             ", ".join(str(res["release-number"]) if res else "none" for res in parent_results),
+        )
+        log.debug(
+            "\tparent rightmost numbers: %s",
+            ", ".join(str(res["rightmost-number"]) if res else "none" for res in parent_results),
         )
 
         # Find the maximum applicable parent release number and increment by one if the
@@ -272,20 +285,51 @@ class PkgHistoryProcessor:
             )
             for res in parent_results
         )
+
         release_number = max(parent_release_numbers, default=0)
 
-        if self.specfile.name in commit.tree:
-            release_number += 1
+        parent_rightmost_numbers = tuple(
+            (
+                res["rightmost-number"]
+                if res
+                and (
+                    # Now increase rightmost only until epoch-version or release-number changes
+                    epoch_version is None
+                    or res["epoch-version"] is None
+                    or epoch_version == res["epoch-version"]
+                    or res["release-number"] == release_number
+                )
+                else 0
+            )
+            for res in parent_results
+        )
 
-        release_number = max(release_number, commit_result["magic-comment-result"].bump_release)
+        rightmost_number = max(parent_rightmost_numbers, default=0)
+
+        if self.specfile.name in commit.tree:
+            if self.rightmost_bumps:
+                rightmost_number += 1
+            else:
+                release_number += 1
+
+        release_number = max(release_number, magic_comments.bump_release)
+        rightmost_number = max(rightmost_number, magic_comments.bump_rightmost)
 
         commit_result["release-number"] = release_number
+        commit_result["rightmost-number"] = rightmost_number
 
-        log.debug("\trelease_number: %s", release_number)
+        log.debug("\trelease_number: %s (r%s)", release_number, rightmost_number)
 
         prerel_str = "0." if prerelease else ""
         release_number_with_base = release_number + base - 1
-        commit_result["release-complete"] = f"{prerel_str}{release_number_with_base}{tag_string}"
+        rightmost_with_base = rightmost_number + right_base - 1
+        rightmost_str = ""  # hide rightmost unless used
+        if rightmost_with_base > 0:
+            rightmost_str = "." + str(rightmost_with_base)
+
+        commit_result["release-complete"] = (
+            f"{prerel_str}{release_number_with_base}{tag_string}{rightmost_str}"
+        )
 
         yield commit_result
 

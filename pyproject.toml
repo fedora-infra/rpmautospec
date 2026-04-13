@@ -92,6 +92,10 @@ include = [
     "tests/test-data/repodata/dummy-test-package-gloster-git.tar.gz",
     "tests/test-data/repodata/dummy-test-package-gloster.spec.expected",
     "tests/test-data/test-specfiles/*.spec",
+    "doc/Makefile",
+    "doc/conf.py",
+    "doc/*.rst",
+    "doc/_static/*",
     "tox.ini",
 ]
 

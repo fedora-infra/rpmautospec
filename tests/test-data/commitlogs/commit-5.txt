@@ -1,0 +1,9 @@
+The subject
+
+...continues here. And it continues
+even further.
+
+Here's more detail, but it should be ignored.
+Test rpmdev-bumpspec -r variant.
+
+[bump rightmost: 2]

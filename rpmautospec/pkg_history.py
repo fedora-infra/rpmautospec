@@ -318,7 +318,8 @@ class PkgHistoryProcessor:
         commit_result["release-number"] = release_number
         commit_result["rightmost-number"] = rightmost_number
 
-        log.debug("\trelease_number: %s (r%s)", release_number, rightmost_number)
+        log.debug("\trelease_number: %s", release_number)
+        log.debug("\trightmost_number: %s", rightmost_number)
 
         prerel_str = "0." if prerelease else ""
         release_number_with_base = release_number + base - 1

@@ -21,11 +21,17 @@ RPMAUTOSPEC_TEMPLATE = """## START: Set by rpmautospec
 """
 
 AUTORELEASE_TEMPLATE = """
-%define autorelease(e:s:pb:n) %{{?-p:0.}}%{{lua:
+%define autorelease(e:s:pb:r:n) %{{?-p:0.}}%{{lua:
     release_number = {autorelease_number:d};
     base_release_number = tonumber(rpm.expand("%{{?-b*}}%{{!?-b:1}}"));
     print(release_number + base_release_number - 1);
-}}%{{?-e:.%{{-e*}}}}%{{?-s:.%{{-s*}}}}%{{!?-n:%{{?dist}}}}"""  # noqa: E501
+}}%{{?-e:.%{{-e*}}}}%{{?-s:.%{{-s*}}}}%{{!?-n:%{{?dist}}}}%{{lua:
+    rightmost_number = {rightmost_number:d};
+    rightmost_base_number = tonumber(rpm.expand("%{{?-r*}}%{{!?-r:0}}"));
+    if ((rightmost_number + rightmost_base_number) > 0) then
+        string.format(".%d", rightmost_number + rightmost_base_number);
+    end;
+}}"""  # noqa: E501
 
 
 def do_process_distgit(
@@ -86,6 +92,7 @@ def do_process_distgit(
         )
 
     autorelease_number = result["release-number"]
+    rightmost_number = result["rightmost-number"]
 
     with (
         processor.specfile.open("r", encoding="utf-8", errors="surrogateescape") as specfile,
@@ -98,7 +105,8 @@ def do_process_distgit(
 
         if features.has_autorelease:
             autorelease_blurb_if_needed = AUTORELEASE_TEMPLATE.format(
-                autorelease_number=autorelease_number
+                autorelease_number=autorelease_number,
+                rightmost_number=rightmost_number,
             )
             used_features.append("autorelease")
         else:

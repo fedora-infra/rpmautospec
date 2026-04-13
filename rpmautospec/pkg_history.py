@@ -105,7 +105,7 @@ class PkgHistoryProcessor:
             "extraver": None,
             "snapinfo": None,
             "base": 1,
-            "right_base": 0,
+            "rightmost-base": 0,
             "error": error,
             "error-detail": error_detail,
         }
@@ -195,7 +195,7 @@ class PkgHistoryProcessor:
                 specblob = commit.tree[self.specfile.name]
             except KeyError:
                 # no spec file
-                error = self._makerpmvererror("specfile-missing", "Spec file is missing.")
+                error = self._make_rpmvererror("specfile-missing", "Spec file is missing.")
                 self._rpmverflags_for_commits[commit] = error
                 return error
 
@@ -220,9 +220,9 @@ class PkgHistoryProcessor:
     def _get_release_complete(verflags, release_number, rightmost_number=0, tag_string=""):
         prerel_str = "0." if verflags["prerelease"] else ""
         base = verflags["base"] or 1
-        right_base = verflags.get("right_base", 1) or 1
+        rightmost_base = verflags.get("rightmost-base", 0) or 0
         release_number_with_base = release_number + base - 1
-        rightmost_with_base = rightmost_number + right_base - 1
+        rightmost_with_base = rightmost_number + rightmost_base
         rightmost_str = ""  # hide rightmost unless used
         if rightmost_with_base > 0:
             rightmost_str = "." + str(rightmost_with_base)

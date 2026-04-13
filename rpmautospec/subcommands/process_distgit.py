@@ -29,7 +29,7 @@ AUTORELEASE_TEMPLATE = """
     rightmost_number = {rightmost_number:d};
     rightmost_base_number = tonumber(rpm.expand("%{{?-r*}}%{{!?-r:0}}"));
     if ((rightmost_number + rightmost_base_number) > 0) then
-        string.format(".%d", rightmost_number + rightmost_base_number);
+        print(string.format(".%d", rightmost_number + rightmost_base_number));
     end;
 }}"""  # noqa: E501
 
@@ -92,7 +92,7 @@ def do_process_distgit(
         )
 
     autorelease_number = result["release-number"]
-    rightmost_number = result["rightmost-number"]
+    rightmost_number = result.get("rightmost-number", 0)
 
     with (
         processor.specfile.open("r", encoding="utf-8", errors="surrogateescape") as specfile,

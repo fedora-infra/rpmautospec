@@ -1,8 +1,11 @@
+import logging
 import re
 import typing
 
+log = logging.getLogger(__name__)
+
 magic_comment_re = re.compile(r"^\s*\[(?P<magic>.*)\]\s*$")
-intvalue_re = re.compile(r"\s*(?P<keyname>[a-z]+([\s_]+[a-z]+)*)\s*(?::\s*)?(?P<value>\d+)\s*")
+intvalue_re = re.compile(r"(?P<keyname>[a-z]+(?:[\s_]+[a-z]+)*)\s*(?::\s*)?(?P<value>\d+)")
 
 
 class MagicCommentResult(typing.NamedTuple):
@@ -10,12 +13,22 @@ class MagicCommentResult(typing.NamedTuple):
 
     skip_changelog: bool = False
     """Do not include this commit in changelog."""
+
     start_rightmost: bool = False
     """Start increasing number on the right of release string, not left."""
+
     bump_release: int = 0
     """Bump release to specified number."""
+
     bump_rightmost: int = 0
     """Bump rightmost (minorbump) of the release to specified number."""
+
+
+types = typing.get_type_hints(MagicCommentResult)
+
+
+def _get_keyname(keyname: str) -> str:
+    return keyname.strip().replace(" ", "_")
 
 
 def parse_magic_comments(message: str) -> MagicCommentResult:
@@ -38,20 +51,29 @@ def parse_magic_comments(message: str) -> MagicCommentResult:
        [bump rightmost: 4]
     """
 
-    types = typing.get_type_hints(MagicCommentResult)
     values = dict()
 
     for line in message.split("\n"):
         if l_match := magic_comment_re.match(line):
             for part in l_match.group("magic").split(","):
-                part = part.strip().replace(" ", "_")
-                if part in types and types[part] is bool:
-                    values[part] = True
-                elif br_match := intvalue_re.match(part):
-                    keyname = br_match.group("keyname")
-                    if keyname in types and types[keyname] is int:
-                        values[keyname] = int(br_match.group("value"))
+                if br_match := intvalue_re.match(part):
+                    keyname = _get_keyname(br_match.group("keyname"))
+                    t = types.get(keyname, None)
+                    value = br_match.group("value")
+                    if types.get(keyname, None) is int:
+                        values[keyname] = int(value)
+                    elif t is not None:
+                        log.warning(f'Parameter "{keyname}" is known, but {t} is not int')
                     else:
-                        raise ValueError(f'Parameter "{keyname}" is not recognized int type magic')
+                        log.warning(f'Parameter "{keyname}" is not int type magic comment')
+                else:
+                    keyname = _get_keyname(part)
+                    t = types.get(keyname, None)
+                    if t is bool:
+                        values[keyname] = True
+                    elif t is not None:
+                        log.warning(f'Parameter "{keyname}" is known, but {t} is not bool')
+                    else:
+                        log.warning(f'Parameter "{keyname}" is not known magic comment')
 
     return MagicCommentResult(**values)

@@ -1,0 +1,1 @@
+- Check rightmost bump start is handled.

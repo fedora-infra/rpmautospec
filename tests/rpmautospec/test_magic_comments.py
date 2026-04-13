@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from typing import get_type_hints
 
 import pytest
 import yaml
@@ -13,6 +14,8 @@ COMMITLOGFILE_RE = re.compile(r"^commit-(?P<variant>.*)\.txt$")
 
 def _read_commitlog_magic_comments_testdata():
     parametrized = []
+    magic_types = get_type_hints(MagicCommentResult)
+
     for commitlog_path in sorted(COMMITLOG_CHANGELOG_DIR.glob("commit*.txt")):
         match = COMMITLOGFILE_RE.match(commitlog_path.name)
         variant = match.group("variant")
@@ -20,13 +23,14 @@ def _read_commitlog_magic_comments_testdata():
         with open(chlog_items_path, "r") as chlog_items_fp:
             d = yaml.safe_load(chlog_items_fp)
 
+        for k in d:
+            if k not in magic_types:
+                d.pop(k, None)
+
         parametrized.append(
             pytest.param(
                 commitlog_path.read_text(),
-                MagicCommentResult(
-                    skip_changelog=d.get("skip_changelog", False),
-                    bump_release=d.get("bump_release", 0),
-                ),
+                MagicCommentResult(**d),
                 id=f"commit-{variant}",
             )
         )

@@ -36,7 +36,7 @@ def parse_magic_comments(message: str) -> MagicCommentResult:
 
        [bump release: 3]
        [bump rightmost: 4]
-"""
+    """
 
     types = typing.get_type_hints(MagicCommentResult)
     values = dict()
@@ -52,8 +52,6 @@ def parse_magic_comments(message: str) -> MagicCommentResult:
                     if keyname in types and types[keyname] is int:
                         values[keyname] = int(br_match.group("value"))
                     else:
-                        raise ValueError(
-                            f"Parameter \"{keyname}\" is not recognized int type magic"
-                        )
+                        raise ValueError(f'Parameter "{keyname}" is not recognized int type magic')
 
     return MagicCommentResult(**values)

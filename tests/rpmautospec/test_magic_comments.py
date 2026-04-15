@@ -22,15 +22,12 @@ def _read_commitlog_magic_comments_testdata():
         chlog_items_path = commitlog_path.with_name(f"expected-{variant}.yaml")
         with open(chlog_items_path, "r") as chlog_items_fp:
             d = yaml.safe_load(chlog_items_fp)
-
-        for k in d:
-            if k not in magic_types:
-                d.pop(k, None)
+            magics = {k: d[k] for k in d if k in magic_types}
 
         parametrized.append(
             pytest.param(
                 commitlog_path.read_text(),
-                MagicCommentResult(**d),
+                MagicCommentResult(**magics),
                 id=f"commit-{variant}",
             )
         )

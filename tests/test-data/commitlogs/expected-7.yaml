@@ -1,4 +1,4 @@
 ---
 changelog_items:
-  - Check rightmost bump start is handled.
+  - Check rightmost bump start is handled
 start_rightmost: true

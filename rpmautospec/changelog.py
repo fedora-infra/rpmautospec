@@ -129,6 +129,8 @@ class ChangelogEntry(dict):
         else:
             changelog_evr = ""
         changelog_header = f"* {changelog_date} {entry_info['authorblurb']}{changelog_evr}"
+        # rpm macro-expands the header like the items, e.g. for an author name with a `%`
+        changelog_header = changelog_header.replace("%", "%%")
 
         if entry_info["error"]:
             changelog_items = [f"RPMAUTOSPEC: {detail}" for detail in entry_info["error"]]

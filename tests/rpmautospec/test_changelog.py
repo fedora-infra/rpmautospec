@@ -154,6 +154,23 @@ class TestChangelogEntry:
         formatted_changelog_entry = changelog_entry.format()
         assert formatted_changelog_entry == expected_changelog_entry.rstrip("\n")
 
+    def test_format_quotes_percent_in_header(self):
+        """The header is macro-expanded by rpm like the items, so `%` in it is quoted once."""
+        changelog_entry = changelog.ChangelogEntry(
+            {
+                "timestamp": dt.datetime(1970, 1, 1, 0, 0, 0),
+                "authorblurb": "A %{nil}B <anauthor@example.com>",
+                "epoch-version": "2:1.0%{nil}",
+                "release-complete": "1",
+                "commitlog": "Fix 100% of it",
+            }
+        )
+
+        assert changelog_entry.format() == (
+            "* Thu Jan 01 1970 A %%{nil}B <anauthor@example.com> - 2:1.0%%{nil}-1\n"
+            "- Fix 100%% of it"
+        )
+
     @pytest.mark.parametrize("error", ("string", "list"))
     def test_format_error(self, error):
         changelog_entry = changelog.ChangelogEntry(

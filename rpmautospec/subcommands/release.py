@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 from ..exc import SpecParseFailure
 from ..pkg_history import PkgHistoryProcessor
@@ -11,6 +11,7 @@ def do_calculate_release(
     *,
     complete_release: bool = True,
     error_on_unparseable_spec: bool = True,
+    git_tag_namespace: Optional[str] = None,
 ) -> Union[str, int]:
     """Calculate release value (or number) of a package.
 
@@ -19,6 +20,7 @@ def do_calculate_release(
         (without dist tag) or just the number.
     :param error_on_unparseable_spec: Whether or not failure at parsing
         the current spec file should raise an exception.
+    :param git_tag_namespace: If set, derive release from git tags in this namespace.
     :return: the release value or number
     """
     try:
@@ -26,7 +28,10 @@ def do_calculate_release(
     except SpecParserError as exc:
         raise SpecParseFailure(exc) from exc
 
-    result = processor.run(visitors=(processor.release_number_visitor,))
+    result = processor.run(
+        visitors=(processor.release_number_visitor,),
+        git_tag_namespace=git_tag_namespace,
+    )
     error = result["verflags"].get("error")
     if error and error_on_unparseable_spec:
         error_detail = result["verflags"]["error-detail"]

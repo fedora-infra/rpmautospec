@@ -7,8 +7,9 @@ Installing `rpmautospec`
 - This Python package which implements the bulk of the functionality and includes a CLI tool.
 - The [`rpmautospec-core`](https://github.com/fedora-infra/rpmautospec-core) Python package which
   implements only very basic functionality to detect if an RPM spec file uses rpmautospec or not.
-- The [`rpmautospec-koji`](https://github.com/fedora-infra/rpmautospec-koji`) Python packages which
-  implements a plugin to preprocess RPM spec files on Koji builder nodes.
+- The [`rpmautospec-koji`](https://github.com/fedora-infra/rpmautospec-koji) Python package which
+  implements Koji plugins to preprocess RPM spec files on builder nodes and, optionally, to record
+  releases to namespaced git tags using configured rules.
 
 
 Installing the Python Library

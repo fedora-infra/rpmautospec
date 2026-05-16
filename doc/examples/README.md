@@ -17,3 +17,15 @@ for details.
 
 NB: In the prototype version the macro was named `%autorel`. To make its purpose more obvious, it is
 `%autorelease` now.
+
+## Git-Tagged Changelog Modes
+
+When release history is recorded with git tags in a parameterized namespace, the
+changelog can be generated in two modes. These files show the same set of release
+tags rendered in each mode and are included in the
+[documentation](https://fedora-infra.github.io/rpmautospec-docs/principle.html):
+
+* `changelog-tagged-only.txt`: one entry per tagged commit (`--changelog-mode tagged-only`).
+* `changelog-accumulated.txt`: each release also captures the commits made since the previous
+  release tag, attributed to their authors (`--changelog-mode accumulated`, the default mode).
+

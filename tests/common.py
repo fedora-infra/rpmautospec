@@ -146,3 +146,71 @@ def gen_testrepo(path: Path, branch: str):
         run(["git", "checkout", branch])
 
     return unpacked_repo_dir, test_spec_file_path
+
+
+TAG_SPEC_TEMPLATE = """\
+Name: {name}
+Version: {version}
+Release: %autorelease
+Summary: Test package
+
+License: MIT
+
+%description
+Test
+"""
+
+
+def create_tagged_repo(
+    tmp_path, name="pkg", version="1.0", commits=None, tags=None, base=None, autorelease_opts=""
+):
+    """Create a git repo with commits and optional tags for tag-based tests.
+
+    :param commits: list of message strings, or (message, timestamp) tuples.
+        If None, defaults to ["initial"].
+    :param tags: list of (tag_name, commit_index) tuples.
+    :param base: if set, uses %autorelease -b N in the spec.
+    :param autorelease_opts: additional %autorelease options (e.g. "-p -e rc1").
+    :return: (repo_path, list of commit oids)
+    """
+    if commits is None:
+        commits = ["initial"]
+    repo_path = tmp_path / name
+    repo_path.mkdir()
+    repo = pygit2.init_repository(str(repo_path))
+
+    spec = repo_path / f"{name}.spec"
+    base_time = 1700000000
+    oids = []
+
+    parts = ["%autorelease"]
+    if base is not None:
+        parts.append(f"-b {base}")
+    if autorelease_opts:
+        parts.append(autorelease_opts)
+    release_macro = " ".join(parts)
+
+    for i, item in enumerate(commits):
+        if isinstance(item, tuple):
+            msg, ts = item
+        else:
+            msg = item
+            ts = base_time + i * 100
+        sig = pygit2.Signature("Test User", "test@example.com", time=ts)
+        spec.write_text(
+            f"Name: {name}\nVersion: {version}\nRelease: {release_macro}\n"
+            "Summary: Test package\n\nLicense: MIT\n\n%description\nTest\n"
+        )
+        index = repo.index
+        index.add(f"{name}.spec")
+        index.write()
+        tree_id = index.write_tree()
+        parents = [oids[-1]] if oids else []
+        oid = repo.create_commit("HEAD", sig, sig, msg, tree_id, parents)
+        oids.append(oid)
+
+    if tags:
+        for tag_name, commit_idx in tags:
+            repo.references.create(f"refs/tags/{tag_name}", oids[commit_idx])
+
+    return repo_path, oids

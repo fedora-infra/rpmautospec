@@ -13,7 +13,7 @@ repository.
 Dependencies:
 
 * Python >= 3.9
-* rpmautospec-core >= 0.1.4
+* rpmautospec-core >= 0.2.0
 
 Installation dependencies:
 
@@ -66,6 +66,21 @@ This will generate the numerical value for the release field from the number of 
 ``Version`` field was last updated::
 
   rpmautospec calculate-release
+
+
+Working from Git Tags
+^^^^^^^^^^^^^^^^^^^^^^
+
+By default, release numbers and changelog entries are derived from raw commit history. As an
+alternative, ``rpmautospec`` can derive use namespaced git tags that mark previously built
+releases by specifying ``--git-tag-namespace``::
+
+  rpmautospec calculate-release --git-tag-namespace fedora/f44
+  rpmautospec generate-changelog --git-tag-namespace fedora/f44
+
+When generating the changelog this way, ``--changelog-mode`` chooses between two modes:
+``tagged-only`` will only generate entries from explicitly-tagged release commits, while
+``accumulated`` will group in-between commits into the next release entry.
 
 
 The ``rpmautospec`` Python module is not thread/multiprocess-safe

@@ -42,16 +42,55 @@ log = logging.getLogger(__name__)
     help="Throw an error if the current version of the spec file can’t be parsed",
     show_default=True,
 )
+@click.option(
+    "--git-tag-namespace",
+    default=None,
+    help="Namespace for git tagged N-V-Rs to use for release number and changelog generation"
+    + " (e.g. 'fedora/f44')",
+)
+@click.option(
+    "--changelog-mode",
+    type=click.Choice(["accumulated", "tagged-only"], case_sensitive=False),
+    default="accumulated",
+    help="Changelog mode when using --git-tag-namespace: 'accumulated' groups commits between tags,"
+    + " 'tagged-only' includes only tagged commits",
+    show_default=True,
+)
+@click.option(
+    "--changelog-use-highest-release-tag",
+    is_flag=True,
+    default=False,
+    help="Use the highest release tag per commit in changelog (default: lowest/first release)",
+)
 @click.pass_context
-def cli(ctx: click.Context, pager: bool, log_level: Optional[int], error_on_unparseable_spec: bool):
+def cli(
+    ctx: click.Context,
+    pager: bool,
+    log_level: Optional[int],
+    error_on_unparseable_spec: bool,
+    git_tag_namespace: Optional[str],
+    changelog_mode: str,
+    changelog_use_highest_release_tag: bool,
+):
     locale.setlocale(locale.LC_ALL, "")
 
     ctx.ensure_object(dict)
     ctx.obj["pager"] = pager
     ctx.obj["log_level"] = log_level
     ctx.obj["error_on_unparseable_spec"] = error_on_unparseable_spec
+    ctx.obj["git_tag_namespace"] = git_tag_namespace
+    ctx.obj["changelog_mode"] = changelog_mode
+    ctx.obj["changelog_use_highest_release_tag"] = changelog_use_highest_release_tag
 
     setup_logging(log_level=log_level or logging.INFO)
+
+    if not git_tag_namespace and (
+        changelog_mode != "accumulated" or changelog_use_highest_release_tag
+    ):
+        log.warning(
+            "--changelog-mode and --changelog-use-highest-release-tag"
+            " have no effect without --git-tag-namespace. Ignoring..."
+        )
 
 
 # Subcommands
@@ -65,7 +104,11 @@ def generate_changelog(obj: dict[str, Any], spec_or_path: str) -> None:
     """Generate changelog entries from git commit logs"""
     try:
         changelog = do_generate_changelog(
-            spec_or_path, error_on_unparseable_spec=obj["error_on_unparseable_spec"]
+            spec_or_path,
+            error_on_unparseable_spec=obj["error_on_unparseable_spec"],
+            git_tag_namespace=obj["git_tag_namespace"],
+            changelog_mode=obj["changelog_mode"],
+            changelog_use_highest_release_tag=obj["changelog_use_highest_release_tag"],
         )
     except SpecParseFailure as exc:
         raise click.ClickException(exc.args[0]) from exc
@@ -148,7 +191,12 @@ def process_distgit(obj: dict[str, Any], spec_or_path: str, target: str) -> None
     """Work repository history and commit logs into a spec file"""
     try:
         do_process_distgit(
-            spec_or_path, target, error_on_unparseable_spec=obj["error_on_unparseable_spec"]
+            spec_or_path,
+            target,
+            error_on_unparseable_spec=obj["error_on_unparseable_spec"],
+            git_tag_namespace=obj["git_tag_namespace"],
+            changelog_mode=obj["changelog_mode"],
+            changelog_use_highest_release_tag=obj["changelog_use_highest_release_tag"],
         )
     except SpecParseFailure as exc:
         raise click.ClickException(exc.args[0]) from exc
@@ -173,6 +221,7 @@ def calculate_release(obj: dict[str, Any], complete_release: bool, spec_or_path:
             spec_or_path,
             complete_release=complete_release,
             error_on_unparseable_spec=obj["error_on_unparseable_spec"],
+            git_tag_namespace=obj["git_tag_namespace"],
         )
     except SpecParseFailure as exc:
         raise click.ClickException(exc.args[0]) from exc

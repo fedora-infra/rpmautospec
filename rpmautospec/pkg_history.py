@@ -87,6 +87,7 @@ class PkgHistoryProcessor:
             self.repo = None
 
         self._rpmverflags_for_commits = {}
+        self.rightmost_bumps = False
 
     @staticmethod
     def _get_rpm_packager() -> str:
@@ -95,6 +96,19 @@ class PkgHistoryProcessor:
             return rpm.expandMacro(f"%{{?packager}}%{{!?packager:{fallback}}}")
         except Exception:
             return fallback
+
+    @staticmethod
+    def _make_rpmvererror(error, error_detail) -> dict[str, Union[str, int]]:
+        return {
+            "epoch-version": None,
+            "prerelease": False,
+            "extraver": None,
+            "snapinfo": None,
+            "base": 1,
+            "rightmost-base": 0,
+            "error": error,
+            "error-detail": error_detail,
+        }
 
     def _get_rpmverflags(
         self, path: str, name: Optional[str] = None, log_error: bool = True
@@ -109,7 +123,7 @@ class PkgHistoryProcessor:
 
         if not specfile.exists():
             log.debug("spec file missing: %s", specfile)
-            return {"error": "specfile-missing", "error-detail": "Spec file is missing."}
+            return self._make_rpmvererror("specfile-missing", "Spec file is missing.")
 
         with (
             specfile.open(mode="rb") as unabridged,
@@ -144,7 +158,7 @@ class PkgHistoryProcessor:
         if error:
             if log_error:
                 log.debug("spec file query failed: %s", rpmerr_out)
-            return {"error": "specfile-parse-error", "error-detail": rpmerr_out}
+            return self._make_rpmvererror("specfile-parse-error", rpmerr_out)
 
         match = self.autorelease_flags_re.match(info)
         if match:
@@ -181,7 +195,7 @@ class PkgHistoryProcessor:
                 specblob = commit.tree[self.specfile.name]
             except KeyError:
                 # no spec file
-                error = {"error": "specfile-missing", "error-detail": "Spec file is missing."}
+                error = self._make_rpmvererror("specfile-missing", "Spec file is missing.")
                 self._rpmverflags_for_commits[commit] = error
                 return error
 
@@ -198,6 +212,22 @@ class PkgHistoryProcessor:
         self._rpmverflags_for_commits[commit] = rpmverflags
         return rpmverflags
 
+    @staticmethod
+    def _get_tagstring(verflags):
+        return "".join(f".{t}" for t in (verflags["extraver"], verflags["snapinfo"]) if t)
+
+    @staticmethod
+    def _get_release_complete(verflags, release_number, rightmost_number=0, tag_string=""):
+        prerel_str = "0." if verflags["prerelease"] else ""
+        base = verflags["base"] or 1
+        rightmost_base = verflags.get("rightmost-base", 0) or 0
+        release_number_with_base = release_number + base - 1
+        rightmost_with_base = rightmost_number + rightmost_base
+        rightmost_str = ""  # hide rightmost unless used
+        if rightmost_with_base > 0:
+            rightmost_str = "." + str(rightmost_with_base)
+        return f"{prerel_str}{release_number_with_base}{tag_string}{rightmost_str}"
+
     def release_number_visitor(self, commit: pygit2.Commit, child_info: dict[str, Any]):
         """Visit a commit to determine its release number.
 
@@ -213,14 +243,9 @@ class PkgHistoryProcessor:
 
         if "error" not in verflags:
             epoch_version = verflags["epoch-version"]
-            prerelease = verflags["prerelease"]
-            base = verflags["base"]
-            if base is None:
-                base = 1
-            tag_string = "".join(f".{t}" for t in (verflags["extraver"], verflags["snapinfo"]) if t)
+            tag_string = self._get_tagstring(verflags)
         else:
-            epoch_version = prerelease = None
-            base = 1
+            epoch_version = None
             tag_string = ""
 
         if not epoch_version:
@@ -247,12 +272,21 @@ class PkgHistoryProcessor:
 
         commit_result["verflags"] = commit_verflags
         commit_result["epoch-version"] = epoch_version
-        commit_result["magic-comment-result"] = parse_magic_comments(commit.message)
+        magic_comments = parse_magic_comments(commit.message)
+        commit_result["magic-comment-result"] = magic_comments
+
+        if magic_comments.start_rightmost or magic_comments.bump_rightmost > 0:
+            log.debug("\tstarting rightmost bumps")
+            self.rightmost_bumps = True
 
         log.debug("\tepoch_version: %s", epoch_version)
         log.debug(
             "\tparent rel numbers: %s",
             ", ".join(str(res["release-number"]) if res else "none" for res in parent_results),
+        )
+        log.debug(
+            "\tparent rightmost numbers: %s",
+            ", ".join(str(res["rightmost-number"]) if res else "none" for res in parent_results),
         )
 
         # Find the maximum applicable parent release number and increment by one if the
@@ -272,20 +306,45 @@ class PkgHistoryProcessor:
             )
             for res in parent_results
         )
+
         release_number = max(parent_release_numbers, default=0)
 
-        if self.specfile.name in commit.tree:
-            release_number += 1
+        parent_rightmost_numbers = tuple(
+            (
+                res["rightmost-number"]
+                if res
+                and (
+                    # Now increase rightmost only until epoch-version or release-number changes
+                    epoch_version is None
+                    or res["epoch-version"] is None
+                    or epoch_version == res["epoch-version"]
+                    or res["release-number"] == release_number
+                )
+                else 0
+            )
+            for res in parent_results
+        )
 
-        release_number = max(release_number, commit_result["magic-comment-result"].bump_release)
+        rightmost_number = max(parent_rightmost_numbers, default=0)
+
+        if self.specfile.name in commit.tree:
+            if self.rightmost_bumps:
+                rightmost_number += 1
+            else:
+                release_number += 1
+
+        release_number = max(release_number, magic_comments.bump_release)
+        rightmost_number = max(rightmost_number, magic_comments.bump_rightmost)
 
         commit_result["release-number"] = release_number
+        commit_result["rightmost-number"] = rightmost_number
 
         log.debug("\trelease_number: %s", release_number)
+        log.debug("\trightmost_number: %s", rightmost_number)
 
-        prerel_str = "0." if prerelease else ""
-        release_number_with_base = release_number + base - 1
-        commit_result["release-complete"] = f"{prerel_str}{release_number_with_base}{tag_string}"
+        commit_result["release-complete"] = self._get_release_complete(
+            verflags, release_number, rightmost_number, tag_string=tag_string
+        )
 
         yield commit_result
 
@@ -699,15 +758,6 @@ class PkgHistoryProcessor:
             worktree_result = {}
 
             verflags = self._get_rpmverflags(self.path, name=self.name)
-            if "error" in verflags:
-                # cringe, but what can you do?
-                verflags |= {
-                    "epoch-version": None,
-                    "prerelease": False,
-                    "extraver": None,
-                    "snapinfo": None,
-                    "base": 1,
-                }
 
             # Mimic the bottom half of release_number_visitor
             worktree_result["verflags"] = verflags
@@ -718,14 +768,8 @@ class PkgHistoryProcessor:
                 release_number = 1
             worktree_result["release-number"] = release_number
 
-            prerel_str = "0." if verflags["prerelease"] else ""
-            tag_string = "".join(f".{t}" for t in (verflags["extraver"], verflags["snapinfo"]) if t)
-            base = verflags["base"]
-            if base is None:
-                base = 1
-            release_number_with_base = release_number + base - 1
-            worktree_result["release-complete"] = release_complete = (
-                f"{prerel_str}{release_number_with_base}{tag_string}"
+            worktree_result["release-complete"] = release_complete = self._get_release_complete(
+                verflags, release_number, tag_string=self._get_tagstring(verflags)
             )
 
             # Mimic the bottom half of the changelog visitor for a generic entry

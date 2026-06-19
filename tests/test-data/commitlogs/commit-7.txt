@@ -1,0 +1,5 @@
+Check rightmost bump start is handled
+
+Do minor bumps from now forward.
+
+[start rightmost]

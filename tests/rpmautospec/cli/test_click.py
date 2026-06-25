@@ -47,6 +47,21 @@ def test_cli(cli_runner):
     setup_logging.assert_called_with(log_level=logging.INFO)
 
 
+def test_cli_warns_changelog_options_without_namespace(cli_runner):
+    """Warn when changelog options set without --git-tag-namespace."""
+
+    @cli_click.cli.command(name="noop", hidden=True)
+    def noop():
+        pass
+
+    with mock.patch.object(cli_click, "log") as mock_log:
+        result = cli_runner.invoke(
+            cli_click.cli, ["--changelog-mode", "tagged-only", "noop"]
+        )
+    assert result.exit_code == 0
+    mock_log.warning.assert_called_once()
+
+
 @pytest.mark.parametrize("testcase", ("success", "specfile-parse-failure"))
 def test_generate_changelog(testcase, cli_runner):
     with (
@@ -59,6 +74,9 @@ def test_generate_changelog(testcase, cli_runner):
         ctx_obj = {
             "pager": pager_sentinel,
             "error_on_unparseable_spec": error_on_unparseable_spec_sentinel,
+            "git_tag_namespace": None,
+            "changelog_mode": "accumulated",
+            "changelog_use_highest_release_tag": False,
         }
 
         if "specfile-parse-failure" in testcase:
@@ -67,7 +85,11 @@ def test_generate_changelog(testcase, cli_runner):
         result = cli_runner.invoke(cli_click.generate_changelog, ["some_path"], obj=ctx_obj)
 
         do_generate_changelog.assert_called_once_with(
-            "some_path", error_on_unparseable_spec=error_on_unparseable_spec_sentinel
+            "some_path",
+            error_on_unparseable_spec=error_on_unparseable_spec_sentinel,
+            git_tag_namespace=None,
+            changelog_mode="accumulated",
+            changelog_use_highest_release_tag=False,
         )
 
         if "success" in testcase:
@@ -200,7 +222,12 @@ def test_process_distgit(testcase, tmp_path, locale, cli_runner):
     unpacked_repo_dir, test_spec_file_path = gen_testrepo(tmp_path, "rawhide")
 
     args = [str(test_spec_file_path), str(output_spec_file)]
-    ctx_obj = {"error_on_unparseable_spec": object()}
+    ctx_obj = {
+        "error_on_unparseable_spec": object(),
+        "git_tag_namespace": None,
+        "changelog_mode": "accumulated",
+        "changelog_use_highest_release_tag": False,
+    }
 
     if override_locale:
         locale.setlocale(locale.LC_ALL, override_locale)
@@ -219,6 +246,9 @@ def test_process_distgit(testcase, tmp_path, locale, cli_runner):
         str(test_spec_file_path),
         str(output_spec_file),
         error_on_unparseable_spec=ctx_obj["error_on_unparseable_spec"],
+        git_tag_namespace=ctx_obj["git_tag_namespace"],
+        changelog_mode=ctx_obj["changelog_mode"],
+        changelog_use_highest_release_tag=ctx_obj["changelog_use_highest_release_tag"],
     )
 
     if "specfile-parse-failure" in testcase:
@@ -234,7 +264,12 @@ def test_calculate_release(testcase, cli_runner):
     specfile_parse_failure = "specfile-parse-failure" in testcase
 
     args = ["/foo/bar", "--complete-release" if complete_release else "--number-only"]
-    ctx_obj = {"error_on_unparseable_spec": object()}
+    ctx_obj = {
+        "error_on_unparseable_spec": object(),
+        "git_tag_namespace": None,
+        "changelog_mode": "accumulated",
+        "changelog_use_highest_release_tag": False,
+    }
 
     with mock.patch.object(cli_click, "do_calculate_release") as do_calculate_release:
         if specfile_parse_failure:
@@ -251,6 +286,7 @@ def test_calculate_release(testcase, cli_runner):
         "/foo/bar",
         complete_release=complete_release,
         error_on_unparseable_spec=ctx_obj["error_on_unparseable_spec"],
+        git_tag_namespace=ctx_obj["git_tag_namespace"],
     )
 
     if specfile_parse_failure:

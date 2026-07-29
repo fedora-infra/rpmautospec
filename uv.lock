@@ -1061,11 +1061,11 @@ test = [
 
 [[package]]
 name = "rpmautospec-core"
-version = "0.1.5"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/af/74/e6c9f87b7f7fc43381b9d78d8280ef5a2a7d764f0c503d52decf3904218e/rpmautospec_core-0.1.5.tar.gz", hash = "sha256:c0acf19ed013355d02c1e28220ad9d6f9088f7f61b4a29d16d5364298bc6e6f3", size = 7205, upload-time = "2024-06-27T07:43:03.121Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/db/29/5f8c98ce001fe7f09808059f55a2c534e9bd9d97599aaebd168d3b11fea7/rpmautospec_core-0.2.0.tar.gz", hash = "sha256:bb2f0e8c2cc9b9f8129399fca81abe361423111913b114b366286711a4787597", size = 9181, upload-time = "2026-07-28T11:43:41.848Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b2/60/31be834532df6c84841b0bd103a22439c9ac628f84e24f25614fbdc47933/rpmautospec_core-0.1.5-py3-none-any.whl", hash = "sha256:778c48624fc110b75ef1c14982f33f25435687b9e1c75daf3d697eef643f8363", size = 3524, upload-time = "2024-06-27T07:43:01.264Z" },
+    { url = "https://files.pythonhosted.org/packages/e8/30/8e71f9176cc025b7baf3798c14cb5b0d73f9cbed023e17ce8d8c71227ab0/rpmautospec_core-0.2.0-py3-none-any.whl", hash = "sha256:20168fbb019bf22cfcf35fa11b43345663c82e2d6452eea337e7ecb14c79b085", size = 5144, upload-time = "2026-07-28T11:43:42.665Z" },
 ]
 
 [[package]]

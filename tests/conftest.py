@@ -13,7 +13,7 @@ from rpmautospec.compat import pygit2
 from .common import SPEC_FILE_TEMPLATE, create_commit
 
 PYGIT2_IMPLEMENTATIONS = [pygit2]
-if pygit2 != minigit2:
+if pygit2 is not minigit2:
     PYGIT2_IMPLEMENTATIONS.append(minigit2)
 
 

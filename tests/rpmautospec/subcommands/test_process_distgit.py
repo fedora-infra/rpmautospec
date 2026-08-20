@@ -94,7 +94,10 @@ def fuzz_spec_file(
         new_spec_file_path.open("w", encoding="utf-8") as new,
     ):
         if is_processed:
-            autorelease_blurb = process_distgit.AUTORELEASE_TEMPLATE.format(autorelease_number=15)
+            autorelease_blurb = process_distgit.AUTORELEASE_TEMPLATE.format(
+                autorelease_number=15,
+                rightmost_number=0,
+            )
             print(
                 process_distgit.RPMAUTOSPEC_TEMPLATE.format(
                     version=__version__,

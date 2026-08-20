@@ -1,0 +1,8 @@
+Check unknown magic strings
+
+...do not break the parser.
+
+Ensure we are forward-compatible
+
+[bump nonexistent: 2]
+[anybool]

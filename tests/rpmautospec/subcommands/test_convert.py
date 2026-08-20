@@ -305,7 +305,7 @@ def test_commit(specfile, release, changelog, repo):
     converter.commit("Convert to rpmautospec.")
 
     for filepath, flags in repo.status().items():
-        assert flags == pygit2.GIT_STATUS_CURRENT
+        assert flags == pygit2.enums.FileStatus.CURRENT
 
     changelog_should_change = autochangelog_re.search(changelog) is None
     release_should_change = autorelease_re.search(release) is None

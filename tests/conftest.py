@@ -26,10 +26,10 @@ def git_empty_config(tmp_path: Path):
     """Ensure tests run with empty git configuration."""
     for impl in PYGIT2_IMPLEMENTATIONS:
         for level in (
-            impl.GIT_CONFIG_LEVEL_SYSTEM,
-            impl.GIT_CONFIG_LEVEL_XDG,
-            impl.GIT_CONFIG_LEVEL_GLOBAL,
-            impl.GIT_CONFIG_LEVEL_LOCAL,
+            impl.enums.ConfigLevel.SYSTEM,
+            impl.enums.ConfigLevel.XDG,
+            impl.enums.ConfigLevel.GLOBAL,
+            impl.enums.ConfigLevel.LOCAL,
         ):
             try:
                 impl.settings.search_path[level] = "/dev/null"
@@ -191,7 +191,7 @@ def repo(repopath, specfile, specfile_content, _repo_config):
     add_commit = _repo_config["add_commit"]
 
     pygit2.init_repository(repopath, initial_head="rawhide")
-    repo = pygit2.Repository(repopath, pygit2.GIT_REPOSITORY_OPEN_NO_SEARCH)
+    repo = pygit2.Repository(repopath, pygit2.enums.RepositoryOpenFlag.NO_SEARCH)
 
     repo.config["user.name"] = "Jane Doe"
     repo.config["user.email"] = "jane.doe@example.com"

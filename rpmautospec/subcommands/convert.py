@@ -53,7 +53,9 @@ class PkgConverter:
         log.debug("Working on spec file %s", self.specfile)
 
         try:
-            self.repo = pygit2.Repository(self.path, flags=pygit2.GIT_REPOSITORY_OPEN_NO_SEARCH)
+            self.repo = pygit2.Repository(
+                self.path, flags=pygit2.enums.RepositoryOpenFlag.NO_SEARCH
+            )
             log.debug("Found repository at %s", self.path)
         except pygit2.GitError:
             self.repo = None
@@ -62,12 +64,15 @@ class PkgConverter:
         if self.repo is not None:
             spec_status = self.repo.status_file(self.specfile.relative_to(self.path))
 
-            if spec_status == pygit2.GIT_STATUS_WT_NEW:
+            if spec_status == pygit2.enums.FileStatus.WT_NEW:
                 raise FileUntrackedError(
                     f"Spec file '{self.specfile}' exists in the repository, but is untracked"
                 )
             # Allow converting unmodified, and saved-to-index files.
-            if spec_status not in (pygit2.GIT_STATUS_CURRENT, pygit2.GIT_STATUS_INDEX_MODIFIED):
+            if spec_status not in (
+                pygit2.enums.FileStatus.CURRENT,
+                pygit2.enums.FileStatus.INDEX_MODIFIED,
+            ):
                 raise FileModifiedError(f"Spec file '{self.specfile}' is modified")
             try:
                 self.repo.status_file("changelog")
@@ -77,9 +82,9 @@ class PkgConverter:
                 raise FileExistsError("Changelog file 'changelog' is already in the repository")
             for filepath, flags in self.repo.status().items():
                 if flags not in (
-                    pygit2.GIT_STATUS_CURRENT,
-                    pygit2.GIT_STATUS_IGNORED,
-                    pygit2.GIT_STATUS_WT_NEW,
+                    pygit2.enums.FileStatus.CURRENT,
+                    pygit2.enums.FileStatus.IGNORED,
+                    pygit2.enums.FileStatus.WT_NEW,
                 ):
                     raise FileModifiedError(f"Repository '{self.path}' is dirty")
 

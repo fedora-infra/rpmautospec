@@ -82,7 +82,9 @@ class PkgHistoryProcessor:
             raise FileNotFoundError(f"Spec file '{self.specfile}' doesn't exist in '{self.path}'.")
 
         try:
-            self.repo = pygit2.Repository(self.path, flags=pygit2.GIT_REPOSITORY_OPEN_NO_SEARCH)
+            self.repo = pygit2.Repository(
+                self.path, flags=pygit2.enums.RepositoryOpenFlag.NO_SEARCH
+            )
         except pygit2.GitError:
             self.repo = None
 

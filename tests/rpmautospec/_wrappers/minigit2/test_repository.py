@@ -460,3 +460,38 @@ class TestRepository:
 
         # git_status_t.RECURSE_IGNORED_DIRS is never set by .status()
         assert str(d_file.relative_to(repo_root)) not in status
+
+    def test_references_iter(self, repo_root: Path, repo: Repository) -> None:
+        """references iteration lists all refs including ones we create."""
+        head_ref = repo.head
+        oid = head_ref.peel().id
+        repo.references.create("refs/tags/v1.0", oid)
+        ref_names = list(repo.references)
+        assert any("HEAD" in r or "heads" in r for r in ref_names)
+        assert "refs/tags/v1.0" in ref_names
+
+    def test_references_getitem(self, repo_root: Path, repo: Repository) -> None:
+        """references[name] returns a Reference object."""
+        head_name = repo.head.name
+        ref = repo.references[head_name]
+        assert ref.name == head_name
+
+    def test_references_create_from_string(self, repo_root: Path, repo: Repository) -> None:
+        """references.create works with a hex string OID."""
+        # Use existing HEAD commit rather than creating a new one
+        head_ref = repo.head
+        oid = head_ref.peel().id
+        ref = repo.references.create("refs/tags/v2.0", str(oid))
+        assert ref.name == "refs/tags/v2.0"
+        assert "refs/tags/v2.0" in list(repo.references)
+
+    def test_get_existing_oid(self, repo_root: Path, repo: Repository) -> None:
+        """repo.get() returns the object for a valid OID."""
+        head_ref = repo.head
+        oid = head_ref.peel().id
+        obj = repo.get(oid)
+        assert obj is not None
+
+    def test_get_nonexistent_oid(self, repo: Repository) -> None:
+        """repo.get() returns None for a nonexistent OID."""
+        assert repo.get("0" * 40) is None

@@ -1,0 +1,3 @@
+---
+changelog_items:
+  - Check unknown magic strings do not break the parser.

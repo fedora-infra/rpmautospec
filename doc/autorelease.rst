@@ -24,6 +24,12 @@ the different portions of the release field:
   For instance, this can be used to keep release numbers on older Fedora releases way lower than on
   newer ones for the same package version.
 
+* ``-r <minorbump>``: Allows specifying a custom rightmost (minor) release number (the default is 0).
+
+  This is only used when previous commit contained ``[start rightmost]`` line or rightmost number is
+  greater than 0. This provides a different way to ensure release stays lower on older Fedora releases.
+  Rightmost bumps can be started by explicit ``%autorelease -r 1``.
+
 * ``-n``: Don’t render the dist tag, e.g. for use in macros, if the dist tag is added later.
 
 .. important::
@@ -53,6 +59,36 @@ seamlessly.
 
 You don’t have to undo this later, when the version changes, the release will be reset to 1 (or the
 value specified by ``%autorelease -b …``).
+
+Rightmost minor release numbers
+===============================
+
+You can also continue doing only rightmost bumps. Easiest way is to use magic comment in commit::
+
+    [start rightmost]
+
+This would freeze current release number and increment separate number on the right of release.
+
+Use case for this would be for multiple supported branches, which contain equivalent changes.
+Example might be rebased version in multiple branches. But latest branch build should be considered latest,
+even if older stable branch contained more commits modifying spec file. Stable branch can use this
+magic comment to be always lower than development branch like rawhide.
+
+This provides similar functionality to ``rpmdev-bumpspec -r`` tool, but generated from commit messages.
+
+Rightmost bumping release numbers
+=================================
+
+You can bump also the rightmost number to a higher value. Similar to ``bump release`` magic comment,
+you can bump rightmost number to a higher value.::
+
+    [bump rightmost: <number>]
+
+This will start rightmost bumps if not yet started already. Sometimes it might be needed to start
+different number than trailing ``.1`` on right side of the release.
+
+Alternative to this commit line is using ``%autorelease -r …``. You don't have to undo this later,
+it will reset to 1 when version or release number changes.
 
 Examples
 ========
@@ -107,6 +143,7 @@ those added fields:
 * ``-p``: Designates a pre-release, i.e. ``pkgrel`` will be prefixed with ``0.``.
 * ``-e <extraver>``: Allows specifying the ``extraver`` portion of the release.
 * ``-s <snapinfo>``: Allows specifying the ``snapinfo`` portion of the release.
+* ``-r <minorbase>``: Allows specifying the ``minorbump`` portion of the release.
 
 In the modern versioning, those fields are embedded in the package `Version` instead.
 

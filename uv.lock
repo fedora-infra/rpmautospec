@@ -993,7 +993,7 @@ wheels = [
 
 [[package]]
 name = "rpmautospec"
-version = "0.8.5"
+version = "0.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "rpmautospec-core" },
@@ -1068,7 +1068,7 @@ requires-dist = [
     { name = "pygit2", marker = "python_full_version >= '3.10' and python_full_version < '4' and extra == 'pygit2'", specifier = ">=1.4.0,<2.0.0" },
     { name = "rpm", marker = "extra == 'all'" },
     { name = "rpm", marker = "extra == 'rpm'" },
-    { name = "rpmautospec-core", specifier = ">=0.1.4,<1.0.0" },
+    { name = "rpmautospec-core", specifier = ">=0.2.0,<1.0.0" },
 ]
 provides-extras = ["click", "pygit2", "rpm", "norpm", "all"]
 

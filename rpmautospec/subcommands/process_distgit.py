@@ -21,11 +21,11 @@ RPMAUTOSPEC_TEMPLATE = """## START: Set by rpmautospec
 """
 
 AUTORELEASE_TEMPLATE = """
-%define autorelease(e:s:pb:n) %{{?-p:0.}}%{{lua:
+%define autorelease(e:s:pb:n) %{{?-p:0.}}%{{?expr:%[{autorelease_number:d} + %{{?-b*}}%{{!?-b:1}} - 1]}}%{{!?expr:%{{lua:
     release_number = {autorelease_number:d};
     base_release_number = tonumber(rpm.expand("%{{?-b*}}%{{!?-b:1}}"));
     print(release_number + base_release_number - 1);
-}}%{{?-e:.%{{-e*}}}}%{{?-s:.%{{-s*}}}}%{{!?-n:%{{?dist}}}}"""  # noqa: E501
+}}}}%{{?-e:.%{{-e*}}}}%{{?-s:.%{{-s*}}}}%{{!?-n:%{{?dist}}}}"""  # noqa: E501
 
 
 def do_process_distgit(

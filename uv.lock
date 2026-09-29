@@ -981,11 +981,11 @@ wheels = [
 
 [[package]]
 name = "rpm"
-version = "0.4.0"
+version = "0.5.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/bd/ce/8db44d2b8fd6713a59e391d12b6816854b7bee8121ae7370c2d565de4265/rpm-0.4.0.tar.gz", hash = "sha256:79adbefa82318e2625d6e4fa16666cf88543498a1f2c10dc3879165d1dc3ecee", size = 11237, upload-time = "2025-04-08T08:57:26.261Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/66/cc/a0894c934cd27ea2738c4665de4218a97bedaef6ed73b55d845cacf90a14/rpm-0.5.0.tar.gz", hash = "sha256:4a7ab1067e67f3eeed35472ec05ebfb60275401767859e44386463083ab19b1a", size = 11909, upload-time = "2026-09-29T10:08:23.214Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/17/96/0f4e9ba318c6e09b76357ee88d6c73101f8799f8ed707cfdc1df131b4234/rpm-0.4.0-py3-none-any.whl", hash = "sha256:0ef697cb5fb73bf9300a13d423529d7ec215239bf95c5ecb145e6610645f6067", size = 5151, upload-time = "2025-04-08T08:57:24.971Z" },
+    { url = "https://files.pythonhosted.org/packages/35/cc/41cf2d933885dede93509e01555566aa5c54fb39bf59af2b4ce6327f296b/rpm-0.5.0-py3-none-any.whl", hash = "sha256:cd59bce89060c914d1eacac0ebf194a99ba5c14d16cfa3bed35b59b84da0e368", size = 5159, upload-time = "2026-09-29T10:08:22.422Z" },
 ]
 
 [[package]]

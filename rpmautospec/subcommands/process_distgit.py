@@ -34,6 +34,9 @@ def do_process_distgit(
     *,
     enable_caching: bool = True,
     error_on_unparseable_spec: bool = True,
+    git_tag_namespace: Optional[str] = None,
+    changelog_mode: str = "accumulated",
+    changelog_use_highest_release_tag: bool = False,
 ) -> bool:
     """Process an RPM spec file in a distgit repository.
 
@@ -76,7 +79,12 @@ def do_process_distgit(
     visitors = [processor.release_number_visitor]
     if needs_autochangelog:
         visitors.append(processor.changelog_visitor)
-    result = processor.run(visitors=visitors)
+    result = processor.run(
+        visitors=visitors,
+        git_tag_namespace=git_tag_namespace,
+        changelog_mode=changelog_mode,
+        changelog_use_highest_release_tag=changelog_use_highest_release_tag,
+    )
 
     error = result["verflags"].get("error")
     if error and error_on_unparseable_spec:

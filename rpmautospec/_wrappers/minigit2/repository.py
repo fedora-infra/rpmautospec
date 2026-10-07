@@ -42,6 +42,7 @@ from .native_adaptation import (
     git_status_opt_t,
     git_status_options,
     git_status_t,
+    git_strarray,
     lib,
 )
 from .object_ import Object
@@ -54,6 +55,52 @@ from .wrapper import WrapperOfWrappings
 
 if TYPE_CHECKING:
     from .diff import Diff
+
+
+class References:
+    """Proxy for iterating and accessing git references in a repository."""
+
+    def __init__(self, repo: "Repository") -> None:
+        self._repo = repo
+
+    def __iter__(self):
+        arr = git_strarray()
+        error_code = lib.git_reference_list(byref(arr), self._repo._native)
+        WrapperOfWrappings.raise_if_error(error_code)
+        encoding = getfilesystemencoding()
+        errors = getfilesystemencodeerrors()
+        try:
+            for i in range(arr.count):
+                yield arr.strings[i].decode(encoding=encoding, errors=errors)
+        finally:
+            lib.git_strarray_free(byref(arr))
+
+    def __getitem__(self, name: str) -> "Reference":
+        return self._repo.lookup_reference(name)
+
+    def create(self, name: str, target, force: bool = False) -> "Reference":
+        """Create a direct reference pointing at target.
+
+        :param name: full reference name (e.g. "refs/tags/v1.0")
+        :param target: Oid object, hex string, or bytes OID to point at
+        :param force: overwrite if the reference already exists
+        :return: the created Reference
+        """
+        if isinstance(target, Oid):
+            oid = target
+        else:
+            oid = Oid._from_oid(target if isinstance(target, bytes) else str(target).encode())
+        native = git_reference_p()
+        error_code = lib.git_reference_create(
+            byref(native),
+            self._repo._native,
+            name.encode(encoding=getfilesystemencoding(), errors=getfilesystemencodeerrors()),
+            oid._native,
+            1 if force else 0,
+            None,
+        )
+        WrapperOfWrappings.raise_if_error(error_code)
+        return Reference(repo=self._repo, native=native)
 
 
 class Repository(WrapperOfWrappings):
@@ -136,6 +183,17 @@ class Repository(WrapperOfWrappings):
     def __getitem__(self, oid: OidTypes) -> "Object":
         return Object._from_oid(repo=self, oid=oid)
 
+    def get(self, oid: OidTypes) -> Optional["Object"]:
+        """Look up an object by OID, returning None if not found.
+
+        :param oid: the object identifier to look up
+        :return: the Object, or None if it doesn't exist
+        """
+        try:
+            return Object._from_oid(repo=self, oid=oid)
+        except Exception:
+            return None
+
     def _coerce_to_object_and_peel(
         self,
         obj: Optional[Union["Object", str, bytes, Oid]],
@@ -176,6 +234,10 @@ class Repository(WrapperOfWrappings):
         error_code = lib.git_repository_index(index_p, self._native)
         self.raise_if_error(error_code, "Error getting repository index: {message}")
         return Index(repo=self, native=index_p)
+
+    @property
+    def references(self) -> References:
+        return References(self)
 
     def revparse_single(self, revision: Union[str, bytes]) -> "Object":
         if isinstance(revision, str):

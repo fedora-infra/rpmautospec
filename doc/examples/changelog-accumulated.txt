@@ -1,0 +1,11 @@
+* Tue May 12 2026 Alice <alice@example.com> - 1.3-1
+- Update to 1.3 (Alice)
+- Adjust build flags for new toolchain (Bob)
+- Correct a typo in the package summary (Eve)
+
+* Mon Apr 20 2026 Bob <bob@example.com> - 1.2-2
+- Rebuild for examplelib 2.0 (Bob)
+
+* Wed Apr 01 2026 Alice <alice@example.com> - 1.2-1
+- Update to 1.2 (Alice)
+- Backport upstream fix (Alice)

@@ -12,7 +12,7 @@ from rpmautospec_core import AUTORELEASE_MACRO
 
 from .compat import rpm
 
-AUTORELEASE_DEFINITION = "E%{?-e*}_S%{?-s*}_P%{?-p:1}%{!?-p:0}_B%{?-b*}"
+AUTORELEASE_DEFINITION = "E%{?-e*}_S%{?-s*}_P%{?-p:1}%{!?-p:0}_B%{?-b*}_Z%{?-z:1}%{!?-z:0}"
 
 PYTHON_VERSION = str(sys.version_info[0]) + "." + str(sys.version_info[1])
 

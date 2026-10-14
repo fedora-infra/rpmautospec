@@ -228,35 +228,60 @@ def test_process_distgit(testcase, tmp_path, locale, cli_runner):
         assert result.exit_code == 0
 
 
-@pytest.mark.parametrize("testcase", ("complete-release", "number-only", "specfile-parse-failure"))
+@pytest.mark.parametrize(
+    "testcase", ("complete-release", "number-only", "z-base", "specfile-parse-failure")
+)
 def test_calculate_release(testcase, cli_runner):
     complete_release = "complete-release" in testcase
+    z_base = "z-base" in testcase
     specfile_parse_failure = "specfile-parse-failure" in testcase
 
-    args = ["/foo/bar", "--complete-release" if complete_release else "--number-only"]
+    args = ["/foo/bar"]
+    if z_base:
+        args.append("--z-base")
+    else:
+        args.append("--complete-release" if complete_release else "--number-only")
     ctx_obj = {"error_on_unparseable_spec": object()}
 
-    with mock.patch.object(cli_click, "do_calculate_release") as do_calculate_release:
+    with (
+        mock.patch.object(cli_click, "do_calculate_release") as do_calculate_release,
+        mock.patch.object(
+            cli_click, "do_calculate_release_number_z_base"
+        ) as do_calculate_release_number_z_base,
+    ):
         if specfile_parse_failure:
             do_calculate_release.side_effect = cli_click.SpecParseFailure("GNA")
+            do_calculate_release_number_z_base.side_effect = cli_click.SpecParseFailure("GNA")
+        elif z_base:
+            do_calculate_release_number_z_base.return_value = 3
+        elif complete_release:
+            do_calculate_release.return_value = "8"
         else:
-            if complete_release:
-                do_calculate_release.return_value = "8"
-            else:
-                do_calculate_release.return_value = 6
+            do_calculate_release.return_value = 6
 
         result = cli_runner.invoke(cli_click.calculate_release, args, obj=ctx_obj)
 
-    do_calculate_release.assert_called_once_with(
-        "/foo/bar",
-        complete_release=complete_release,
-        error_on_unparseable_spec=ctx_obj["error_on_unparseable_spec"],
-    )
+    if z_base:
+        do_calculate_release_number_z_base.assert_called_once_with(
+            "/foo/bar",
+            error_on_unparseable_spec=ctx_obj["error_on_unparseable_spec"],
+        )
+        do_calculate_release.assert_not_called()
+    else:
+        do_calculate_release.assert_called_once_with(
+            "/foo/bar",
+            complete_release=complete_release,
+            error_on_unparseable_spec=ctx_obj["error_on_unparseable_spec"],
+        )
+        do_calculate_release_number_z_base.assert_not_called()
 
     if specfile_parse_failure:
         assert result.exit_code != 0
         assert "Error: GNA" in result.stderr
     else:
         assert result.exit_code == 0
-        expected_rel = "8" if complete_release else "6"
+        if z_base:
+            expected_rel = "3"
+        else:
+            expected_rel = "8" if complete_release else "6"
         assert f"Calculated release number: {expected_rel}" in result.stdout

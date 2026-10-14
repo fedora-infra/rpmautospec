@@ -111,6 +111,7 @@ def _parametrize_test__get_rpmverflags() -> tuple[pytest.param, ...]:
     releases_by_id = {
         "autorelease": "Release: %autorelease",
         "autorelease-base": "Release: %autorelease -b 5",
+        "autorelease-z": "Release: %autorelease -z",
         "manual": "Release: 1",
     }
 
@@ -279,8 +280,10 @@ class TestPkgHistoryProcessor:
         manual = "%autorelease" not in release
         if not manual:
             base = 5 if "-b" in release else 1
+            zflag = "-z" in release
         else:
             base = None
+            zflag = False
 
         if with_name:
             name = specfile.stem
@@ -315,6 +318,7 @@ class TestPkgHistoryProcessor:
                 "snapinfo": None,
                 "prerelease": None,
                 "base": base,
+                "zflag": zflag,
                 "release-prefix": "",
                 "release-suffix": "",
             }
@@ -524,6 +528,167 @@ class TestPkgHistoryProcessor:
                 "child_must_continue": True,
                 "changelog_removed": False,
             }
+
+    @pytest.mark.repo_config(uses_rpmautospec=True, converted=False, add_commit=False)
+    def test_release_number_visitor_dash_z(self, repo, processor):
+        """-z freezes the release number achieved so far, then counts a new number from there.
+
+        Dropping -z again doesn't resume counting from the frozen number, it continues from the
+        plain, monotonically increasing per-commit counter (as if -z had never been used) -- an
+        accepted simplification.
+        """
+        workdir = Path(repo.workdir)
+        specfile_path = workdir / "test.spec"
+
+        releases_and_expected = (
+            ("Release: %autorelease", "2"),
+            ("Release: %autorelease", "3"),
+            ("Release: %{autorelease -z}", "3.1"),
+            ("Release: %{autorelease -z}", "3.2"),
+            ("Release: %autorelease", "6"),
+        )
+
+        # The root commit (plain %autorelease) is already created by the `repo` fixture and
+        # amounts to release-complete "1".
+        res = processor.run(visitors=(processor.release_number_visitor,))
+        assert res["release-complete"] == "1"
+        assert res["zflag"] is False
+        assert res["z-base"] is None
+
+        for release, expected_release_complete in releases_and_expected:
+            specfile_path.write_text(
+                SPEC_FILE_TEMPLATE.format(
+                    version="Version: 1.0", release=release, prep="%prep", changelog="%changelog\n"
+                )
+            )
+            create_commit(repo, message="Did something!")
+
+            res = processor.run(visitors=(processor.release_number_visitor,))
+            assert res["release-complete"] == expected_release_complete
+
+    @pytest.mark.repo_config(uses_rpmautospec=True, converted=False, add_commit=False)
+    def test_release_number_visitor_dash_z_with_dash_b(self, repo, processor):
+        """-b shifts the frozen Z part, never the counted, trailing minorbump number."""
+        workdir = Path(repo.workdir)
+        specfile_path = workdir / "test.spec"
+
+        releases_and_expected = (
+            ("Release: %{autorelease -b 100}", "101"),
+            ("Release: %{autorelease -b 100}", "102"),
+            ("Release: %{autorelease -b 100 -z}", "102.1"),
+            ("Release: %{autorelease -b 100 -z}", "102.2"),
+            ("Release: %{autorelease -b 100}", "105"),
+        )
+
+        for release, expected_release_complete in releases_and_expected:
+            specfile_path.write_text(
+                SPEC_FILE_TEMPLATE.format(
+                    version="Version: 1.0", release=release, prep="%prep", changelog="%changelog\n"
+                )
+            )
+            create_commit(repo, message="Did something!")
+
+            res = processor.run(visitors=(processor.release_number_visitor,))
+            assert res["release-complete"] == expected_release_complete
+
+    @pytest.mark.parametrize(
+        "release, expected",
+        (
+            pytest.param("Release: %{autorelease -z}", "0.1", id="basic"),
+            pytest.param("Release: %{autorelease -z -p}", "0.0.1", id="prerelease"),
+            pytest.param("Release: %{autorelease -z -e foo}", "0.foo.1", id="extraver"),
+            pytest.param("Release: %{autorelease -z -s bar}", "0.bar.1", id="snapinfo"),
+            pytest.param("Release: %{autorelease -z -b 5}", "4.1", id="base"),
+            pytest.param(
+                "Release: 7%{?dist}.%{autorelease -z}.ABC%{?dist}",
+                "7.0.1.ABC",
+                id="literal-prefix-and-suffix",
+            ),
+        ),
+        indirect=["release"],
+    )
+    @pytest.mark.repo_config(uses_rpmautospec=True, converted=False, add_commit=False)
+    def test_release_number_visitor_dash_z_combinations(self, expected, repo, processor):
+        """-b/-p/-e/-s all apply to the frozen Z part, same as without -z; the counted X part
+        stays a plain trailing number (it fills the `<minorbump>` slot of the Fedora versioning
+        format) and is never affected by -b. Literal text surrounding the whole %autorelease
+        invocation is preserved the same way too."""
+        res = processor.run(visitors=(processor.release_number_visitor,))
+
+        assert res["release-complete"] == expected
+
+    @pytest.mark.repo_config(uses_rpmautospec=True, converted=False, add_commit=False)
+    def test_run_dirty_worktree_dash_z_fresh(self, repo, processor):
+        """-z used for the first time in an uncommitted (dirty) worktree change."""
+        workdir = Path(repo.workdir)
+        specfile_path = workdir / "test.spec"
+
+        # The root commit (plain %autorelease) is already created by the `repo` fixture and
+        # amounts to release-number 1.
+        specfile_path.write_text(
+            SPEC_FILE_TEMPLATE.format(
+                version="Version: 1.0",
+                release="Release: %{autorelease -z}",
+                prep="%prep",
+                changelog="%changelog\n",
+            )
+        )
+
+        res = processor.run(visitors=(processor.release_number_visitor,))
+
+        assert res["zflag"] is True
+        assert res["z-base"] == 1
+        assert res["release-complete"] == "1.1"
+
+    @pytest.mark.repo_config(uses_rpmautospec=True, converted=False, add_commit=False)
+    def test_run_dirty_worktree_dash_z_continuing(self, repo, processor):
+        """-z already used in HEAD, continued (unchanged) in an uncommitted worktree change."""
+        workdir = Path(repo.workdir)
+        specfile_path = workdir / "test.spec"
+
+        specfile_path.write_text(
+            SPEC_FILE_TEMPLATE.format(
+                version="Version: 1.0",
+                release="Release: %{autorelease -z}",
+                prep="%prep",
+                changelog="%changelog\n",
+            )
+        )
+        create_commit(repo, message="Start using -z")
+
+        # Dirty the worktree without touching the Release line, so -z is still in use.
+        with specfile_path.open("a") as fp:
+            fp.write("\n\n")
+
+        res = processor.run(visitors=(processor.release_number_visitor,))
+
+        assert res["zflag"] is True
+        assert res["z-base"] == 1
+        assert res["release-complete"] == "1.2"
+
+    @pytest.mark.repo_config(uses_rpmautospec=True, converted=False, add_commit=False)
+    def test_run_dirty_worktree_dash_z_literal_release_template(self, repo, processor):
+        """-z combined with literal text surrounding the whole %autorelease invocation, in an
+        uncommitted (dirty) worktree change."""
+        workdir = Path(repo.workdir)
+        specfile_path = workdir / "test.spec"
+
+        # The root commit (plain %autorelease) is already created by the `repo` fixture and
+        # amounts to release-number 1.
+        specfile_path.write_text(
+            SPEC_FILE_TEMPLATE.format(
+                version="Version: 1.0",
+                release="Release: 7%{?dist}.%{autorelease -z}.ABC%{?dist}",
+                prep="%prep",
+                changelog="%changelog\n",
+            )
+        )
+
+        res = processor.run(visitors=(processor.release_number_visitor,))
+
+        assert res["zflag"] is True
+        assert res["z-base"] == 1
+        assert res["release-complete"] == "7.1.1.ABC"
 
     @pytest.mark.parametrize(
         "testcase",

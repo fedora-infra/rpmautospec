@@ -1,9 +1,17 @@
-%autorelease(e:s:pb:n) %{?-p:0.}%{?expr:%[ %{?_rpmautospec_release_number}%{!?_rpmautospec_release_number:1} + %{?-b*}%{!?-b:1} - 1 \
+%autorelease(e:s:pb:nz) %{?-p:0.}%{?-z:%{?expr:%[ %{?_rpmautospec_release_number_z_base}%{!?_rpmautospec_release_number_z_base:0} + %{?-b*}%{!?-b:1} - 1 ]}%{?!expr:%{lua:
+    z_base = tonumber(rpm.expand("%{?_rpmautospec_release_number_z_base}%{!?_rpmautospec_release_number_z_base:0}"));
+    base_release_number = tonumber(rpm.expand("%{?-b*}%{!?-b:1}"));
+    print(z_base + base_release_number - 1);
+}}}%{?!-z:%{?expr:%[ %{?_rpmautospec_release_number}%{!?_rpmautospec_release_number:1} + %{?-b*}%{!?-b:1} - 1 \
 ]}%{?!expr:%{lua:
     release_number = tonumber(rpm.expand("%{?_rpmautospec_release_number}%{!?_rpmautospec_release_number:1}"));
     base_release_number = tonumber(rpm.expand("%{?-b*}%{!?-b:1}"));
     print(release_number + base_release_number - 1);
-}}%{?-e:.%{-e*}}%{?-s:.%{-s*}}%{!?-n:%{?dist}}
+}}}%{?-e:.%{-e*}}%{?-s:.%{-s*}}%{!?-n:%{?dist}}%{?-z:.%{?expr:%[ %{?_rpmautospec_release_number}%{!?_rpmautospec_release_number:1} - %{?_rpmautospec_release_number_z_base}%{!?_rpmautospec_release_number_z_base:0} ]}%{?!expr:%{lua:
+    release_number = tonumber(rpm.expand("%{?_rpmautospec_release_number}%{!?_rpmautospec_release_number:1}"));
+    z_base = tonumber(rpm.expand("%{?_rpmautospec_release_number_z_base}%{!?_rpmautospec_release_number_z_base:0}"));
+    print(release_number - z_base);
+}}}
 %autochangelog %{lua:
     locale = os.setlocale(nil)
     os.setlocale("C.utf8")

@@ -1227,7 +1227,7 @@ requires-dist = [
     { name = "pygit2", marker = "python_full_version >= '3.10' and python_full_version < '4' and extra == 'pygit2'", specifier = ">=1.4.0,<2.0.0" },
     { name = "rpm", marker = "extra == 'all'" },
     { name = "rpm", marker = "extra == 'rpm'" },
-    { name = "rpmautospec-core", specifier = ">=0.1.4,<1.0.0" },
+    { name = "rpmautospec-core", specifier = ">=0.3.0,<1.0.0" },
 ]
 provides-extras = ["click", "pygit2", "rpm", "norpm", "all"]
 
@@ -1260,11 +1260,11 @@ test = [
 
 [[package]]
 name = "rpmautospec-core"
-version = "0.2.0"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/db/29/5f8c98ce001fe7f09808059f55a2c534e9bd9d97599aaebd168d3b11fea7/rpmautospec_core-0.2.0.tar.gz", hash = "sha256:bb2f0e8c2cc9b9f8129399fca81abe361423111913b114b366286711a4787597", size = 9181, upload-time = "2026-07-28T11:43:41.848Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/41/5f/9d02069851f9fadeff6a1658ecf80b878c238544a15aabea71c911f9d4b6/rpmautospec_core-0.3.0.tar.gz", hash = "sha256:e0cb919a523d0edabd445553f6fdbeb6f474eae099ae0e36298decf36905a893", size = 9134, upload-time = "2026-10-30T11:46:12.493Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e8/30/8e71f9176cc025b7baf3798c14cb5b0d73f9cbed023e17ce8d8c71227ab0/rpmautospec_core-0.2.0-py3-none-any.whl", hash = "sha256:20168fbb019bf22cfcf35fa11b43345663c82e2d6452eea337e7ecb14c79b085", size = 5144, upload-time = "2026-07-28T11:43:42.665Z" },
+    { url = "https://files.pythonhosted.org/packages/55/1e/0b1eeb506546106f1e98e8ffdbf69d7e8c8243b0b6bb5aa4ddb2cd68f220/rpmautospec_core-0.3.0-py3-none-any.whl", hash = "sha256:372f975b7bbfd277d155f70081cabf29ad501cce092404d0201e5f15f24fc927", size = 5124, upload-time = "2026-10-30T11:46:09.97Z" },
 ]
 
 [[package]]

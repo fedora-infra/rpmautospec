@@ -5,4 +5,7 @@ from rpmautospec_core import specfile_uses_rpmautospec
 from .subcommands.process_distgit import do_process_distgit as process_distgit
 from .subcommands.release import do_calculate_release as calculate_release
 from .subcommands.release import do_calculate_release_number as calculate_release_number
+from .subcommands.release import (
+    do_calculate_release_number_and_z_base as calculate_release_number_and_z_base,
+)
 from .version import __version__

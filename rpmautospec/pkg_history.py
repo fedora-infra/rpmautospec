@@ -48,7 +48,13 @@ def _checkout_tree_files(
 
 class PkgHistoryProcessor:
     autorelease_flags_re = re.compile(
-        r"^E(?P<extraver>[^_]*)_S(?P<snapinfo>[^_]*)_P(?P<prerelease>[01])_B(?P<base>\d*)$"
+        r"""^(?P<prefix>.*)
+        E(?P<extraver>[^_]*)
+        _S(?P<snapinfo>[^_]*)
+        _P(?P<prerelease>[01])
+        _B(?P<base>\d*)
+        (?P<suffix>.*)$""",
+        re.VERBOSE,
     )
 
     specparser: "SpecParser"
@@ -148,7 +154,7 @@ class PkgHistoryProcessor:
                 log.debug("spec file query failed: %s", rpmerr_out)
             return {"error": "specfile-parse-error", "error-detail": rpmerr_out}
 
-        match = self.autorelease_flags_re.match(info)
+        match = self.autorelease_flags_re.search(info)
         if match:
             extraver = match.group("extraver") or None
             snapinfo = match.group("snapinfo") or None
@@ -158,8 +164,14 @@ class PkgHistoryProcessor:
                 base = int(base)
             else:
                 base = 1
+            # Literal text surrounding the %autorelease flags token in the Release tag value, e.g.:
+            #   "3%{?dist}.%{autorelease -n}" -> "3." and ""
+            #   "%{autorelease -n}.ABC%{?dist}" -> "" and ".ABC"
+            release_prefix = match.group("prefix")
+            release_suffix = match.group("suffix")
         else:
             extraver = snapinfo = prerelease = base = None
+            release_prefix = release_suffix = ""
 
         result = {
             "epoch-version": epoch_version,
@@ -167,6 +179,8 @@ class PkgHistoryProcessor:
             "snapinfo": snapinfo,
             "prerelease": prerelease,
             "base": base,
+            "release-prefix": release_prefix,
+            "release-suffix": release_suffix,
         }
 
         return result
@@ -220,10 +234,13 @@ class PkgHistoryProcessor:
             if base is None:
                 base = 1
             tag_string = "".join(f".{t}" for t in (verflags["extraver"], verflags["snapinfo"]) if t)
+            release_prefix = verflags["release-prefix"]
+            release_suffix = verflags["release-suffix"]
         else:
             epoch_version = prerelease = None
             base = 1
             tag_string = ""
+            release_prefix = release_suffix = ""
 
         if not epoch_version:
             child_must_continue = True
@@ -287,7 +304,9 @@ class PkgHistoryProcessor:
 
         prerel_str = "0." if prerelease else ""
         release_number_with_base = release_number + base - 1
-        commit_result["release-complete"] = f"{prerel_str}{release_number_with_base}{tag_string}"
+        commit_result["release-complete"] = (
+            f"{release_prefix}{prerel_str}{release_number_with_base}{tag_string}{release_suffix}"
+        )
 
         yield commit_result
 
@@ -709,6 +728,8 @@ class PkgHistoryProcessor:
                     "extraver": None,
                     "snapinfo": None,
                     "base": 1,
+                    "release-prefix": "",
+                    "release-suffix": "",
                 }
 
             # Mimic the bottom half of release_number_visitor
@@ -726,8 +747,10 @@ class PkgHistoryProcessor:
             if base is None:
                 base = 1
             release_number_with_base = release_number + base - 1
+            release_prefix = verflags["release-prefix"]
+            release_suffix = verflags["release-suffix"]
             worktree_result["release-complete"] = release_complete = (
-                f"{prerel_str}{release_number_with_base}{tag_string}"
+                f"{release_prefix}{prerel_str}{release_number_with_base}{tag_string}{release_suffix}"
             )
 
             # Mimic the bottom half of the changelog visitor for a generic entry

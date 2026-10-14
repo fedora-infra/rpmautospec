@@ -74,6 +74,11 @@ repository = "https://github.com/fedora-infra/rpmautospec"
 [project.scripts]
 rpmautospec = "rpmautospec.cli:cli"
 
+# TEMPORARY, for CI-testing https://github.com/fedora-infra/rpmautospec-core/pull/96
+# When removing, rerun uv lock as well.
+[tool.uv.sources]
+rpmautospec-core = { git = "https://github.com/hroncok/rpmautospec-core.git", branch = "zstream" }
+
 [tool.hatch.build.targets.wheel]
 packages = ["rpmautospec"]
 

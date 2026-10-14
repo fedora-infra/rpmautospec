@@ -315,6 +315,8 @@ class TestPkgHistoryProcessor:
                 "snapinfo": None,
                 "prerelease": None,
                 "base": base,
+                "release-prefix": "",
+                "release-suffix": "",
             }
 
         if specfile_missing:
@@ -329,6 +331,47 @@ class TestPkgHistoryProcessor:
                 assert re.search(r"spec file query failed: ", caplog.text)
         else:
             assert caplog.text == ""
+
+    @pytest.mark.parametrize(
+        "release, expected_prefix, expected_suffix",
+        (
+            pytest.param("Release: %autorelease", "", "", id="plain"),
+            pytest.param("Release: 3%{?dist}.%{autorelease -n}", "3.", "", id="literal-prefix"),
+            pytest.param(
+                "%global baserelease %{autorelease -n}\nRelease: %{baserelease}.ABC%{?dist}",
+                "",
+                ".ABC",
+                id="literal-suffix-via-global",
+            ),
+            pytest.param(
+                "Release: EPEL%{?dist}.%{autorelease}",
+                "EPEL.",
+                "",
+                id="literal-prefix-with-capital-e-with-dist",
+            ),
+            pytest.param(
+                "Release: EPEL.%{autorelease}",
+                "EPEL.",
+                "",
+                id="literal-prefix-with-capital-e-without-dist",
+            ),
+            pytest.param("Release: 1", "", "", id="manual-no-match"),
+        ),
+        indirect=["release"],
+    )
+    def test__get_rpmverflags_release_template(
+        self, expected_prefix, expected_suffix, specfile, processor
+    ):
+        """%autorelease may be embedded in a larger, literal Release tag value.
+
+        The literal text surrounding the computed autorelease flags token must be preserved, so
+        that the actual release value (e.g. "3.X" or "X.ABC") can be reconstructed later, instead
+        of just the plain, commit-count based release number.
+        """
+        result = processor._get_rpmverflags(specfile.parent, name=specfile.stem)
+
+        assert result["release-prefix"] == expected_prefix
+        assert result["release-suffix"] == expected_suffix
 
     @pytest.mark.parametrize(
         "testcase",
@@ -425,6 +468,45 @@ class TestPkgHistoryProcessor:
             assert processor._get_rpmverflags_for_commit(head_commit) is retval
 
             _get_rpmverflags.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "release, expected_release_complete",
+        (
+            pytest.param("Release: %autorelease", "1", id="plain"),
+            pytest.param("Release: 3%{?dist}.%{autorelease -n}", "3.1", id="literal-prefix"),
+            pytest.param(
+                "%global baserelease %{autorelease -n}\nRelease: %{baserelease}.ABC%{?dist}",
+                "1.ABC",
+                id="literal-suffix-via-global",
+            ),
+        ),
+        indirect=["release"],
+    )
+    @pytest.mark.repo_config(add_commit=False)
+    def test_release_number_visitor_literal_release_template(
+        self, expected_release_complete, repo, processor
+    ):
+        """The computed release number must be substituted into the literal Release tag
+        template (minus dist tag), not just reported as a plain, commit-count based number."""
+        res = processor.run(visitors=(processor.release_number_visitor,))
+
+        assert res["release-complete"] == expected_release_complete
+
+    def test_run_dirty_worktree_literal_release_template(self, specfile, repo, processor):
+        """Prefix/suffix around %autorelease must also be preserved for an uncommitted (dirty)
+        worktree change, not just for committed history."""
+        specfile.write_text(
+            SPEC_FILE_TEMPLATE.format(
+                version="Version: 1.0",
+                release="Release: 7%{?dist}.%{autorelease -n}.ABC%{?dist}",
+                prep="%prep",
+                changelog="%changelog\n",
+            )
+        )
+
+        res = processor.run(visitors=(processor.release_number_visitor,))
+
+        assert res["release-complete"] == "7.3.ABC"
 
     @pytest.mark.parametrize("testcase", ("normal", "key-error"))
     def test__merge_info(self, testcase, processor):
@@ -597,6 +679,8 @@ class TestPkgHistoryProcessor:
         assert verflags["extraver"] is None
         assert verflags["prerelease"] is None
         assert verflags["snapinfo"] is None
+        assert verflags["release-prefix"] == ""
+        assert verflags["release-suffix"] == ""
 
     @pytest.mark.repo_config(uses_rpmautospec=False, converted=False, add_commit=False)
     def test_run__with_wonky_history(self, repo, processor):

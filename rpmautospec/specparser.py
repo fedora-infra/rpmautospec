@@ -50,6 +50,7 @@ class RPMSpecParser(SpecParser):
         # rpm.addMacro() doesn’t work for parametrized macros
         rpm.expandMacro(f"%define {AUTORELEASE_MACRO} {AUTORELEASE_DEFINITION}")
         rpm.addMacro("autochangelog", "%nil")
+        rpm.addMacro("dist", "")
         rpm.addMacro("__python", f"/usr/bin/python{PYTHON_VERSION}")
         rpm.addMacro("python_sitelib", f"/usr/lib/python{PYTHON_VERSION}/site-packages")
         rpm.addMacro("_sourcedir", f"{path}")

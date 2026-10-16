@@ -304,6 +304,7 @@ class PkgHistoryProcessor:
 
         prerel_str = "0." if prerelease else ""
         release_number_with_base = release_number + base - 1
+        # Same pattern as used in run()
         commit_result["release-complete"] = (
             f"{release_prefix}{prerel_str}{release_number_with_base}{tag_string}{release_suffix}"
         )
@@ -749,6 +750,7 @@ class PkgHistoryProcessor:
             release_number_with_base = release_number + base - 1
             release_prefix = verflags["release-prefix"]
             release_suffix = verflags["release-suffix"]
+            # Same pattern as used at the bottom of release_number_visitor()
             worktree_result["release-complete"] = release_complete = (
                 f"{release_prefix}{prerel_str}{release_number_with_base}{tag_string}{release_suffix}"
             )

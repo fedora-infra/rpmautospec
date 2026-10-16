@@ -68,6 +68,44 @@ def test_autorelease(braces, extra, snapshot, prerelease, base, nodisttag):
     assert rpm_result == expected
 
 
+@pytest.mark.parametrize(
+    "flags, release_number, z_base, expected",
+    (
+        pytest.param("-z", 4, 3, "3.DIST.1", id="basic"),
+        pytest.param("-z -n", 4, 3, "3.1", id="nodisttag"),
+        pytest.param("-z -b 5", 4, 3, "7.DIST.1", id="base"),
+        pytest.param("-z -p", 4, 3, "0.3.DIST.1", id="prerelease"),
+        pytest.param("-z -e foo", 4, 3, "3.foo.DIST.1", id="extraver"),
+        pytest.param("-z -s 19700101", 4, 3, "3.19700101.DIST.1", id="snapinfo"),
+        pytest.param("-z", 1, 0, "0.DIST.1", id="fresh-version-or-no-prior-non-z-use"),
+        pytest.param("", 6, 0, "6.DIST", id="without-z-is-unaffected"),
+    ),
+)
+def test_autorelease_z(flags, release_number, z_base, expected):
+    rpm_result = (
+        subprocess.check_output(
+            (
+                "rpm",
+                # `rpm --load ...` needs at least rpm-4.15
+                "--macros",
+                str(MACROS_FILE.absolute()),
+                "--define",
+                "%dist .DIST",
+                "--define",
+                f"_rpmautospec_release_number {release_number}",
+                "--define",
+                f"_rpmautospec_release_number_z_base {z_base}",
+                "--eval",
+                f"%autorelease {flags}".strip(),
+            )
+        )
+        .decode("UTF-8")
+        .strip()
+    )
+
+    assert rpm_result == expected
+
+
 @pytest.mark.parametrize("epoch", (None, 2))
 @pytest.mark.parametrize("packager", (None, "Foo Bar <foo@bar.com>"))
 def test_autochangelog(packager, epoch):

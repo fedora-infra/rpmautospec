@@ -1065,7 +1065,7 @@ requires-dist = [
     { name = "pygit2", marker = "python_full_version >= '3.10' and python_full_version < '4' and extra == 'pygit2'", specifier = ">=1.4.0,<2.0.0" },
     { name = "rpm", marker = "extra == 'all'" },
     { name = "rpm", marker = "extra == 'rpm'" },
-    { name = "rpmautospec-core", specifier = ">=0.1.4,<1.0.0" },
+    { name = "rpmautospec-core", git = "https://github.com/hroncok/rpmautospec-core.git?branch=zstream" },
 ]
 provides-extras = ["click", "pygit2", "rpm", "norpm", "all"]
 
@@ -1098,12 +1098,8 @@ test = [
 
 [[package]]
 name = "rpmautospec-core"
-version = "0.2.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/db/29/5f8c98ce001fe7f09808059f55a2c534e9bd9d97599aaebd168d3b11fea7/rpmautospec_core-0.2.0.tar.gz", hash = "sha256:bb2f0e8c2cc9b9f8129399fca81abe361423111913b114b366286711a4787597", size = 9181, upload-time = "2026-07-28T11:43:41.848Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e8/30/8e71f9176cc025b7baf3798c14cb5b0d73f9cbed023e17ce8d8c71227ab0/rpmautospec_core-0.2.0-py3-none-any.whl", hash = "sha256:20168fbb019bf22cfcf35fa11b43345663c82e2d6452eea337e7ecb14c79b085", size = 5144, upload-time = "2026-07-28T11:43:42.665Z" },
-]
+version = "0.3.0"
+source = { git = "https://github.com/hroncok/rpmautospec-core.git?branch=zstream#191d0327ba32eb66a3865ecb3a70be6e7813db7c" }
 
 [[package]]
 name = "ruff"

@@ -23,7 +23,7 @@ maintainers = [
 ]
 readme = "README.rst"
 requires-python = "<4.0,>=3.9"
-dependencies = ["rpmautospec-core<1.0.0,>=0.1.4"]
+dependencies = ["rpmautospec-core<1.0.0,>=0.3.0"]
 
 [project.optional-dependencies]
 click = ["click<9,>=8"]
@@ -73,6 +73,11 @@ repository = "https://github.com/fedora-infra/rpmautospec"
 
 [project.scripts]
 rpmautospec = "rpmautospec.cli:cli"
+
+# TEMPORARY, for CI-testing https://github.com/fedora-infra/rpmautospec-core/pull/96
+# When removing, rerun uv lock as well.
+[tool.uv.sources]
+rpmautospec-core = { git = "https://github.com/hroncok/rpmautospec-core.git", branch = "zstream" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["rpmautospec"]

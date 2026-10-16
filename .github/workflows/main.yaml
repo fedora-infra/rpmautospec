@@ -66,6 +66,10 @@ jobs:
             fedver: latest
           - toxenv: py314-all-extras
             fedver: latest
+          - toxenv: py315
+            fedver: latest
+          - toxenv: py315-all-extras
+            fedver: latest
             extrapkgs: libgit2-devel
     runs-on: ubuntu-latest
     container: "fedorapython/fedora-python-tox:${{ matrix.fedver }}"

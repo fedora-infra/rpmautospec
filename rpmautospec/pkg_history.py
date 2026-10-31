@@ -53,6 +53,7 @@ class PkgHistoryProcessor:
         _S(?P<snapinfo>[^_]*)
         _P(?P<prerelease>[01])
         _B(?P<base>\d*)
+        _Z(?P<zflag>[01])
         (?P<suffix>.*)$""",
         re.VERBOSE,
     )
@@ -164,6 +165,7 @@ class PkgHistoryProcessor:
                 base = int(base)
             else:
                 base = 1
+            zflag = match.group("zflag") == "1"
             # Literal text surrounding the %autorelease flags token in the Release tag value, e.g.:
             #   "3%{?dist}.%{autorelease -n}" -> "3." and ""
             #   "%{autorelease -n}.ABC%{?dist}" -> "" and ".ABC"
@@ -171,6 +173,7 @@ class PkgHistoryProcessor:
             release_suffix = match.group("suffix")
         else:
             extraver = snapinfo = prerelease = base = None
+            zflag = False
             release_prefix = release_suffix = ""
 
         result = {
@@ -179,6 +182,7 @@ class PkgHistoryProcessor:
             "snapinfo": snapinfo,
             "prerelease": prerelease,
             "base": base,
+            "zflag": zflag,
             "release-prefix": release_prefix,
             "release-suffix": release_suffix,
         }
@@ -234,12 +238,14 @@ class PkgHistoryProcessor:
             if base is None:
                 base = 1
             tag_string = "".join(f".{t}" for t in (verflags["extraver"], verflags["snapinfo"]) if t)
+            zflag = verflags["zflag"]
             release_prefix = verflags["release-prefix"]
             release_suffix = verflags["release-suffix"]
         else:
             epoch_version = prerelease = None
             base = 1
             tag_string = ""
+            zflag = False
             release_prefix = release_suffix = ""
 
         if not epoch_version:
@@ -274,40 +280,85 @@ class PkgHistoryProcessor:
             ", ".join(str(res["release-number"]) if res else "none" for res in parent_results),
         )
 
+        def epoch_version_matches(res: dict[str, Any]) -> bool:
+            # Paper over gaps in epoch-versions, these could be simple syntax errors in the spec
+            # file, or a retired, then unretired package.
+            return (
+                epoch_version is None
+                or res["epoch-version"] is None
+                or epoch_version == res["epoch-version"]
+            )
+
         # Find the maximum applicable parent release number and increment by one if the
         # epoch-version can be parsed from the spec file.
         parent_release_numbers = tuple(
-            (
-                res["release-number"]
-                if res
-                and (
-                    # Paper over gaps in epoch-versions, these could be simple syntax errors in
-                    # the spec file, or a retired, then unretired package.
-                    epoch_version is None
-                    or res["epoch-version"] is None
-                    or epoch_version == res["epoch-version"]
-                )
-                else 0
-            )
+            res["release-number"] if res and epoch_version_matches(res) else 0
             for res in parent_results
         )
-        release_number = max(parent_release_numbers, default=0)
+        baseline_release_number = max(parent_release_numbers, default=0)
+        release_number = baseline_release_number
 
         if self.specfile.name in commit.tree:
             release_number += 1
 
-        release_number = max(release_number, commit_result["magic-comment-result"].bump_release)
+        bump_release = commit_result["magic-comment-result"].bump_release
+        if not zflag:
+            # With -z active, the bump applies to z-base below instead (the "before-the-dist"
+            # portion, same as without -z), not to this raw, ever-increasing counter.
+            release_number = max(release_number, bump_release)
 
         commit_result["release-number"] = release_number
 
         log.debug("\trelease_number: %s", release_number)
 
+        # -z freezes the release number achieved so far (in "z-base", the "before-the-dist"
+        # <pkgrel> portion) and starts counting a new, separate "minorbump" number from 1, from
+        # the commit where -z first appears onward. If a parent also used -z (continuing the same
+        # run), inherit its frozen z-base and continue counting from its minorbump number instead
+        # of recomputing either from scratch, so they stay consistent for the whole run.
+        #
+        # minorbump-number is tracked independently of release-number (rather than derived from
+        # it) so that [bump release: N] -- which applies to z-base, the same "before-the-dist"
+        # portion it applies to without -z -- never perturbs it.
+        if zflag:
+            continuing = tuple(
+                res
+                for res in parent_results
+                if res and res.get("zflag") and epoch_version_matches(res)
+            )
+            if continuing:
+                z_base = max(res["z-base"] for res in continuing)
+                minorbump_number = max(res["minorbump-number"] for res in continuing) + 1
+            else:
+                z_base = baseline_release_number
+                minorbump_number = 1
+            z_base = max(z_base, bump_release)
+        else:
+            z_base = None
+            minorbump_number = None
+
+        commit_result["zflag"] = zflag
+        commit_result["z-base"] = z_base
+        commit_result["minorbump-number"] = minorbump_number
+
+        log.debug("\tzflag: %s, z-base: %s, minorbump-number: %s", zflag, z_base, minorbump_number)
+
         prerel_str = "0." if prerelease else ""
         release_number_with_base = release_number + base - 1
+
         # Same pattern as used in run()
-        commit_result["release-complete"] = (
-            f"{release_prefix}{prerel_str}{release_number_with_base}{tag_string}{release_suffix}"
-        )
+        if zflag:
+            # -b applies to the frozen number (it fills the <pkgrel> slot), never to the counted
+            # <minorbump> number after it.
+            z_base_with_base = z_base + base - 1
+            commit_result["release-complete"] = (
+                f"{release_prefix}{prerel_str}{z_base_with_base}{tag_string}"
+                f".{minorbump_number}{release_suffix}"
+            )
+        else:
+            commit_result["release-complete"] = (
+                f"{release_prefix}{prerel_str}{release_number_with_base}{tag_string}{release_suffix}"
+            )
 
         yield commit_result
 
@@ -729,6 +780,7 @@ class PkgHistoryProcessor:
                     "extraver": None,
                     "snapinfo": None,
                     "base": 1,
+                    "zflag": False,
                     "release-prefix": "",
                     "release-suffix": "",
                 }
@@ -736,7 +788,13 @@ class PkgHistoryProcessor:
             # Mimic the bottom half of release_number_visitor
             worktree_result["verflags"] = verflags
             worktree_result["epoch-version"] = epoch_version = verflags["epoch-version"]
-            if head_result and epoch_version == head_result["epoch-version"]:
+            epoch_version_continues = (
+                bool(head_result) and epoch_version == head_result["epoch-version"]
+            )
+            baseline_release_number = (
+                head_result["release-number"] if epoch_version_continues else 0
+            )
+            if epoch_version_continues:
                 release_number = head_result["release-number"] + 1
             else:
                 release_number = 1
@@ -750,10 +808,36 @@ class PkgHistoryProcessor:
             release_number_with_base = release_number + base - 1
             release_prefix = verflags["release-prefix"]
             release_suffix = verflags["release-suffix"]
+
+            zflag = verflags["zflag"]
+            if zflag:
+                if epoch_version_continues and head_result.get("zflag"):
+                    z_base = head_result["z-base"]
+                    minorbump_number = head_result["minorbump-number"] + 1
+                else:
+                    z_base = baseline_release_number
+                    minorbump_number = 1
+            else:
+                z_base = None
+                minorbump_number = None
+            worktree_result["zflag"] = zflag
+            worktree_result["z-base"] = z_base
+            worktree_result["minorbump-number"] = minorbump_number
+
             # Same pattern as used at the bottom of release_number_visitor()
-            worktree_result["release-complete"] = release_complete = (
-                f"{release_prefix}{prerel_str}{release_number_with_base}{tag_string}{release_suffix}"
-            )
+            if zflag:
+                # -b applies to the frozen number (it fills the <pkgrel> slot), never to the
+                # counted <minorbump> number after it.
+                z_base_with_base = z_base + base - 1
+                worktree_result["release-complete"] = release_complete = (
+                    f"{release_prefix}{prerel_str}{z_base_with_base}{tag_string}"
+                    f".{minorbump_number}{release_suffix}"
+                )
+            else:
+                worktree_result["release-complete"] = release_complete = (
+                    f"{release_prefix}{prerel_str}{release_number_with_base}{tag_string}"
+                    f"{release_suffix}"
+                )
 
             # Mimic the bottom half of the changelog visitor for a generic entry
             if not self.specfile.exists():

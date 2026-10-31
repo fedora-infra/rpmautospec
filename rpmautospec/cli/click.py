@@ -13,7 +13,7 @@ from ..subcommands.convert import (
     SpecialFileError,
 )
 from ..subcommands.process_distgit import do_process_distgit
-from ..subcommands.release import do_calculate_release
+from ..subcommands.release import do_calculate_release, do_calculate_release_number_and_z_base
 from ..util import handle_expected_exceptions
 from . import pager
 from .base import setup_logging
@@ -163,17 +163,40 @@ def process_distgit(obj: dict[str, Any], spec_or_path: str, target: str) -> None
     + " number",
     show_default=True,
 )
+@click.option(
+    "--z-base",
+    is_flag=True,
+    default=False,
+    help="Print both the calculated release number and the release number that %autorelease -z"
+    + " measures from (0 if -z isn't in use), to be passed into the real %autorelease macro as"
+    + " %_rpmautospec_release_number and %_rpmautospec_release_number_z_base, respectively."
+    + " Build tooling must define both macros together before building, since it can generally"
+    + " not tell upfront whether -z is actually in use. Overrides"
+    + " --complete-release/--number-only.",
+)
 @click.argument("spec_or_path", type=click.Path(), default=".")
 @click.pass_obj
 @handle_expected_exceptions
-def calculate_release(obj: dict[str, Any], complete_release: bool, spec_or_path: str) -> None:
+def calculate_release(
+    obj: dict[str, Any], complete_release: bool, z_base: bool, spec_or_path: str
+) -> None:
     """Calculate the next release tag for a package build"""
     try:
-        release = do_calculate_release(
-            spec_or_path,
-            complete_release=complete_release,
-            error_on_unparseable_spec=obj["error_on_unparseable_spec"],
-        )
+        if z_base:
+            release_number, z_base_number = do_calculate_release_number_and_z_base(
+                spec_or_path,
+                error_on_unparseable_spec=obj["error_on_unparseable_spec"],
+            )
+        else:
+            release = do_calculate_release(
+                spec_or_path,
+                complete_release=complete_release,
+                error_on_unparseable_spec=obj["error_on_unparseable_spec"],
+            )
     except SpecParseFailure as exc:
         raise click.ClickException(exc.args[0]) from exc
-    print("Calculated release number:", release)
+    if z_base:
+        print("Calculated release number:", release_number)
+        print("Calculated z-base number:", z_base_number)
+    else:
+        print("Calculated release number:", release)

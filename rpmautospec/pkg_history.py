@@ -344,21 +344,13 @@ class PkgHistoryProcessor:
         log.debug("\tzflag: %s, z-base: %s, minorbump-number: %s", zflag, z_base, minorbump_number)
 
         prerel_str = "0." if prerelease else ""
-        release_number_with_base = release_number + base - 1
-
         # Same pattern as used in run()
-        if zflag:
-            # -b applies to the frozen number (it fills the <pkgrel> slot), never to the counted
-            # <minorbump> number after it.
-            z_base_with_base = z_base + base - 1
-            commit_result["release-complete"] = (
-                f"{release_prefix}{prerel_str}{z_base_with_base}{tag_string}"
-                f".{minorbump_number}{release_suffix}"
-            )
-        else:
-            commit_result["release-complete"] = (
-                f"{release_prefix}{prerel_str}{release_number_with_base}{tag_string}{release_suffix}"
-            )
+        pkgrel_with_base = (z_base if zflag else release_number) + base - 1
+        minorbump_suffix = f".{minorbump_number}" if zflag else ""
+        commit_result["release-complete"] = (
+            f"{release_prefix}{prerel_str}{pkgrel_with_base}{tag_string}"
+            f"{minorbump_suffix}{release_suffix}"
+        )
 
         yield commit_result
 
@@ -805,7 +797,6 @@ class PkgHistoryProcessor:
             base = verflags["base"]
             if base is None:
                 base = 1
-            release_number_with_base = release_number + base - 1
             release_prefix = verflags["release-prefix"]
             release_suffix = verflags["release-suffix"]
 
@@ -825,19 +816,12 @@ class PkgHistoryProcessor:
             worktree_result["minorbump-number"] = minorbump_number
 
             # Same pattern as used at the bottom of release_number_visitor()
-            if zflag:
-                # -b applies to the frozen number (it fills the <pkgrel> slot), never to the
-                # counted <minorbump> number after it.
-                z_base_with_base = z_base + base - 1
-                worktree_result["release-complete"] = release_complete = (
-                    f"{release_prefix}{prerel_str}{z_base_with_base}{tag_string}"
-                    f".{minorbump_number}{release_suffix}"
-                )
-            else:
-                worktree_result["release-complete"] = release_complete = (
-                    f"{release_prefix}{prerel_str}{release_number_with_base}{tag_string}"
-                    f"{release_suffix}"
-                )
+            pkgrel_with_base = (z_base if zflag else release_number) + base - 1
+            minorbump_suffix = f".{minorbump_number}" if zflag else ""
+            worktree_result["release-complete"] = release_complete = (
+                f"{release_prefix}{prerel_str}{pkgrel_with_base}{tag_string}"
+                f"{minorbump_suffix}{release_suffix}"
+            )
 
             # Mimic the bottom half of the changelog visitor for a generic entry
             if not self.specfile.exists():

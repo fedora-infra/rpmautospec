@@ -165,6 +165,7 @@ def process_distgit(obj: dict[str, Any], spec_or_path: str, target: str) -> None
 )
 @click.option(
     "--z-base",
+    "show_z_base",
     is_flag=True,
     default=False,
     help="Print both the calculated release number and the release number that %autorelease -z"
@@ -178,12 +179,12 @@ def process_distgit(obj: dict[str, Any], spec_or_path: str, target: str) -> None
 @click.pass_obj
 @handle_expected_exceptions
 def calculate_release(
-    obj: dict[str, Any], complete_release: bool, z_base: bool, spec_or_path: str
+    obj: dict[str, Any], complete_release: bool, show_z_base: bool, spec_or_path: str
 ) -> None:
     """Calculate the next release tag for a package build"""
     try:
-        if z_base:
-            release_number, z_base_number = do_calculate_release_number_and_z_base(
+        if show_z_base:
+            release_number, z_base = do_calculate_release_number_and_z_base(
                 spec_or_path,
                 error_on_unparseable_spec=obj["error_on_unparseable_spec"],
             )
@@ -195,8 +196,8 @@ def calculate_release(
             )
     except SpecParseFailure as exc:
         raise click.ClickException(exc.args[0]) from exc
-    if z_base:
+    if show_z_base:
         print("Calculated release number:", release_number)
-        print("Calculated z-base number:", z_base_number)
+        print("Calculated z-base number:", z_base)
     else:
         print("Calculated release number:", release)

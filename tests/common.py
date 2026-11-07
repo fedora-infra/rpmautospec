@@ -162,7 +162,15 @@ Test
 
 
 def create_tagged_repo(
-    tmp_path, name="pkg", version="1.0", commits=None, tags=None, base=None, autorelease_opts=""
+    tmp_path,
+    name="pkg",
+    version="1.0",
+    commits=None,
+    tags=None,
+    base=None,
+    autorelease_opts="",
+    autochangelog_opts=None,
+    release_value=None,
 ):
     """Create a git repo with commits and optional tags for tag-based tests.
 
@@ -171,6 +179,11 @@ def create_tagged_repo(
     :param tags: list of (tag_name, commit_index) tuples.
     :param base: if set, uses %autorelease -b N in the spec.
     :param autorelease_opts: additional %autorelease options (e.g. "-p -e rc1").
+    :param autochangelog_opts: if set, the spec ends in a ``%changelog`` section with an
+        ``%autochangelog`` line carrying these options (e.g. "-m tagged-only -d highest").
+    :param release_value: if set, the value of the ``Release:`` tag as is, for specs that put text
+        around the macro (e.g. ``3.%{autorelease}``); ``base`` and ``autorelease_opts`` are then
+        ignored.
     :return: (repo_path, list of commit oids)
     """
     if commits is None:
@@ -188,7 +201,7 @@ def create_tagged_repo(
         parts.append(f"-b {base}")
     if autorelease_opts:
         parts.append(autorelease_opts)
-    release_macro = " ".join(parts)
+    release_macro = release_value or " ".join(parts)
 
     for i, item in enumerate(commits):
         if isinstance(item, tuple):
@@ -200,6 +213,11 @@ def create_tagged_repo(
         spec.write_text(
             f"Name: {name}\nVersion: {version}\nRelease: {release_macro}\n"
             "Summary: Test package\n\nLicense: MIT\n\n%description\nTest\n"
+            + (
+                f"\n%changelog\n%autochangelog {autochangelog_opts}\n"
+                if autochangelog_opts is not None
+                else ""
+            )
         )
         index = repo.index
         index.add(f"{name}.spec")

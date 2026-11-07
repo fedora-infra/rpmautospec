@@ -21,7 +21,7 @@ RPMAUTOSPEC_TEMPLATE = """## START: Set by rpmautospec
 """
 
 AUTORELEASE_TEMPLATE = """
-%define autorelease(e:s:pb:n) %{{?-p:0.}}%{{?expr:%[{autorelease_number:d} + %{{?-b*}}%{{!?-b:1}} - 1]}}%{{!?expr:%{{lua:
+%define autorelease(e:s:pb:n) %{{?-p:0.}}%{{?rpmversion:%[{autorelease_number:d} + %{{?-b*}}%{{!?-b:1}} - 1]}}%{{!?rpmversion:%{{lua:
     release_number = {autorelease_number:d};
     base_release_number = tonumber(rpm.expand("%{{?-b*}}%{{!?-b:1}}"));
     print(release_number + base_release_number - 1);
@@ -35,8 +35,8 @@ def do_process_distgit(
     enable_caching: bool = True,
     error_on_unparseable_spec: bool = True,
     git_tag_namespace: Optional[str] = None,
-    changelog_mode: str = "accumulated",
-    changelog_use_highest_release_tag: bool = False,
+    changelog_mode: Optional[str] = None,
+    changelog_use_highest_release_tag: Optional[bool] = None,
 ) -> bool:
     """Process an RPM spec file in a distgit repository.
 
@@ -45,6 +45,13 @@ def do_process_distgit(
         should be cached (disable in long-running processes)
     :param error_on_unparseable_spec: Whether or not failure at parsing
         the current spec file should raise an exception.
+    :param git_tag_namespace: if set, derive the release and changelog from git tags in this
+        namespace
+    :param changelog_mode: "walk", "accumulated", "tagged-only", "mixed-accumulated" or
+        "mixed-tagged-only", None for the default
+        (accumulated with a git tag namespace, walk otherwise); ``%autochangelog -m`` wins
+    :param changelog_use_highest_release_tag: pick highest vs lowest release per commit;
+        ``%autochangelog -d`` wins
     :return: whether or not the spec file needed processing
     """
     try:

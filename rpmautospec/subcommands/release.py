@@ -12,6 +12,8 @@ def do_calculate_release(
     complete_release: bool = True,
     error_on_unparseable_spec: bool = True,
     git_tag_namespace: Optional[str] = None,
+    changelog_mode: Optional[str] = None,
+    changelog_use_highest_release_tag: Optional[bool] = None,
 ) -> Union[str, int]:
     """Calculate release value (or number) of a package.
 
@@ -21,6 +23,9 @@ def do_calculate_release(
     :param error_on_unparseable_spec: Whether or not failure at parsing
         the current spec file should raise an exception.
     :param git_tag_namespace: If set, derive release from git tags in this namespace.
+    :param changelog_mode: The changelog mode, None for the default. The mixed modes count the
+        release differently from the others.
+    :param changelog_use_highest_release_tag: Pick highest vs lowest release per commit.
     :return: the release value or number
     """
     try:
@@ -31,6 +36,8 @@ def do_calculate_release(
     result = processor.run(
         visitors=(processor.release_number_visitor,),
         git_tag_namespace=git_tag_namespace,
+        changelog_mode=changelog_mode,
+        changelog_use_highest_release_tag=changelog_use_highest_release_tag,
     )
     error = result["verflags"].get("error")
     if error and error_on_unparseable_spec:
@@ -45,6 +52,7 @@ def do_calculate_release_number(
     spec_or_path: Union[str, Path],
     *,
     error_on_unparseable_spec: bool = True,
+    git_tag_namespace: Optional[str] = None,
 ) -> int:
     """Calculate release number of a package.
 
@@ -54,8 +62,13 @@ def do_calculate_release_number(
     :param spec_or_path: The spec file or directory it is located in.
     :param error_on_unparseable_spec: Whether or not failure at parsing
         the current spec file should raise an exception.
+    :param git_tag_namespace: If set, derive release from git tags in this namespace. Needed if
+        the spec file asks for tags with ``%autochangelog -m`` or ``-d highest``.
     :return: the release number
     """
     return do_calculate_release(
-        spec_or_path, complete_release=False, error_on_unparseable_spec=error_on_unparseable_spec
+        spec_or_path,
+        complete_release=False,
+        error_on_unparseable_spec=error_on_unparseable_spec,
+        git_tag_namespace=git_tag_namespace,
     )

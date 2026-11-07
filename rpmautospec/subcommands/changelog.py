@@ -21,8 +21,8 @@ def do_generate_changelog(
     *,
     error_on_unparseable_spec: bool = True,
     git_tag_namespace: Optional[str] = None,
-    changelog_mode: str = "accumulated",
-    changelog_use_highest_release_tag: bool = False,
+    changelog_mode: Optional[str] = None,
+    changelog_use_highest_release_tag: Optional[bool] = None,
 ) -> str:
     try:
         processor = PkgHistoryProcessor(spec_or_path)

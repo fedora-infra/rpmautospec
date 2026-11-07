@@ -3,16 +3,19 @@ import logging
 import re
 import stat
 from collections import defaultdict
+from contextlib import contextmanager
 from functools import reduce
 from pathlib import Path, PurePath
 from shutil import SpecialFileError
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Collection, Iterator, Optional, Sequence, Union
 
+from rpmautospec_core import autochangelog_re, check_specfile_features
 from rpmautospec_core.nvr_util import NVR, epoch_version, parse_namespaced_nvr
 
 from .changelog import ChangelogEntry
 from .compat import BlobIO, pygit2, rpm
+from .exc import SpecParseFailure
 from .magic_comments import parse_magic_comments
 from .specparser import AutoSpecParser, SpecParserError
 
@@ -46,6 +49,11 @@ def _checkout_tree_files(
                 with BlobIO(entry, as_path=str(relpath), commit_id=commit.id) as f:
                     fpath.write_bytes(f.read())
                 fpath.chmod(stat.S_IMODE(entry.filemode))
+
+
+CHANGELOG_MODES = ("walk", "accumulated", "tagged-only", "mixed-accumulated", "mixed-tagged-only")
+TAG_CHANGELOG_MODES = tuple(mode for mode in CHANGELOG_MODES if mode != "walk")
+CHANGELOG_DUPLICATES = ("lowest", "highest")
 
 
 def _base_release(verflags: dict) -> int:
@@ -107,6 +115,9 @@ class PkgHistoryProcessor:
 
         self._rpmverflags_for_commits = {}
         self._tags_by_namespace: dict[str, dict[str, list[NVR]]] = {}
+        # Map of mixed-mode terminator commits -> release number
+        # (see _run_mixed())
+        self._stop_commits: dict[str, int] = {}
 
     def get_tags_for_namespace(self, namespace: str) -> dict:
         """Get all git tags under the namespace and parse their N-V-Rs.
@@ -150,6 +161,134 @@ class PkgHistoryProcessor:
 
         self._tags_by_namespace[namespace] = result
         return result
+
+    def _get_changelog_flags(self) -> dict[str, Optional[str]]:
+        """Get the ``-m`` and ``-d`` options of ``%autochangelog`` from the spec file.
+
+        ``-m`` takes one of CHANGELOG_MODES, ``-d`` lowest or highest.
+
+        The first line that rpmautospec_core recognizes as ``%autochangelog`` is looked at, bare
+        (``%autochangelog -m x``) or braced (``%{autochangelog -m x}``). ``%{?autochangelog}`` takes
+        none, as rpm drops arguments given in that form.
+
+        :return: dict with the keys ``mode`` and ``duplicate``, None for options not set
+        :raises SpecParseFailure: if an option or its value is unknown, or options are given to
+            ``%{?autochangelog}``
+        """
+        flags = {"mode": None, "duplicate": None}
+        if not self.specfile.exists():
+            return flags
+
+        # The line is the one rpmautospec_core found, counted the way it reads the file.
+        lineno = check_specfile_features(self.specfile, enable_caching=False).autochangelog_lineno
+        if lineno is None:
+            return flags
+        line = self.specfile.read_text(encoding="utf-8", errors="surrogateescape").split("\n")[
+            lineno - 1
+        ]
+        match = autochangelog_re.match(line)
+
+        macro = match.group().lstrip()
+        if macro.startswith("%{"):
+            conditional = macro.startswith("%{?")
+            rest = macro[:-1].split("autochangelog", 1)[1]
+        else:
+            conditional = False
+            rest = line[match.end() :]
+        words = rest.split() if rest[:1].isspace() else []
+        if conditional and words:
+            raise SpecParseFailure(
+                "Options are ignored by rpm in %{?autochangelog ...}, use %autochangelog or "
+                "%{autochangelog ...}",
+                code="changelog-option-invalid",
+            )
+
+        args = iter(words)
+        for arg in args:
+            if arg == "--":
+                break
+            if len(arg) < 2 or arg[0] != "-":
+                continue
+            option, value = arg[:2], arg[2:] or next(args, "")
+            if option == "-m":
+                key, allowed = "mode", CHANGELOG_MODES
+            elif option == "-d":
+                key, allowed = "duplicate", CHANGELOG_DUPLICATES
+            else:
+                raise SpecParseFailure(
+                    f"Unknown option {arg!r} to %autochangelog, allowed are -m and -d",
+                    code="changelog-option-invalid",
+                )
+            if value not in allowed:
+                raise SpecParseFailure(
+                    f"Invalid value {value!r} for {option} of %autochangelog, allowed are: "
+                    + ", ".join(allowed),
+                    code="changelog-option-invalid",
+                )
+            flags[key] = value
+
+        return flags
+
+    @staticmethod
+    def _resolve_changelog_options(
+        flags: dict[str, Optional[str]],
+        git_tag_namespace: Optional[str],
+        changelog_mode: Optional[str],
+        changelog_use_highest_release_tag: Optional[bool],
+    ) -> tuple[str, bool]:
+        """Decide how the release and changelog get generated.
+
+        Options in the spec file override CLI arguments.
+
+        Without a git tag namespace there are no tags to work with so the history is
+        walked. A spec file that asks for tags is an error, CLI calls that do are
+        ignored with a warning.
+
+        :param flags: the options from the spec file, see _get_changelog_flags()
+        :param git_tag_namespace: the namespace to filter git tags on, if any
+        :param changelog_mode: one of CHANGELOG_MODES, None for the default
+            (accumulated with a git tag namespace, walk otherwise)
+        :param changelog_use_highest_release_tag: pick highest vs lowest release per commit
+        :return: the mode (one of CHANGELOG_MODES) and whether to use the highest
+            release tag per commit
+        :raises SpecParseFailure: if the spec file asks for tags without a git tag namespace
+        :raises ValueError: if changelog_mode is unknown
+        """
+        if changelog_mode not in (None, *CHANGELOG_MODES):
+            raise ValueError(
+                f"Unknown changelog mode {changelog_mode!r}, allowed are: "
+                + ", ".join(CHANGELOG_MODES)
+            )
+
+        mode = flags["mode"] or changelog_mode
+        if flags["duplicate"]:
+            use_highest = flags["duplicate"] == "highest"
+        else:
+            use_highest = bool(changelog_use_highest_release_tag)
+
+        if not git_tag_namespace:
+            # Walk can process w/o tag namespace; all tag modes need one
+            if mode in TAG_CHANGELOG_MODES:
+                if flags["mode"]:
+                    raise SpecParseFailure(
+                        f"%autochangelog -m {mode} needs a git tag namespace",
+                        code="changelog-mode-without-namespace",
+                    )
+                log.warning(
+                    "Changelog mode %s needs a git tag namespace, walking the history", mode
+                )
+            if use_highest:
+                if flags["duplicate"]:
+                    raise SpecParseFailure(
+                        "%autochangelog -d highest needs a git tag namespace",
+                        code="changelog-duplicate-without-namespace",
+                    )
+                log.warning("The highest release tag needs a git tag namespace, ignoring it")
+            mode, use_highest = "walk", False
+        elif mode is None:
+            mode = "accumulated"
+
+        return mode, use_highest
 
     @staticmethod
     def _get_rpm_packager() -> str:
@@ -284,12 +423,8 @@ class PkgHistoryProcessor:
 
         if "error" not in verflags:
             epoch_version = verflags["epoch-version"]
-            base = verflags["base"]
-            if base is None:
-                base = 1
         else:
             epoch_version = None
-            base = 1
 
         if not epoch_version:
             child_must_continue = True
@@ -305,6 +440,11 @@ class PkgHistoryProcessor:
                 child_must_continue = (
                     epoch_version in epoch_versions_to_check or epoch_version is None
                 )
+
+        stop_release = self._stop_commits.get(str(commit.id))
+        if stop_release is not None:
+            # Mixed mode switches behaviors at a tagged commit
+            child_must_continue = False
 
         log.debug("\tepoch_version: %s", epoch_version)
         log.debug("\tchild must continue: %s", child_must_continue)
@@ -346,6 +486,9 @@ class PkgHistoryProcessor:
             release_number += 1
 
         release_number = max(release_number, commit_result["magic-comment-result"].bump_release)
+
+        if stop_release is not None:
+            release_number = stop_release
 
         commit_result["release-number"] = release_number
 
@@ -393,26 +536,19 @@ class PkgHistoryProcessor:
             changelog_changed = bool(changelog_blob)
 
         # Establish which parent to follow (if any, and if we can).
-        parent_to_follow = None
-        merge_unresolvable = False
-        if len(commit.parents) < 2:
-            if commit.parents:
-                parent_to_follow = commit.parents[0]
-        else:
-            for parent in commit.parents:
-                if commit.tree == parent.tree:
-                    # Merge done with strategy "ours" or equivalent, i.e. (at least) one parent has
-                    # the same content. Follow this parent
-                    parent_to_follow = parent
-                    break
-            else:
-                # Didn't break out of loop => no parent with same tree found. If the changelog
-                # is different from all parents, it was updated in the merge commit and we don't
-                # care. If it didn't change, we don't know how to continue and need to flag that.
-                merge_unresolvable = not changelog_changed
+        parent_to_follow = self._parent_to_follow(commit)
+        # No parent with the same tree found for a merge: if the changelog is different from all
+        # parents, it was updated in the merge commit and we don't care. If it didn't change, we
+        # don't know how to continue and need to flag that.
+        merge_unresolvable = (
+            len(commit.parents) > 1 and parent_to_follow is None and not changelog_changed
+        )
 
+        at_stop_commit = str(commit.id) in self._stop_commits
         our_child_must_continue = (
-            not (changelog_changed and changelog_blob or merge_unresolvable) and child_must_continue
+            not (changelog_changed and changelog_blob or merge_unresolvable)
+            and child_must_continue
+            and not at_stop_commit
         )
 
         log.debug("\tchangelog changed: %s", changelog_changed)
@@ -479,6 +615,10 @@ class PkgHistoryProcessor:
             else:
                 commit_result["changelog"] = previous_changelog
 
+        if at_stop_commit:
+            # Mixed mode switchover to tagged behaviors
+            commit_result["changelog"] = ()
+
         yield commit_result
 
     @staticmethod
@@ -498,6 +638,18 @@ class PkgHistoryProcessor:
                 else:
                     raise KeyError(f"Unknown information key: {k}")
         return mf
+
+    @contextmanager
+    def _stopping_at(self, stop_commits: dict[str, int]) -> Iterator[None]:
+        """Make the visitors end the walk at these commits, with the release number given for them.
+
+        :param stop_commits: dict mapping the hex sha of each commit to stop at to its release
+        """
+        self._stop_commits = stop_commits
+        try:
+            yield
+        finally:
+            self._stop_commits = {}
 
     def _run_on_history(
         self,
@@ -742,6 +894,11 @@ class PkgHistoryProcessor:
         return f"{release_prefix}{prerel_str}{release_with_base}{tag_string}{release_suffix}"
 
     @staticmethod
+    def _newest_first(entries: Sequence[ChangelogEntry]) -> list[ChangelogEntry]:
+        """Sort changelog entries chronologically, newest first, as rpmbuild requires."""
+        return sorted(entries, key=lambda e: e["timestamp"], reverse=True)
+
+    @staticmethod
     def _make_changelog_entry(commit, version: str, release: str) -> ChangelogEntry:
         """Create a ChangelogEntry from a commit and version/release strings.
         :param commit: git commit whose message should be converted to a changelog entry
@@ -760,8 +917,32 @@ class PkgHistoryProcessor:
             }
         )
 
+    def _best_tags(
+        self,
+        namespace: str,
+        use_highest_release_tag: bool = False,
+        reachable: Optional[Collection[str]] = None,
+    ) -> dict[str, NVR]:
+        """Map each tagged commit to its lowest (or highest) release tag.
+
+        :param namespace: the git tag namespace to filter on
+        :param use_highest_release_tag: if True, use the highest release tag per commit;
+            otherwise use the lowest (first release)
+        :param reachable: if set, only tagged commits with these hex shas are listed
+        :return: dict mapping the hex sha of each tagged commit to its NVR
+        """
+        pick = max if use_highest_release_tag else min
+        return {
+            sha: pick(nvr_list, key=lambda n: int(n.release))
+            for sha, nvr_list in self.get_tags_for_namespace(namespace).items()
+            if reachable is None or sha in reachable
+        }
+
     def _changelog_from_tags(
-        self, namespace: str, use_highest_release_tag: bool = False
+        self,
+        namespace: str,
+        use_highest_release_tag: bool = False,
+        reachable: Optional[set[str]] = None,
     ) -> tuple[ChangelogEntry, ...]:
         """Generate changelog entries from git tags only, sorted by commit timestamp descending.
 
@@ -771,24 +952,15 @@ class PkgHistoryProcessor:
         :param namespace: the git tag namespace to filter on
         :param use_highest_release_tag: if True, use the highest release tag per commit;
             otherwise use the lowest (first release)
+        :param reachable: if set, only tagged commits with these hex shas are listed
         :return: tuple of ChangelogEntry dicts, newest first
         """
-        tags = self.get_tags_for_namespace(namespace)
-        if not tags:
-            return ()
-
-        pick = max if use_highest_release_tag else min
-        entries = []
-        for commit_hex, nvr_list in tags.items():
-            commit = self.repo.get(commit_hex)
-            best_nvr = pick(nvr_list, key=lambda n: int(n.release))
-            entries.append(
-                self._make_changelog_entry(commit, epoch_version(best_nvr), best_nvr.release)
-            )
-
+        entries = [
+            self._make_changelog_entry(self.repo.get(sha), epoch_version(nvr), nvr.release)
+            for sha, nvr in self._best_tags(namespace, use_highest_release_tag, reachable).items()
+        ]
         # Sort by time, not NVR, to avoid rpmbuild errors
-        entries.sort(key=lambda e: e["timestamp"], reverse=True)
-        return tuple(entries)
+        return tuple(self._newest_first(entries))
 
     def _release_from_tags(self, namespace: str, verflags: Optional[dict] = None) -> Optional[int]:
         """Compute release number from git tags in namespace and current version.
@@ -833,6 +1005,23 @@ class PkgHistoryProcessor:
             return max(highest_release + 1, base)
         return base
 
+    @staticmethod
+    def _attributed_items(commit) -> list[str]:
+        """The changelog items of a commit message, each followed by the author's name."""
+        author = commit.author.name
+        return [
+            f"{item} ({author})"
+            for item in ChangelogEntry.commitlog_to_changelog_items(commit.message)
+        ]
+
+    def _entry_with_messages(
+        self, anchor, version: str, release: str, messages: Sequence[str]
+    ) -> ChangelogEntry:
+        """A changelog entry for a commit whose log is the accumulated messages."""
+        entry = self._make_changelog_entry(anchor, version, release)
+        entry["commitlog"] = "\n".join(messages).rstrip()
+        return entry
+
     def _changelog_accumulated(
         self,
         namespace: str,
@@ -840,6 +1029,9 @@ class PkgHistoryProcessor:
         verflags: dict,
         tag_release: int,
         use_highest_release_tag: bool = False,
+        *,
+        start: Optional[pygit2.Commit] = None,
+        reachable: Optional[set[str]] = None,
     ) -> tuple[ChangelogEntry, ...]:
         """Generate changelog by walking history and grouping commits between tags.
 
@@ -863,15 +1055,14 @@ class PkgHistoryProcessor:
         :param verflags: pre-computed verflags for the spec
         :param tag_release: the computed next release number
         :param use_highest_release_tag: pick highest vs lowest release per commit
+        :param start: commit to start the walk at instead of ``head`` (a tagged commit below
+            commits that are handled otherwise)
+        :param reachable: if set, only tagged commits with these hex shas are used. Stops the
+            jump from an unresolvable merge from landing on another branch
         :return: tuple of ChangelogEntry, newest first
         """
-        tags = self.get_tags_for_namespace(namespace)
-        pick = max if use_highest_release_tag else min
-
         # Build commit -> best NVR lookup
-        tag_for_commit = {
-            sha: pick(nvr_list, key=lambda n: int(n.release)) for sha, nvr_list in tags.items()
-        }
+        tag_for_commit = self._best_tags(namespace, use_highest_release_tag, reachable)
 
         # Sort by timestamp, not N-V-R, to avoid rpmbuild errors
         tagged_by_time = sorted(
@@ -887,7 +1078,7 @@ class PkgHistoryProcessor:
         current_release = self._compose_release(tag_release, verflags)
         visited = set()
 
-        commit = head
+        commit = start or head
         while commit is not None:
             sha = str(commit.id)
             visited.add(sha)
@@ -896,13 +1087,10 @@ class PkgHistoryProcessor:
                 # New tag, finish current entry & start a new one
                 if current_messages:
                     entries.append(
-                        self._make_changelog_entry(
-                            current_anchor,
-                            current_version,
-                            current_release,
+                        self._entry_with_messages(
+                            current_anchor, current_version, current_release, current_messages
                         )
                     )
-                    entries[-1]["commitlog"] = "\n".join(current_messages).rstrip()
                 nvr = tag_for_commit[sha]
                 current_anchor = commit
                 current_version = epoch_version(nvr)
@@ -912,9 +1100,7 @@ class PkgHistoryProcessor:
                 else:
                     current_release = nvr.release
                 # Tagged commits always get their message (they were released)
-                items = ChangelogEntry.commitlog_to_changelog_items(commit.message)
-                author = commit.author.name
-                attributed = [f"{item} ({author})" for item in items]
+                attributed = self._attributed_items(commit)
                 current_messages = [attributed[0], ""]
                 if len(attributed) > 1:
                     current_messages.extend(f"- {item}" for item in attributed[1:])
@@ -922,11 +1108,8 @@ class PkgHistoryProcessor:
                 # Untagged commit: honour [skip changelog] unless it's HEAD
                 mc = parse_magic_comments(commit.message)
                 if not mc.skip_changelog or commit.id == head.id:
-                    items = ChangelogEntry.commitlog_to_changelog_items(commit.message)
-                    author = commit.author.name
-                    attributed = [f"{item} ({author})" for item in items]
                     first_message = not current_messages
-                    current_messages.extend(f"- {item}" for item in attributed)
+                    current_messages.extend(f"- {item}" for item in self._attributed_items(commit))
                     if first_message:
                         # Force a blank line so commitlog_to_changelog_items
                         # appends correctly
@@ -936,17 +1119,29 @@ class PkgHistoryProcessor:
 
         # Finalize last entry
         entries.append(
-            self._make_changelog_entry(
-                current_anchor,
-                current_version,
-                current_release,
+            self._entry_with_messages(
+                current_anchor, current_version, current_release, current_messages
             )
         )
-        entries[-1]["commitlog"] = "\n".join(current_messages).rstrip()
 
         # Sort chronologically to prevent rpmbuild errors
-        entries.sort(key=lambda e: e["timestamp"], reverse=True)
-        return tuple(entries)
+        return tuple(self._newest_first(entries))
+
+    @staticmethod
+    def _parent_to_follow(commit, skip: Collection[str] = ()) -> Optional[pygit2.Commit]:
+        """Find the parent to follow: the only parent, or in a merge the one with the same tree.
+
+        :param commit: the commit to find a parent of
+        :param skip: hex shas of the parents that are not to be followed
+        :return: the parent, or None if there is none to follow
+        """
+        if len(commit.parents) == 1:
+            candidates = commit.parents
+        else:
+            # Merge done with strategy "ours" or equivalent, i.e. (at least) one parent has the
+            # same content
+            candidates = [parent for parent in commit.parents if commit.tree == parent.tree]
+        return next((parent for parent in candidates if str(parent.id) not in skip), None)
 
     def _next_commit_for_walk(
         self,
@@ -968,17 +1163,9 @@ class PkgHistoryProcessor:
             # If we hit the repo root we're automatically done
             return None
 
-        if len(commit.parents) == 1:
-            p = commit.parents[0]
-            if str(p.id) not in visited:
-                return p
-            # Already visited; fall through to jump
-
-        else:
-            # Multiple parents: find same-tree parent
-            for parent in commit.parents:
-                if commit.tree == parent.tree and str(parent.id) not in visited:
-                    return parent
+        parent = self._parent_to_follow(commit, skip=visited)
+        if parent is not None:
+            return parent
 
         # We are working with divergent/detached/otherwise messy tree.
         # Instead of trying to guess the merge, just find/jump to next
@@ -990,6 +1177,18 @@ class PkgHistoryProcessor:
             if sha not in visited:
                 return self.repo.get(sha)
         return None
+
+    def _head_result(
+        self, head: pygit2.Commit, verflags: dict, release_number: int
+    ) -> dict[str, Any]:
+        """The result for HEAD, without its changelog."""
+        return {
+            "commit-id": head.id,
+            "verflags": verflags,
+            "epoch-version": verflags.get("epoch-version"),
+            "release-number": release_number,
+            "release-complete": self._compose_release(release_number, verflags),
+        }
 
     def _run_tagged(
         self,
@@ -1019,13 +1218,7 @@ class PkgHistoryProcessor:
         # with `_compose_release()` (and process_distgit's %autorelease), which adds `base - 1`.
         tag_release -= _base_release(verflags) - 1
 
-        head_result = {
-            "commit-id": head.id,
-            "verflags": verflags,
-            "epoch-version": verflags.get("epoch-version"),
-            "release-number": tag_release,
-            "release-complete": self._compose_release(tag_release, verflags),
-        }
+        head_result = self._head_result(head, verflags, tag_release)
 
         if changelog_mode == "tagged-only":
             historical = self._changelog_from_tags(
@@ -1070,6 +1263,133 @@ class PkgHistoryProcessor:
 
         return head_result
 
+    def _find_boundary(
+        self, head: pygit2.Commit, tags: dict
+    ) -> tuple[set[str], Optional[pygit2.Commit]]:
+        """Find the nearest and newest tagged commit below HEAD.
+
+        :param head: the HEAD commit
+        :param tags: the tagged commits, see get_tags_for_namespace()
+        :return: the hex shas of the commits reachable from HEAD, and the tagged commit, None if
+            there is none
+        """
+        reachable = set()
+        boundary = None
+        # Children come before their parents, newer commits first, so the first tagged commit is
+        # the nearest and newest one and not an arbitrary one of several.
+        for commit in self.repo.walk(
+            head.id, pygit2.enums.SortMode.TOPOLOGICAL | pygit2.enums.SortMode.TIME
+        ):
+            sha = str(commit.id)
+            reachable.add(sha)
+            if boundary is None and sha in tags:
+                boundary = commit
+        return reachable, boundary
+
+    def _log_no_boundary(self, changelog_mode: str, git_tag_namespace: str) -> None:
+        """Say why a mixed mode walks the commit history: there is no tag below HEAD."""
+        if (Path(self.repo.path) / "shallow").exists():
+            log.error(
+                "%s: no tag in %s below HEAD, but the repository is shallow, so a tag may be "
+                "out of reach and the release number counted from the truncated history may be "
+                "too low; walking the commit history",
+                changelog_mode,
+                git_tag_namespace,
+            )
+        else:
+            log.warning(
+                "%s: no tag in %s below HEAD, walking the commit history",
+                changelog_mode,
+                git_tag_namespace,
+            )
+
+    @staticmethod
+    def _stop_releases(tags: dict, base: int) -> dict[str, int]:
+        """The release number of the commit after each tagged commit, where the walk stops.
+
+        That is the release after the tag, but not below the base.
+
+        :param tags: the tagged commits, see get_tags_for_namespace()
+        :param base: the base release of the spec file
+        :return: dict mapping the hex sha of each tagged commit to the release counted from it
+        """
+        return {
+            sha: max(max(int(nvr.release) for nvr in nvrs) + 1 - base, 0)
+            for sha, nvrs in tags.items()
+        }
+
+    def _run_mixed(
+        self,
+        head: pygit2.Commit,
+        git_tag_namespace: str,
+        changelog_mode: str,
+        changelog_use_highest_release_tag: bool = False,
+    ) -> Optional[dict[str, Any]]:
+        """Compute release and changelog walking the history down to the first tagged commit.
+
+        The commits above the newest tagged ancestor get one changelog entry each and a release
+        counted from that tag's release, as the history walk does. From the tagged commit down
+        the mode without the ``mixed-`` prefix takes over.
+
+        :param head: the HEAD commit
+        :param git_tag_namespace: the namespace to filter tags on
+        :param changelog_mode: "mixed-accumulated" or "mixed-tagged-only"
+        :param changelog_use_highest_release_tag: pick highest vs lowest release per commit
+        :return: result dict, or None to fall through to the normal walk
+        """
+        strict_mode = changelog_mode.removeprefix("mixed-")
+        tags = self.get_tags_for_namespace(git_tag_namespace)
+
+        if str(head.id) in tags:
+            # HEAD is rebuilt, there is nothing above the tag to walk.
+            return self._run_tagged(
+                head, git_tag_namespace, strict_mode, changelog_use_highest_release_tag
+            )
+
+        verflags = self._get_rpmverflags(self.path, name=self.name)
+        if "error" in verflags:
+            # The parse error itself was logged while reading the spec file.
+            log.warning(
+                "%s: the spec file could not be parsed, walking the commit history", changelog_mode
+            )
+            return None
+
+        reachable, boundary = self._find_boundary(head, tags)
+        if boundary is None:
+            self._log_no_boundary(changelog_mode, git_tag_namespace)
+            return None
+
+        # The walk ends at every tagged commit and continues counting from its highest tag
+        with self._stopping_at(self._stop_releases(tags, _base_release(verflags))):
+            walked = self._run_on_history(
+                head, visitors=[self.release_number_visitor, self.changelog_visitor]
+            )[head]
+
+        if strict_mode == "tagged-only":
+            tag_entries = self._changelog_from_tags(
+                git_tag_namespace,
+                use_highest_release_tag=changelog_use_highest_release_tag,
+                reachable=reachable,
+            )
+        else:
+            tag_entries = self._changelog_accumulated(
+                git_tag_namespace,
+                head,
+                verflags,
+                walked["release-number"],
+                use_highest_release_tag=changelog_use_highest_release_tag,
+                start=boundary,
+                reachable=reachable,
+            )
+
+        # Sort chronologically to prevent rpmbuild errors
+        changelog = self._newest_first((*walked.get("changelog", ()), *tag_entries))
+
+        return {
+            **self._head_result(head, verflags, walked["release-number"]),
+            "changelog": tuple(changelog),
+        }
+
     def run(
         self,
         head: Optional[Union[str, pygit2.Commit]] = None,
@@ -1077,10 +1397,24 @@ class PkgHistoryProcessor:
         visitors: Sequence = (),
         all_results: bool = False,
         git_tag_namespace: Optional[str] = None,
-        changelog_mode: str = "accumulated",
-        changelog_use_highest_release_tag: bool = False,
+        changelog_mode: Optional[str] = None,
+        changelog_use_highest_release_tag: Optional[bool] = None,
     ) -> Union[dict[str, Any], dict[pygit2.Commit, dict[str, Any]]]:
-        """Process a package repository including a changed worktree."""
+        """Process a package repository including a changed worktree.
+
+        :param git_tag_namespace: if set, derive the release and changelog from git tags in this
+            namespace
+        :param changelog_mode: one of CHANGELOG_MODES, None for the default
+            (accumulated with a git tag namespace, walk otherwise)
+        :param changelog_use_highest_release_tag: pick highest vs lowest release per commit
+        """
+        changelog_mode, changelog_use_highest_release_tag = self._resolve_changelog_options(
+            self._get_changelog_flags(),
+            git_tag_namespace,
+            changelog_mode,
+            changelog_use_highest_release_tag,
+        )
+
         # whether or not the worktree differs and this needs to be reflected in the result(s)
         reflect_worktree = False
 
@@ -1099,12 +1433,15 @@ class PkgHistoryProcessor:
             elif isinstance(head, str):
                 head = self.repo[head]
 
-            if git_tag_namespace:
+            if changelog_mode in TAG_CHANGELOG_MODES:
                 # If git tags are available use them instead of naive-reading the repo
                 # We *do* actually support dirty worktree since make sources target may
                 # have done some weird manipulation (e.g. multi-version unified git repos)
                 # Note: this does mean such packages *must* use git tags.
-                head_result = self._run_tagged(
+                tagged_run = (
+                    self._run_mixed if changelog_mode.startswith("mixed-") else self._run_tagged
+                )
+                head_result = tagged_run(
                     head,
                     git_tag_namespace,
                     changelog_mode=changelog_mode,
@@ -1186,9 +1523,7 @@ class PkgHistoryProcessor:
         # Sort results chronologically to prevent rpmbuild errors
         result = worktree_result if reflect_worktree else head_result
         if "changelog" in result:
-            result["changelog"] = tuple(
-                sorted(result["changelog"], key=lambda e: e["timestamp"], reverse=True)
-            )
+            result["changelog"] = tuple(self._newest_first(result["changelog"]))
 
         if all_results:
             return visited_results

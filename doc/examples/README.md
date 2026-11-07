@@ -27,5 +27,5 @@ tags rendered in each mode and are included in the
 
 * `changelog-tagged-only.txt`: one entry per tagged commit (`--changelog-mode tagged-only`).
 * `changelog-accumulated.txt`: each release also captures the commits made since the previous
-  release tag, attributed to their authors (`--changelog-mode accumulated`, the default mode).
+  release tag, attributed to their authors (`--changelog-mode accumulated`, the default with `--git-tag-namespace`).
 

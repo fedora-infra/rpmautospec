@@ -5,6 +5,7 @@ from typing import Any, Optional
 import click
 
 from ..exc import SpecParseFailure
+from ..pkg_history import CHANGELOG_MODES, TAG_CHANGELOG_MODES
 from ..subcommands.changelog import do_generate_changelog
 from ..subcommands.convert import (
     FileModifiedError,
@@ -50,17 +51,24 @@ log = logging.getLogger(__name__)
 )
 @click.option(
     "--changelog-mode",
-    type=click.Choice(["accumulated", "tagged-only"], case_sensitive=False),
-    default="accumulated",
-    help="Changelog mode when using --git-tag-namespace: 'accumulated' groups commits between tags,"
-    + " 'tagged-only' includes only tagged commits",
-    show_default=True,
+    type=click.Choice(
+        CHANGELOG_MODES,
+        case_sensitive=False,
+    ),
+    default=None,
+    help="How to generate the changelog: 'walk' follows the commit history, 'accumulated' groups"
+    + " commits between git tags, 'tagged-only' includes only tagged commits, the 'mixed-' modes"
+    + " walk the commits above the first tagged one and continue as the mode without prefix."
+    + " Default: walk, or accumulated with --git-tag-namespace. Every mode but 'walk' needs"
+    + " --git-tag-namespace. '%autochangelog -m' in the spec file overrides this.",
 )
 @click.option(
-    "--changelog-use-highest-release-tag",
-    is_flag=True,
-    default=False,
-    help="Use the highest release tag per commit in changelog (default: lowest/first release)",
+    "--changelog-duplicate-tag",
+    type=click.Choice(["lowest", "highest"], case_sensitive=False),
+    default=None,
+    help="Which release tag to show for a commit that has several (with --git-tag-namespace)."
+    + " Default: lowest; 'highest' needs --git-tag-namespace. '%autochangelog -d' in the spec file"
+    + " overrides this.",
 )
 @click.pass_context
 def cli(
@@ -69,8 +77,8 @@ def cli(
     log_level: Optional[int],
     error_on_unparseable_spec: bool,
     git_tag_namespace: Optional[str],
-    changelog_mode: str,
-    changelog_use_highest_release_tag: bool,
+    changelog_mode: Optional[str],
+    changelog_duplicate_tag: Optional[str],
 ):
     locale.setlocale(locale.LC_ALL, "")
 
@@ -80,17 +88,17 @@ def cli(
     ctx.obj["error_on_unparseable_spec"] = error_on_unparseable_spec
     ctx.obj["git_tag_namespace"] = git_tag_namespace
     ctx.obj["changelog_mode"] = changelog_mode
-    ctx.obj["changelog_use_highest_release_tag"] = changelog_use_highest_release_tag
+    ctx.obj["changelog_use_highest_release_tag"] = (
+        None if changelog_duplicate_tag is None else changelog_duplicate_tag == "highest"
+    )
 
     setup_logging(log_level=log_level or logging.INFO)
 
-    if not git_tag_namespace and (
-        changelog_mode != "accumulated" or changelog_use_highest_release_tag
-    ):
-        log.warning(
-            "--changelog-mode and --changelog-use-highest-release-tag"
-            " have no effect without --git-tag-namespace. Ignoring..."
-        )
+    if not git_tag_namespace:
+        if changelog_mode in TAG_CHANGELOG_MODES:
+            raise click.UsageError(f"--changelog-mode {changelog_mode} needs --git-tag-namespace")
+        if changelog_duplicate_tag == "highest":
+            raise click.UsageError("--changelog-duplicate-tag highest needs --git-tag-namespace")
 
 
 # Subcommands

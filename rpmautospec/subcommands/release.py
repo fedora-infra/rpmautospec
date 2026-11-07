@@ -45,6 +45,7 @@ def do_calculate_release_number(
     spec_or_path: Union[str, Path],
     *,
     error_on_unparseable_spec: bool = True,
+    git_tag_namespace: Optional[str] = None,
 ) -> int:
     """Calculate release number of a package.
 
@@ -54,8 +55,13 @@ def do_calculate_release_number(
     :param spec_or_path: The spec file or directory it is located in.
     :param error_on_unparseable_spec: Whether or not failure at parsing
         the current spec file should raise an exception.
+    :param git_tag_namespace: If set, derive release from git tags in this namespace. Needed if
+        the spec file asks for tags with ``%autochangelog -m`` or ``-d highest``.
     :return: the release number
     """
     return do_calculate_release(
-        spec_or_path, complete_release=False, error_on_unparseable_spec=error_on_unparseable_spec
+        spec_or_path,
+        complete_release=False,
+        error_on_unparseable_spec=error_on_unparseable_spec,
+        git_tag_namespace=git_tag_namespace,
     )

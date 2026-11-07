@@ -8,11 +8,15 @@ import sys
 from abc import ABC
 from tempfile import NamedTemporaryFile
 
-from rpmautospec_core import AUTORELEASE_MACRO
+from rpmautospec_core import AUTOCHANGELOG_MACRO, AUTORELEASE_MACRO
 
 from .compat import rpm
 
 AUTORELEASE_DEFINITION = "E%{?-e*}_S%{?-s*}_P%{?-p:1}%{!?-p:0}_B%{?-b*}"
+
+# The options of %autochangelog are read from the spec file text. The macro takes them and expands
+# to nothing, so that rpm does not leave them as text in %changelog and log an error.
+AUTOCHANGELOG_DEFINITION = "%nil"
 
 PYTHON_VERSION = str(sys.version_info[0]) + "." + str(sys.version_info[1])
 
@@ -49,7 +53,7 @@ class RPMSpecParser(SpecParser):
         rpm.addMacro("_invalid_encoding_terminates_build", "0")
         # rpm.addMacro() doesn’t work for parametrized macros
         rpm.expandMacro(f"%define {AUTORELEASE_MACRO} {AUTORELEASE_DEFINITION}")
-        rpm.addMacro("autochangelog", "%nil")
+        rpm.expandMacro(f"%define {AUTOCHANGELOG_MACRO} {AUTOCHANGELOG_DEFINITION}")
         rpm.addMacro("dist", "")
         rpm.addMacro("__python", f"/usr/bin/python{PYTHON_VERSION}")
         rpm.addMacro("python_sitelib", f"/usr/lib/python{PYTHON_VERSION}/site-packages")
@@ -99,9 +103,12 @@ def _create_norpm_classes() -> None:  # pragma: has-norpm
             self.registry = system_macro_registry()
             self.registry.known_norpm_hacks()
             self.registry["dist"] = ""
-            name, params = AUTORELEASE_MACRO.split("(")
-            params = params.rstrip(")")
-            self.registry.define(name, (AUTORELEASE_DEFINITION, params))
+            for macro, definition in (
+                (AUTORELEASE_MACRO, AUTORELEASE_DEFINITION),
+                (AUTOCHANGELOG_MACRO, AUTOCHANGELOG_DEFINITION),
+            ):
+                name, params = macro.split("(")
+                self.registry.define(name, (definition, params.rstrip(")")))
 
         def query(self, _path, specfilename) -> tuple[str, str]:
             registry = copy.deepcopy(self.registry)

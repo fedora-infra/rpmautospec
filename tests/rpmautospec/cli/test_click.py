@@ -1,3 +1,4 @@
+import itertools
 import logging
 from shutil import SpecialFileError
 from unittest import mock
@@ -47,17 +48,70 @@ def test_cli(cli_runner):
     setup_logging.assert_called_with(log_level=logging.INFO)
 
 
-def test_cli_warns_changelog_options_without_namespace(cli_runner):
-    """Warn when changelog options set without --git-tag-namespace."""
+@pytest.mark.parametrize(
+    "mode, duplicate, namespace",
+    itertools.product(
+        (None, "walk", "accumulated", "tagged-only", "mixed-accumulated", "mixed-tagged-only"),
+        (None, "lowest", "highest"),
+        (None, "fedora/f44"),
+    ),
+)
+def test_mode_option_matrix(mode, duplicate, namespace, cli_runner):
+    """Every combination of the changelog options is handed on, or rejected without a namespace."""
+    seen = {}
 
-    @cli_click.cli.command(name="noop", hidden=True)
-    def noop():
-        pass
+    @cli_click.cli.command(name="capture", hidden=True)
+    @cli_click.click.pass_obj
+    def capture(obj):
+        seen.update(obj)
 
-    with mock.patch.object(cli_click, "log") as mock_log:
-        result = cli_runner.invoke(cli_click.cli, ["--changelog-mode", "tagged-only", "noop"])
+    args = []
+    if namespace:
+        args += ["--git-tag-namespace", namespace]
+    if mode:
+        args += ["--changelog-mode", mode]
+    if duplicate:
+        args += ["--changelog-duplicate-tag", duplicate]
+
+    result = cli_runner.invoke(cli_click.cli, [*args, "capture"])
+
+    if not namespace and mode not in (None, "walk"):
+        # Asking for tags without a namespace is a mistake, not something to ignore
+        assert result.exit_code == 2
+        assert f"--changelog-mode {mode} needs --git-tag-namespace" in result.stderr
+        assert not seen
+    elif not namespace and duplicate == "highest":
+        assert result.exit_code == 2
+        assert "--changelog-duplicate-tag highest needs --git-tag-namespace" in result.stderr
+        assert not seen
+    else:
+        assert result.exit_code == 0
+        assert seen["git_tag_namespace"] == namespace
+        assert seen["changelog_mode"] == mode
+        assert (
+            seen["changelog_use_highest_release_tag"]
+            == {
+                None: None,
+                "lowest": False,
+                "highest": True,
+            }[duplicate]
+        )
+
+
+def test_changelog_options_help(cli_runner):
+    """The help states the defaults and that the spec file overrides the options."""
+    result = cli_runner.invoke(cli_click.cli, ["--help"])
+
     assert result.exit_code == 0
-    mock_log.warning.assert_called_once()
+    help_text = " ".join(result.stdout.split())
+    assert (
+        "--changelog-mode [walk|accumulated|tagged-only|mixed-accumulated|mixed-tagged-only]"
+        in help_text
+    )
+    assert "--changelog-duplicate-tag [lowest|highest]" in help_text
+    assert "Default: walk, or accumulated with --git-tag-" in help_text
+    assert "Default: lowest" in help_text
+    assert "%autochangelog -m" in help_text and "%autochangelog -d" in help_text
 
 
 @pytest.mark.parametrize("testcase", ("success", "specfile-parse-failure"))
@@ -73,8 +127,8 @@ def test_generate_changelog(testcase, cli_runner):
             "pager": pager_sentinel,
             "error_on_unparseable_spec": error_on_unparseable_spec_sentinel,
             "git_tag_namespace": None,
-            "changelog_mode": "accumulated",
-            "changelog_use_highest_release_tag": False,
+            "changelog_mode": None,
+            "changelog_use_highest_release_tag": None,
         }
 
         if "specfile-parse-failure" in testcase:
@@ -86,8 +140,8 @@ def test_generate_changelog(testcase, cli_runner):
             "some_path",
             error_on_unparseable_spec=error_on_unparseable_spec_sentinel,
             git_tag_namespace=None,
-            changelog_mode="accumulated",
-            changelog_use_highest_release_tag=False,
+            changelog_mode=None,
+            changelog_use_highest_release_tag=None,
         )
 
         if "success" in testcase:
@@ -223,8 +277,8 @@ def test_process_distgit(testcase, tmp_path, locale, cli_runner):
     ctx_obj = {
         "error_on_unparseable_spec": object(),
         "git_tag_namespace": None,
-        "changelog_mode": "accumulated",
-        "changelog_use_highest_release_tag": False,
+        "changelog_mode": None,
+        "changelog_use_highest_release_tag": None,
     }
 
     if override_locale:
@@ -265,8 +319,8 @@ def test_calculate_release(testcase, cli_runner):
     ctx_obj = {
         "error_on_unparseable_spec": object(),
         "git_tag_namespace": None,
-        "changelog_mode": "accumulated",
-        "changelog_use_highest_release_tag": False,
+        "changelog_mode": None,
+        "changelog_use_highest_release_tag": None,
     }
 
     with mock.patch.object(cli_click, "do_calculate_release") as do_calculate_release:

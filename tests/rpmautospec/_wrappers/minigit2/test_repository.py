@@ -8,6 +8,7 @@ import pytest
 from rpmautospec._wrappers.minigit2.blob import Blob
 from rpmautospec._wrappers.minigit2.commit import Commit
 from rpmautospec._wrappers.minigit2.config import Config
+from rpmautospec._wrappers.minigit2.enums import SortMode
 from rpmautospec._wrappers.minigit2.exc import GitError, InvalidSpecError
 from rpmautospec._wrappers.minigit2.index import Index
 from rpmautospec._wrappers.minigit2.native_adaptation import (
@@ -246,6 +247,11 @@ class TestRepository:
             assert all(isinstance(c, Commit) for c in commits)
         else:
             assert len(commits) == 0
+
+    def test_walk_sorted(self, repo: Repository) -> None:
+        revwalk = repo.walk(repo.head.target, SortMode.TOPOLOGICAL | SortMode.TIME)
+
+        assert [c.id for c in revwalk] == [repo.head.target]
 
     def test_config(self, repo: Repository) -> None:
         assert isinstance(repo.config, Config)

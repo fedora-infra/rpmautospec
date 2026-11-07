@@ -11,6 +11,8 @@ from rpmautospec.compat import rpm
 from rpmautospec.exc import SpecParseFailure
 from rpmautospec.subcommands import release
 
+from ...common import create_tagged_repo
+
 __here__ = os.path.dirname(__file__)
 
 
@@ -83,5 +85,63 @@ class TestRelease:
 
             assert result is retval_sentinel
             do_calculate_release.assert_called_once_with(
-                "some.spec", complete_release=False, error_on_unparseable_spec=True
+                "some.spec",
+                complete_release=False,
+                error_on_unparseable_spec=True,
+                git_tag_namespace=None,
             )
+
+    def test_do_calculate_release_number_namespace(self):
+        with mock.patch.object(release, "do_calculate_release") as do_calculate_release:
+            release.do_calculate_release_number("some.spec", git_tag_namespace="fedora/f44")
+
+            do_calculate_release.assert_called_once_with(
+                "some.spec",
+                complete_release=False,
+                error_on_unparseable_spec=True,
+                git_tag_namespace="fedora/f44",
+            )
+
+    @pytest.mark.parametrize("function", ("do_calculate_release", "do_calculate_release_number"))
+    @pytest.mark.parametrize(
+        "autochangelog_opts, namespace, expected",
+        [
+            pytest.param(None, None, 3, id="no-options-walks"),
+            pytest.param(None, "fedora/f44", 4, id="no-options-tags"),
+            pytest.param("-m tagged-only", "fedora/f44", 4, id="mode-with-namespace"),
+            pytest.param("-d highest", "fedora/f44", 4, id="duplicate-with-namespace"),
+            pytest.param("-m mixed-accumulated", "fedora/f44", 4, id="mixed-with-namespace"),
+            pytest.param("-m tagged-only", None, "changelog-mode-without-namespace", id="mode"),
+            pytest.param(
+                "-d highest", None, "changelog-duplicate-without-namespace", id="duplicate"
+            ),
+            pytest.param(
+                "-m mixed-tagged-only", None, "changelog-mode-without-namespace", id="mixed"
+            ),
+        ],
+    )
+    def test_release_only_with_spec_options(
+        self, tmp_path, function, autochangelog_opts, namespace, expected
+    ):
+        """Options in the spec file that ask for tags need the namespace here, too.
+
+        Without it the number would come from walking the commits, not from the tags the build
+        uses, so this fails like process-distgit does instead of giving a different number.
+        """
+        repo_path, _ = create_tagged_repo(
+            tmp_path,
+            commits=["root", "tagged", "head"],
+            tags=[("fedora/f44/pkg-1.0-3", 1)],
+            autochangelog_opts=autochangelog_opts,
+        )
+        calculate = getattr(release, function)
+        kwargs = {"git_tag_namespace": namespace}
+        if function == "do_calculate_release":
+            kwargs["complete_release"] = False
+
+        if isinstance(expected, str):
+            with pytest.raises(SpecParseFailure) as excinfo:
+                calculate(repo_path, **kwargs)
+            assert excinfo.value.code == expected
+        else:
+            assert calculate(repo_path, **kwargs) == expected

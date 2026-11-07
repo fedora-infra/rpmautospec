@@ -1,7 +1,10 @@
 import datetime as dt
+import itertools
+import logging
 import os
 import re
 import stat
+import subprocess
 from calendar import LocaleTextCalendar
 from contextlib import nullcontext
 from pathlib import Path
@@ -12,6 +15,7 @@ import pytest
 
 from rpmautospec import changelog, pkg_history
 from rpmautospec.compat import pygit2, rpm
+from rpmautospec.exc import SpecParseFailure
 from rpmautospec.specparser import SpecParserError
 
 from ..common import SPEC_FILE_TEMPLATE, create_commit, create_tagged_repo
@@ -2444,3 +2448,764 @@ class TestTagBasedProcessing:
         )
         # "0." prefix (prerelease) + max(tag + 1, base) + ".rc1" (extraver)
         assert result["release-complete"] == expected
+
+
+SPEC_WITH_AUTOCHANGELOG = """Name: pkg
+Version: 1.0
+Release: %autorelease
+Summary: Test package
+License: MIT
+
+%description
+Test
+
+%changelog
+{line}
+"""
+
+
+class TestChangelogOptions:
+    """Tests for the -m and -d options of %autochangelog."""
+
+    def _flags(self, tmp_path, line):
+        repo_path = tmp_path / "pkg"
+        repo_path.mkdir(exist_ok=True)
+        (repo_path / "pkg.spec").write_text(SPEC_WITH_AUTOCHANGELOG.format(line=line))
+        return pkg_history.PkgHistoryProcessor(repo_path)._get_changelog_flags()
+
+    @pytest.mark.parametrize(
+        "line, mode, duplicate",
+        [
+            ("%autochangelog", None, None),
+            # The value may be attached to the option like rpm's getopt allows
+            ("%autochangelog -mtagged-only -dhighest", "tagged-only", "highest"),
+            # No options in the braced forms
+            ("%{autochangelog}", None, None),
+            ("%{?autochangelog}", None, None),
+            # rpm passes no arguments if no whitespace follows the macro name
+            ("%autochangelog%{nil} -m tagged-only", None, None),
+            ("%autochangelog,-m tagged-only", None, None),
+            ("%{autochangelog }", None, None),
+            # A brace ends the arguments, what follows it is not part of them
+            ("%{autochangelog -m tagged-only}tail", "tagged-only", None),
+            ("%{autochangelog -m tagged-only -d highest} -m accumulated", "tagged-only", "highest"),
+            # Not %autochangelog at all
+            ("%autochangelogx -m tagged-only", None, None),
+            ("%{autochangelogx -m tagged-only}", None, None),
+            ("%%autochangelog -m tagged-only", None, None),
+        ],
+    )
+    def test_get_changelog_flags_matrix(self, tmp_path, line, mode, duplicate):
+        assert self._flags(tmp_path, line) == {"mode": mode, "duplicate": duplicate}
+
+    # The modes %autochangelog -m takes, listed here and not taken from the code.
+    MODES = ("walk", "accumulated", "tagged-only", "mixed-accumulated", "mixed-tagged-only")
+
+    # Every option string %autochangelog takes: none, -m and -d alone, and both in either order. The
+    # same for every spelling of the macro.
+    OPTION_STRINGS = (
+        ("", None, None),
+        *((f"-m {mode}", mode, None) for mode in MODES),
+        *((f"-d {duplicate}", None, duplicate) for duplicate in ("lowest", "highest")),
+        *(
+            (f"{first} {second}", mode, duplicate)
+            for mode in MODES
+            for duplicate in ("lowest", "highest")
+            for first, second in (
+                (f"-m {mode}", f"-d {duplicate}"),
+                (f"-d {duplicate}", f"-m {mode}"),
+            )
+        ),
+    )
+
+    @pytest.mark.parametrize("options, mode, duplicate", OPTION_STRINGS)
+    @pytest.mark.parametrize(
+        "template",
+        ("%autochangelog {}", "%{{autochangelog {}}}", "%{{?autochangelog {}}}"),
+        ids=("bare", "braced", "braced-conditional"),
+    )
+    def test_get_changelog_flags_spellings(self, tmp_path, template, options, mode, duplicate):
+        """The braced spelling takes the options like the bare one, rpm drops them in %{?...}."""
+        line = template.format(options)
+        if template.startswith("%{{?") and options:
+            with pytest.raises(
+                SpecParseFailure, match=r"ignored by rpm in %\{\?autochangelog"
+            ) as exc:
+                self._flags(tmp_path, line)
+            assert exc.value.code == "changelog-option-invalid"
+        else:
+            assert self._flags(tmp_path, line) == {"mode": mode, "duplicate": duplicate}
+
+    @pytest.mark.parametrize(
+        "separator",
+        ["\x0b", "\x0c", "\x1c", "\x1d", "\x1e", "\x85", "\u2028", "\u2029", "\r", "\r\n"],
+    )
+    def test_get_changelog_flags_line_breaks_before_autochangelog(self, tmp_path, separator):
+        """Line breaks other than newline count as lines only to str.splitlines()."""
+        repo_path = tmp_path / "pkg"
+        repo_path.mkdir()
+        spec = SPEC_WITH_AUTOCHANGELOG.format(line="%autochangelog -m tagged-only -d highest")
+        # A lone \r or \r\n is a line break for the spec file reader too, the others are not,
+        # either way the %autochangelog line must be found.
+        (repo_path / "pkg.spec").write_bytes(
+            spec.replace("Summary: Test package", f"Summary: Test{separator}package").encode()
+        )
+
+        flags = pkg_history.PkgHistoryProcessor(repo_path)._get_changelog_flags()
+
+        assert flags == {"mode": "tagged-only", "duplicate": "highest"}
+
+    @pytest.mark.parametrize("options, mode, duplicate", OPTION_STRINGS)
+    @pytest.mark.parametrize(
+        "template",
+        ("foo {}", "{} foo", "{} # note", "# {}", "- {}", "{} -- foo"),
+        ids=("word-before", "word-after", "comment-after", "comment-before", "dash-before", "end"),
+    )
+    def test_get_changelog_flags_ignored_words(self, tmp_path, template, options, mode, duplicate):
+        """Words that are not options are ignored, as rpm does for the macro's option list."""
+        line = "%autochangelog " + template.format(options)
+        assert self._flags(tmp_path, line) == {"mode": mode, "duplicate": duplicate}
+
+    @pytest.mark.parametrize(
+        "words, mode, duplicate",
+        [
+            # Output of rpm --eval with autochangelog(m:d:) printing %{-m*} and %{-d*}
+            ("-m tagged-only foo -d highest", "tagged-only", "highest"),
+            ("-m tagged-only # -d highest", "tagged-only", "highest"),
+            ("# note -m tagged-only", "tagged-only", None),
+            ("-- -m tagged-only", None, None),
+            ("-m tagged-only -- -d highest", "tagged-only", None),
+            ("-- foo -m tagged-only", None, None),
+            ("-d highest -d lowest foo", None, "lowest"),
+            ("-m tagged-only -m accumulated", "accumulated", None),
+            ("-", None, None),
+            ("\\-m tagged-only", None, None),
+            ("-mtagged-only -dhighest foo", "tagged-only", "highest"),
+        ],
+    )
+    def test_get_changelog_flags_rpm_semantics(self, tmp_path, words, mode, duplicate):
+        assert self._flags(tmp_path, "%autochangelog " + words) == {
+            "mode": mode,
+            "duplicate": duplicate,
+        }
+
+    @pytest.mark.parametrize(
+        "lines, mode, duplicate",
+        [
+            pytest.param(
+                "%if 0\n%autochangelog -m tagged-only\n%endif\n%autochangelog -m accumulated",
+                "tagged-only",
+                None,
+                id="inside-if-0",
+            ),
+            pytest.param(
+                "%autochangelog -m accumulated\n%autochangelog -m tagged-only -d highest",
+                "accumulated",
+                None,
+                id="two-lines",
+            ),
+            pytest.param(
+                "%autochangelog -m accumulated\n%autochangelog -x", "accumulated", None, id="unread"
+            ),
+        ],
+    )
+    def test_get_changelog_flags_first_line_wins(self, tmp_path, lines, mode, duplicate):
+        """Only the first %autochangelog line is read and conditionals are not evaluated."""
+        assert self._flags(tmp_path, lines) == {"mode": mode, "duplicate": duplicate}
+
+    def test_get_changelog_flags_without_autochangelog(self, tmp_path):
+        repo_path = tmp_path / "pkg"
+        repo_path.mkdir()
+        specfile = repo_path / "pkg.spec"
+        specfile.write_text("Name: pkg\nVersion: 1.0\nRelease: %autorelease\n%changelog\n")
+        processor = pkg_history.PkgHistoryProcessor(repo_path)
+
+        assert processor._get_changelog_flags() == {"mode": None, "duplicate": None}
+
+        # Also if the spec file is gone from the worktree
+        specfile.unlink()
+        assert processor._get_changelog_flags() == {"mode": None, "duplicate": None}
+
+    @pytest.mark.parametrize(
+        "line, message",
+        [
+            (
+                "%autochangelog -m Walk",
+                "Invalid value 'Walk' for -m .* walk, accumulated, tagged-only, "
+                "mixed-accumulated, mixed-tagged-only",
+            ),
+            ("%autochangelog -m", "Invalid value '' for -m"),
+            ("%autochangelog -m foo", "Invalid value 'foo' for -m"),
+            ("%autochangelog -d middle", "Invalid value 'middle' for -d .* lowest, highest"),
+            ("%autochangelog -x y", "Unknown option '-x' .* allowed are -m and -d"),
+            ("%autochangelog -m accumulated -z", "Unknown option '-z'"),
+            ("%{autochangelog -m foo}", "Invalid value 'foo' for -m"),
+            ("%{autochangelog -x y}", "Unknown option '-x'"),
+            ("%autochangelog -m -d", "Invalid value '-d' for -m"),
+            ("%autochangelog -m -d highest", "Invalid value '-d' for -m"),
+            ("%autochangelog -md", "Invalid value 'd' for -m"),
+            ("%autochangelog --foo", "Unknown option '--foo'"),
+            ("%autochangelog -m tagged-only -d", "Invalid value '' for -d"),
+            ("%autochangelog -m 'tagged-only'", "Invalid value \"'tagged-only'\" for -m"),
+            ("%autochangelog -m=tagged-only", "Invalid value '=tagged-only' for -m"),
+            ("%autochangelog -m %{lit}", "Invalid value '%{lit}' for -m"),
+        ],
+    )
+    def test_get_changelog_flags_invalid(self, tmp_path, line, message):
+        with pytest.raises(SpecParseFailure, match=message) as excinfo:
+            self._flags(tmp_path, line)
+        assert excinfo.value.code == "changelog-option-invalid"
+
+    @staticmethod
+    def _expected_options(spec_mode, arg_mode, namespace, spec_duplicate, arg_duplicate):
+        """The documented precedence, written out independently of the implementation.
+
+        :return: (mode, highest, warnings), or (exception class, error code) if the spec file asks
+            for tags without a namespace; arguments that do only give warnings
+        """
+        mode = spec_mode or arg_mode
+        highest = spec_duplicate == "highest" if spec_duplicate else bool(arg_duplicate)
+        if namespace:
+            return mode or "accumulated", highest, []
+        if spec_mode and spec_mode != "walk":
+            return SpecParseFailure, "changelog-mode-without-namespace"
+        if spec_duplicate == "highest":
+            return SpecParseFailure, "changelog-duplicate-without-namespace"
+        warnings = []
+        if mode not in (None, "walk"):
+            warnings.append(f"Changelog mode {mode} needs a git tag namespace, walking the history")
+        if highest:
+            warnings.append("The highest release tag needs a git tag namespace, ignoring it")
+        return "walk", False, warnings
+
+    @pytest.mark.parametrize(
+        "spec_mode, arg_mode, namespace, spec_duplicate, arg_duplicate",
+        itertools.product(
+            (None, "walk", "accumulated", "tagged-only", "mixed-accumulated", "mixed-tagged-only"),
+            (None, "walk", "accumulated", "tagged-only", "mixed-accumulated", "mixed-tagged-only"),
+            (None, "fedora/f44"),
+            (None, "lowest", "highest"),
+            (None, False, True),
+        ),
+    )
+    def test_resolve_changelog_options(
+        self, caplog, spec_mode, arg_mode, namespace, spec_duplicate, arg_duplicate
+    ):
+        flags = {"mode": spec_mode, "duplicate": spec_duplicate}
+        expected = self._expected_options(
+            spec_mode, arg_mode, namespace, spec_duplicate, arg_duplicate
+        )
+        resolve = pkg_history.PkgHistoryProcessor._resolve_changelog_options
+
+        if isinstance(expected[0], type):
+            exception, code = expected
+            with pytest.raises(exception, match="needs a git tag namespace") as excinfo:
+                resolve(flags, namespace, arg_mode, arg_duplicate)
+            assert excinfo.value.code == code
+        else:
+            mode, highest, warnings = expected
+            with caplog.at_level(logging.WARNING):
+                assert resolve(flags, namespace, arg_mode, arg_duplicate) == (mode, highest)
+            assert [record.getMessage() for record in caplog.records] == warnings
+
+    def test_resolve_changelog_options_unknown_mode(self):
+        flags = {"mode": None, "duplicate": None}
+        with pytest.raises(ValueError, match="Unknown changelog mode 'foo'.*walk, accumulated"):
+            pkg_history.PkgHistoryProcessor._resolve_changelog_options(
+                flags, "fedora/f44", "foo", None
+            )
+
+    COMMITS = ["first", "second", "third", "fourth"]
+    TAGS = [("fedora/f44/pkg-1.0-1", 0), ("fedora/f44/pkg-1.0-2", 0), ("fedora/f44/pkg-1.0-3", 2)]
+
+    def _run(
+        self, tmp_path, label, base=None, namespace="fedora/f44", autochangelog_opts=None, **kwargs
+    ):
+        """Run on a repo with tags and return the release number and (release, log) per entry."""
+        workdir = tmp_path / label
+        workdir.mkdir()
+        repo_path, _ = create_tagged_repo(
+            workdir,
+            commits=self.COMMITS,
+            tags=self.TAGS,
+            base=base,
+            autochangelog_opts=autochangelog_opts,
+        )
+        processor = pkg_history.PkgHistoryProcessor(repo_path)
+        result = processor.run(
+            visitors=[processor.release_number_visitor, processor.changelog_visitor],
+            git_tag_namespace=namespace,
+            **kwargs,
+        )
+        return result["release-number"], [
+            (entry["release-complete"], entry["commitlog"]) for entry in result["changelog"]
+        ]
+
+    @pytest.mark.parametrize("mode", ["walk", "accumulated", "tagged-only"])
+    @pytest.mark.parametrize("duplicate", ["lowest", "highest"])
+    def test_run_spec_changelog_mode(self, tmp_path, mode, duplicate):
+        """Options in the spec file give the changelog the arguments give for a plain spec."""
+        from_spec = self._run(tmp_path, "spec", autochangelog_opts=f"-m {mode} -d {duplicate}")
+        from_arguments = self._run(
+            tmp_path,
+            "args",
+            changelog_mode=mode,
+            changelog_use_highest_release_tag=duplicate == "highest",
+        )
+
+        assert from_spec == from_arguments
+
+    @pytest.mark.parametrize("mode", ["accumulated", "tagged-only"])
+    @pytest.mark.parametrize("duplicate", ["lowest", "highest"])
+    @pytest.mark.parametrize("base", [None, 5])
+    def test_release_unaffected_by_changelog_options(self, tmp_path, mode, duplicate, base):
+        """The release number is the same with every option of %autochangelog."""
+        plain, _ = self._run(tmp_path, "plain", base=base)
+        with_options, _ = self._run(
+            tmp_path, "options", base=base, autochangelog_opts=f"-m {mode} -d {duplicate}"
+        )
+
+        # The next release is the one after tag 3, or the base if that is higher.
+        assert with_options == plain == max(4, base or 1) - ((base or 1) - 1)
+
+    @pytest.mark.parametrize(
+        "version, tag_version, expected",
+        [
+            # The tag holds the version with = for ~ and , for ^, the release goes on from it.
+            ("1.0~rc1", "1.0=rc1", 4),
+            ("1.0^20240101git", "1.0,20240101git", 4),
+            ("1.0~rc1^snap", "1.0=rc1,snap", 4),
+            # A tag of another version does not count for this one.
+            ("1.0~rc1", "1.0", 1),
+            ("1.0~rc1", "1.0,rc1", 1),
+            ("1.0_1", "1.0_1", 4),
+            ("1.0_1", "1.0=1", 1),
+        ],
+    )
+    def test_run_tag_with_encoded_version(self, tmp_path, version, tag_version, expected):
+        """Versions with ~ or ^ are found in the tags that git can hold them in."""
+        repo_path, _ = create_tagged_repo(
+            tmp_path,
+            version=version,
+            commits=["first", "second", "third"],
+            tags=[(f"fedora/f44/pkg-{tag_version}-3", 1)],
+        )
+        processor = pkg_history.PkgHistoryProcessor(repo_path)
+
+        result = processor.run(
+            visitors=[processor.release_number_visitor], git_tag_namespace="fedora/f44"
+        )
+
+        assert result["release-number"] == expected
+
+    def test_run_spec_mode_overrides_argument(self, tmp_path):
+        """The spec file wins over the arguments, which are defaults set by the caller."""
+        from_spec = self._run(
+            tmp_path,
+            "spec",
+            autochangelog_opts="-m tagged-only -d highest",
+            changelog_mode="accumulated",
+            changelog_use_highest_release_tag=False,
+        )
+        from_arguments = self._run(
+            tmp_path,
+            "args",
+            changelog_mode="tagged-only",
+            changelog_use_highest_release_tag=True,
+        )
+
+        assert from_spec == from_arguments
+
+    def test_run_spec_mode_requires_namespace(self, tmp_path):
+        with pytest.raises(SpecParseFailure, match="needs a git tag namespace"):
+            self._run(tmp_path, "spec", autochangelog_opts="-m tagged-only", namespace=None)
+
+    def test_run_argument_mode_without_namespace_walks(self, tmp_path, caplog):
+        """Arguments that ask for tags without a namespace are ignored with a warning."""
+        with caplog.at_level(logging.WARNING):
+            result = self._run(
+                tmp_path,
+                "args",
+                namespace=None,
+                changelog_mode="tagged-only",
+                changelog_use_highest_release_tag=True,
+            )
+
+        assert result == self._run(tmp_path, "plain", namespace=None)
+        assert [record.getMessage() for record in caplog.records] == [
+            "Changelog mode tagged-only needs a git tag namespace, walking the history",
+            "The highest release tag needs a git tag namespace, ignoring it",
+        ]
+
+    def test_run_walk_with_namespace(self, tmp_path):
+        """ "walk" ignores the tags, like having no namespace."""
+        assert self._run(tmp_path, "walk", changelog_mode="walk") == self._run(
+            tmp_path, "nonamespace", namespace=None
+        )
+
+    def test_run_spec_duplicate_highest(self, tmp_path):
+        """Two tags on the commit: the changelog shows the lowest or highest one."""
+        lowest = self._run(tmp_path, "lowest", changelog_mode="tagged-only")
+        highest = self._run(tmp_path, "highest", autochangelog_opts="-m tagged-only -d highest")
+
+        # tags 1 and 2 on the first commit, tag 3 on the third, the fourth is the next release
+        assert [release for release, _ in lowest[1]] == ["4", "3", "1"]
+        assert [release for release, _ in highest[1]] == ["4", "3", "2"]
+
+
+class TestMixedMode:
+    """Tests for the mixed-accumulated and mixed-tagged-only modes."""
+
+    NAMESPACE = "fedora/f44"
+    MODES = ("mixed-accumulated", "mixed-tagged-only")
+
+    def _repo(
+        self,
+        tmp_path,
+        label,
+        above=4,
+        base=None,
+        newer_mainline=False,
+        tags=(("fedora/f44/pkg-1.0-3", 1),),
+        release_value=None,
+    ):
+        """A repo with a root commit, a commit tagged pkg-1.0-3 and `above` commits on top.
+
+        With `newer_mainline`, another branch off the tagged commit has the tag pkg-1.0-4.
+        """
+        workdir = tmp_path / label
+        workdir.mkdir()
+        commits = ["root", "tagged"] + [f"side {i}" for i in range(1, above + 1)]
+        repo_path, oids = create_tagged_repo(
+            workdir, commits=commits, tags=list(tags), base=base, release_value=release_value
+        )
+        if newer_mainline:
+            repo = pygit2.Repository(str(repo_path))
+            signature = pygit2.Signature("Test User", "test@example.com", time=1800000000)
+            mainline = repo.create_commit(
+                "refs/heads/mainline",
+                signature,
+                signature,
+                "mainline",
+                repo[oids[1]].tree.id,
+                [oids[1]],
+            )
+            repo.references.create("refs/tags/fedora/f44/pkg-1.0-4", str(mainline))
+        return repo_path
+
+    def _run(self, repo_path, mode, highest=False, namespace=NAMESPACE):
+        processor = pkg_history.PkgHistoryProcessor(repo_path)
+        return processor.run(
+            visitors=[processor.release_number_visitor, processor.changelog_visitor],
+            git_tag_namespace=namespace,
+            changelog_mode=mode,
+            changelog_use_highest_release_tag=highest,
+        )
+
+    @staticmethod
+    def _releases(result):
+        return [entry["release-complete"] for entry in result["changelog"]]
+
+    @pytest.mark.parametrize("mode", MODES)
+    def test_run_mixed_boundary_is_nearest_tag_despite_clock_skew(self, tmp_path, mode):
+        """The newest tagged ancestor is picked by ancestry, not by an arbitrary walk order.
+
+        pkg-1.0-1 is on p, pkg-1.0-2 on its child q, which is older than p (clock skew). HEAD
+        merges q and x, a second child of p that is newer than q, so a time-ordered walk reaches p
+        before q and would start the changelog at the older tag.
+        """
+        workdir = tmp_path / "skew"
+        workdir.mkdir()
+        repo_path, oids = create_tagged_repo(workdir, commits=["root"], tags=[])
+        repo = pygit2.Repository(str(repo_path))
+        tree_id = repo[oids[0]].tree.id
+
+        def commit(ref, message, parents, timestamp):
+            signature = pygit2.Signature("Test User", "test@example.com", time=timestamp)
+            return repo.create_commit(ref, signature, signature, message, tree_id, parents)
+
+        p = commit(None, "p", [oids[0]], 1700005000)
+        q = commit(None, "q", [p], 1700003000)
+        x = commit(None, "x", [p], 1700005500)
+        commit("refs/heads/main", "head", [q, x], 1700006000)
+        repo.references.create("refs/tags/fedora/f44/pkg-1.0-1", str(p))
+        repo.references.create("refs/tags/fedora/f44/pkg-1.0-2", str(q))
+        repo.set_head("refs/heads/main")
+
+        result = self._run(repo_path, mode)
+
+        assert sorted(self._releases(result)) == ["1", "2"]
+
+    @pytest.mark.parametrize(
+        "newer, accumulated, tagged_only",
+        [
+            pytest.param("b", ["5", "3"], ["5", "3", "2"], id="newer-tag-on-b"),
+            pytest.param("a", ["3", "2"], ["3", "2", "5"], id="newer-tag-on-a"),
+        ],
+    )
+    def test_run_mixed_boundary_two_tagged_branches(
+        self, tmp_path, newer, accumulated, tagged_only
+    ):
+        """Of equally near tagged commits on merged branches, the newest by time starts the tags.
+
+        pkg-1.0-2 is on a1 and pkg-1.0-5 on b1, both children of the root, each with one more
+        commit (a2, b2), and HEAD merges a2 and b2. The branch with the newer commits wins; the
+        accumulated changelog has no tag entry for the other, the tagged-only one lists both.
+        """
+        workdir = tmp_path / "two"
+        workdir.mkdir()
+        repo_path, oids = create_tagged_repo(workdir, commits=["root"], tags=[])
+        repo = pygit2.Repository(str(repo_path))
+        tree_id = repo[oids[0]].tree.id
+        time_a, time_b = (1700003000, 1700002000) if newer == "a" else (1700002000, 1700003000)
+
+        def commit(ref, message, parents, timestamp):
+            signature = pygit2.Signature("Test User", "test@example.com", time=timestamp)
+            return repo.create_commit(ref, signature, signature, message, tree_id, parents)
+
+        a1 = commit(None, "a1", [oids[0]], time_a)
+        a2 = commit(None, "a2", [a1], time_a + 100)
+        b1 = commit(None, "b1", [oids[0]], time_b)
+        b2 = commit(None, "b2", [b1], time_b + 100)
+        commit("refs/heads/main", "merge", [a2, b2], 1700004000)
+        repo.references.create("refs/tags/fedora/f44/pkg-1.0-2", str(a1))
+        repo.references.create("refs/tags/fedora/f44/pkg-1.0-5", str(b1))
+        repo.set_head("refs/heads/main")
+
+        assert self._releases(self._run(repo_path, "mixed-accumulated")) == accumulated
+        assert self._releases(self._run(repo_path, "mixed-tagged-only")) == tagged_only
+
+    @pytest.mark.parametrize("mode", MODES)
+    def test_run_mixed_annotated_tag(self, tmp_path, mode):
+        """An annotated tag is followed to its commit like a lightweight one."""
+        repo_path = self._repo(tmp_path, "pkg", tags=())
+        subprocess.run(
+            ["git", "-c", "user.name=Test User", "-c", "user.email=test@example.com"]
+            + ["tag", "-a", "-m", "release", "fedora/f44/pkg-1.0-3", "HEAD~4"],
+            cwd=repo_path,
+            check=True,
+        )
+
+        result = self._run(repo_path, mode)
+
+        assert result["release-complete"] == "7"
+        assert self._releases(result) == ["7", "6", "5", "4", "3"]
+
+    @pytest.mark.parametrize(
+        "release_value, expected",
+        [
+            pytest.param("%autorelease", "7", id="plain"),
+            pytest.param("3.%{autorelease}", "3.7", id="prefix"),
+            pytest.param("%{autorelease -n}.ABC", "7.ABC", id="suffix"),
+            pytest.param("EPEL.%{autorelease}", "EPEL.7", id="prefix-with-capital-e"),
+            pytest.param("%{autorelease -p -e rc1 -s snap}", "0.7.rc1.snap", id="p-e-s"),
+            pytest.param("%{autorelease -b 5}", "8", id="base"),
+        ],
+    )
+    @pytest.mark.parametrize("mode", MODES)
+    def test_run_mixed_release_shapes(self, tmp_path, mode, release_value, expected):
+        """The release has the shape the spec asks for; four commits follow pkg-1.0-3."""
+        repo_path = self._repo(tmp_path, "pkg", release_value=release_value)
+
+        result = self._run(repo_path, mode)
+
+        assert result["release-complete"] == expected
+
+    @pytest.mark.parametrize("mode", MODES)
+    def test_run_mixed_walks_then_switches(self, tmp_path, mode):
+        """4 commits above pkg-1.0-3: releases 7 to 4, one entry each, then the tag entry."""
+        result = self._run(self._repo(tmp_path, "pkg"), mode)
+
+        assert result["release-complete"] == "7"
+        assert self._releases(result) == ["7", "6", "5", "4", "3"]
+        assert [e["commitlog"] for e in result["changelog"][:4]] == [
+            f"side {i}" for i in (4, 3, 2, 1)
+        ]
+
+    @pytest.mark.parametrize("mode", MODES)
+    def test_run_mixed_release_from_ancestor_tag(self, tmp_path, mode):
+        """A newer tag on another branch doesn't change what the branch continues from."""
+        result = self._run(self._repo(tmp_path, "pkg", newer_mainline=True), mode)
+
+        assert result["release-complete"] == "7"
+        assert self._releases(result) == ["7", "6", "5", "4", "3"]
+
+    def test_run_mixed_tagged_only_lists_reachable_tags(self, tmp_path):
+        repo_path = self._repo(tmp_path, "pkg", newer_mainline=True)
+
+        tagged_only = self._run(repo_path, "mixed-tagged-only")
+        strict = self._run(repo_path, "tagged-only")
+
+        assert all("mainline" not in e["commitlog"] for e in tagged_only["changelog"])
+        assert any("mainline" in e["commitlog"] for e in strict["changelog"])
+
+    @pytest.mark.parametrize("mode", MODES)
+    def test_run_mixed_version_change_resets(self, tmp_path, mode):
+        """A Version change restarts the count, the switch is still at the tag."""
+        repo_path = self._repo(tmp_path, "pkg", above=1)
+        repo = pygit2.Repository(str(repo_path))
+        spec = repo_path / "pkg.spec"
+        spec.write_text(spec.read_text().replace("Version: 1.0", "Version: 1.1"))
+        index = repo.index
+        index.add("pkg.spec")
+        index.write()
+        signature = pygit2.Signature("Test User", "test@example.com", time=1700001000)
+        repo.create_commit(
+            "HEAD", signature, signature, "bump", index.write_tree(), [repo.head.target]
+        )
+
+        result = self._run(repo_path, mode)
+
+        assert result["release-complete"] == "1"
+        assert self._releases(result) == ["1", "4", "3"]
+
+    @pytest.mark.parametrize("mode", MODES)
+    def test_run_mixed_head_tagged_equals_strict(self, tmp_path, mode):
+        """With nothing above the tag, a mixed mode is its strict mode."""
+        repo_path = self._repo(tmp_path, "pkg", above=0)
+
+        mixed = self._run(repo_path, mode)
+        strict = self._run(repo_path, mode.removeprefix("mixed-"))
+
+        assert mixed["release-number"] == strict["release-number"] == 4
+        assert [(e["release-complete"], e["commitlog"]) for e in mixed["changelog"]] == [
+            (e["release-complete"], e["commitlog"]) for e in strict["changelog"]
+        ]
+
+    @pytest.mark.parametrize("mode", MODES)
+    @pytest.mark.parametrize("tagged", ["no-tags", "tag-on-other-branch"])
+    def test_run_mixed_without_tags_walks(self, tmp_path, caplog, mode, tagged):
+        """Without a tagged ancestor the plain history walk takes over, with a warning."""
+        repo_path = self._repo(
+            tmp_path, "pkg", above=2, tags=(), newer_mainline=tagged == "tag-on-other-branch"
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = self._run(repo_path, mode)
+
+        walk = self._run(repo_path, "walk")
+        assert result["release-number"] == walk["release-number"] == 4
+        assert self._releases(result) == self._releases(walk)
+        assert "walking the commit history" in caplog.text
+        assert {record.levelname for record in caplog.records} == {"WARNING"}
+
+    @pytest.mark.parametrize("mode", MODES)
+    def test_run_mixed_unparseable_spec_walks(self, tmp_path, caplog, mode):
+        """A spec file that can't be parsed is named as the reason, not a missing tag."""
+        repo_path = self._repo(tmp_path, "pkg", above=2)
+        processor = pkg_history.PkgHistoryProcessor(repo_path)
+        head = processor.repo[processor.repo.head.target]
+
+        with (
+            mock.patch.object(
+                processor, "_get_rpmverflags", return_value={"error": "specfile-parse-error"}
+            ),
+            caplog.at_level(logging.WARNING),
+        ):
+            result = processor._run_mixed(head, self.NAMESPACE, mode)
+
+        assert result is None
+        assert [(r.levelname, r.getMessage()) for r in caplog.records] == [
+            ("WARNING", f"{mode}: the spec file could not be parsed, walking the commit history")
+        ]
+
+    @pytest.mark.parametrize("mode", MODES)
+    def test_run_mixed_shallow_logs_error(self, tmp_path, caplog, mode):
+        """In a shallow clone a tag out of reach looks like no tag: say so, keep the result."""
+        source = self._repo(tmp_path, "source", above=4)
+        clone = tmp_path / "pkg"
+        git = ["git", "-c", "protocol.file.allow=always"]
+        subprocess.run([*git, "clone", "-q", "--depth", "2", f"file://{source}", clone], check=True)
+        # The tag commit is fetched but the history stays too short to reach it.
+        subprocess.run(
+            [*git, "fetch", "-q", "--depth", "1", "origin", "refs/tags/*:refs/tags/*"],
+            cwd=clone,
+            check=True,
+        )
+        assert (clone / ".git" / "shallow").exists()
+
+        with caplog.at_level(logging.WARNING):
+            result = self._run(clone, mode)
+
+        walk = self._run(clone, "walk")
+        assert result["release-number"] == walk["release-number"] == 2
+        assert self._releases(result) == self._releases(walk)
+        assert [
+            (r.levelname, "repository is shallow" in r.getMessage()) for r in caplog.records
+        ] == [("ERROR", True)]
+
+    def test_run_strict_next_release_after_mixed_branch(self, tmp_path):
+        """Mixed builds write no tags, so mainline still continues at the tag plus one."""
+        repo_path = self._repo(tmp_path, "pkg")
+        repo = pygit2.Repository(str(repo_path))
+        refs_before = sorted(repo.references)
+
+        mixed = self._run(repo_path, "mixed-tagged-only")
+        strict = self._run(repo_path, "tagged-only")
+
+        assert sorted(repo.references) == refs_before
+        assert mixed["release-number"] == 7
+        assert strict["release-number"] == 4
+
+    @pytest.mark.parametrize("mode", MODES)
+    @pytest.mark.parametrize("highest", [False, True])
+    @pytest.mark.parametrize("above", [0, 1, 4])
+    @pytest.mark.parametrize("base", [None, 5])
+    @pytest.mark.parametrize("newer_mainline", [False, True])
+    def test_run_mixed_matrix(self, tmp_path, mode, highest, above, base, newer_mainline):
+        """Every combination has the expected releases and the tag half of its mode."""
+        repo_path = self._repo(
+            tmp_path, "pkg", above=above, base=base, newer_mainline=newer_mainline
+        )
+
+        result = self._run(repo_path, mode, highest=highest)
+
+        if above == 0:
+            # HEAD is the tagged commit, the strict mode decides
+            strict = self._run(repo_path, mode.removeprefix("mixed-"), highest=highest)
+            assert self._releases(result) == self._releases(strict)
+            assert result["release-number"] == strict["release-number"]
+            return
+
+        first = max(3 + 1, base or 1)
+        walked = [str(first + i) for i in reversed(range(above))]
+        assert self._releases(result) == [*walked, "3"]
+        assert result["release-complete"] == walked[0]
+        assert all("mainline" not in e["commitlog"] for e in result["changelog"])
+
+    @pytest.mark.parametrize("mode", MODES)
+    def test_run_mixed_merge_jump_stays_on_reachable_tags(self, tmp_path, mode):
+        """The jump over an unresolvable merge must not land on a tag of another branch."""
+        repo_path = tmp_path / "pkg"
+        repo_path.mkdir()
+        repo = pygit2.init_repository(str(repo_path))
+        spec = repo_path / "pkg.spec"
+        index = repo.index
+
+        def commit(ref, message, time, parents, **spec_kwargs):
+            signature = pygit2.Signature("Test", "test@example.com", time=1700000000 + time)
+            spec.write_text(_make_spec(**spec_kwargs))
+            index.add("pkg.spec")
+            index.write()
+            return repo.create_commit(
+                ref, signature, signature, message, index.write_tree(), parents
+            )
+
+        root = commit("HEAD", "ancestor", 0, [])
+        branch_a = commit(None, "branch A", 100, [root], summary="A", desc="A")
+        branch_b = commit(None, "branch B", 200, [root], summary="B", desc="B")
+        merge = commit(None, "merge", 300, [branch_a, branch_b], summary="M", desc="M")
+        tagged = commit(None, "tagged", 400, [merge], summary="T", desc="T")
+        head = commit(None, "side", 500, [tagged], summary="S", desc="S")
+        elsewhere = commit(None, "elsewhere", 900, [root], summary="X", desc="X")
+        repo.set_head(head)
+        for release, oid in ((1, branch_a), (2, branch_b), (3, tagged), (4, elsewhere)):
+            repo.references.create(f"refs/tags/fedora/f44/pkg-1.0-{release}", oid)
+
+        strict = TestMixedMode._run(self, repo_path, mode.removeprefix("mixed-"))
+        mixed = TestMixedMode._run(self, repo_path, mode)
+
+        # The plain strict mode follows the jump to the newest tag, wherever it is
+        assert any("elsewhere" in e["commitlog"] for e in strict["changelog"])
+        assert all("elsewhere" not in e["commitlog"] for e in mixed["changelog"])
+        assert mixed["release-complete"] == "4"

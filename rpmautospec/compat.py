@@ -16,11 +16,17 @@ else:  # pragma: has-pygit2
     # The pygit2.enums module was introduced partly in 1.13.3 and fully in 1.14.0. Attempt to import
     # the used enum types, so we can monkey-patch them if necessary.
     try:
-        from pygit2.enums import CheckoutStrategy, ConfigLevel, FileStatus, RepositoryOpenFlag
+        from pygit2.enums import (
+            CheckoutStrategy,
+            ConfigLevel,
+            FileStatus,
+            RepositoryOpenFlag,
+            SortMode,
+        )
     except ImportError:  # pragma: no cover
         needs_minimal_pygit2_enums = True
     else:  # pragma: no cover
-        del CheckoutStrategy, ConfigLevel, FileStatus, RepositoryOpenFlag
+        del CheckoutStrategy, ConfigLevel, FileStatus, RepositoryOpenFlag, SortMode
 
 
 needs_minimal_blobio = False
@@ -71,6 +77,10 @@ if not uses_minigit2 and needs_minimal_pygit2_enums:  # pragma: no cover
 
         class RepositoryOpenFlag(IntFlag):
             NO_SEARCH = pygit2.GIT_REPOSITORY_OPEN_NO_SEARCH
+
+        class SortMode(IntFlag):
+            TOPOLOGICAL = pygit2.GIT_SORT_TOPOLOGICAL
+            TIME = pygit2.GIT_SORT_TIME
 
     pygit2.enums = _pygit2_enums
 

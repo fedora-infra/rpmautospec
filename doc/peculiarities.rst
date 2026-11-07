@@ -39,14 +39,12 @@ If the commit history of a package merges branches, rpmautospec can't reliably
 determine which changes contribute to the current state of the package in most
 cases, e.g. in the light of conflicting changes between the merged branches.
 
-There are a few ways rpmautospec will try to resolve merges:
+Besides the exception described below, rpmautospec will try to resolve merges
+in these ways:
 
-1. If the merge commit shares its file tree with one or more parents (e.g.
-   ``git merge --strategy ours``), then rpmautospec will follow the first
-   parent it encounters which has the same tree as the merge commit.
-2. If the changelog was modified in the merge commit, then rpmautospec will
+1. If the changelog was modified in the merge commit, then rpmautospec will
    yield and process the parents before continuing.
-3. If rpmautospec is processing git tags (:ref:`git-tag-mode`) in accumulation
+2. If rpmautospec is processing git tags (:ref:`git-tag-mode`) in ``accumulated``
    mode, then it will jump to the next unvisited release commit and continue
    from there.
 
@@ -62,8 +60,15 @@ added.
 To resolve this manually, take the applicable parts of the changelog from the
 affected branches before the merge and put them in the ``changelog`` file.
 
+The exception to this is a merge commit which shares its file tree with one or
+more parents, which e.g. happens if branches are merged with ``git merge
+--strategy ours``. This merge strategy means that only the file tree of one
+branch is used, disregarding the contents of other branches. In this case,
+rpmautospec will follow the first parent it encounters which has the same tree
+as the merge commit and disregard the others.
+
 .. note::
-    When operating with git tags in tag-only mode, raw commit history is
+    When operating with git tags in ``tagged-only`` mode, raw commit history is
     never processed. If a merge commit is release-tagged, rpmautospec will
     add the merge commit message to the changelog and move to the next tag.
 

@@ -70,6 +70,86 @@ as separate (dashed) changelog entries::
 .. _understood by bodhi: https://fedora-infra.github.io/bodhi/6.0/user/automatic_updates.html#fedora-linux-specific-regex
 
 
+.. _autochangelog-options:
+
+Choosing how the changelog is generated
+---------------------------------------
+
+With ``--git-tag-namespace`` (see :ref:`git-tag-mode`), the changelog is built
+from release tags instead of walking the commit history. Packagers choose how
+by adding options to the ``%autochangelog`` line, similar to how
+``%autorelease -b`` sets the base release::
+
+    %changelog
+    %autochangelog -m tagged-only -d highest
+
+* ``-m <mode>``: ``walk`` exactly maps commit history to changelog, 1 entry
+  per commit, and ignores git tags. ``tagged-only`` lists one entry per
+  tagged release, ``accumulated`` folds the commits made between tags into
+  the following release.
+
+* Mixed Mods: ``-m mixed-tagged-only`` and ``-m mixed-accumulated`` are for
+  builds from a branch other than the one the tags were made on such as a
+  feature branch. They walk the commits above the newest tagged commit like
+  ``walk``, one entry per commit, with releases counting up from that tag's
+  release. From the tagged commit down they continue as ``tagged-only`` or
+  ``accumulated``. If ``mypkg-1.2-3`` is tagged and four commits follow it,
+  the four commits get the releases 7, 6, 5 and 4, followed by the entries for
+  3 and older. Only tags reachable from the commit being built are listed.
+  If tagged commits on merged branches are equally near, the newest by commit
+  time is the one the tagged part starts from; ``mixed-accumulated`` lists no
+  tag entries for the others, ``mixed-tagged-only`` lists all of them.
+
+* ``-d <duplicate>``: if a commit carries several release tags, ``lowest``
+  (the default) shows the first release, ``highest`` the last one.
+
+These options take precedence over ``--changelog-mode`` and
+``--changelog-duplicate-tag`` on the command line and over the same arguments
+of the Python API. Without ``-m`` anywhere, ``accumulated`` is used with a git
+tag namespace and the commit history is walked without one.
+
+Some details:
+
+* ``-m`` (except ``walk``) and ``-d highest`` need a git tag namespace. Using
+  them without one is an error in the spec file and with ``--changelog-mode``
+  or ``--changelog-duplicate-tag highest`` on the command line. The same
+  arguments of the Python API are ignored with a warning as callers often pass
+  them on unconditionally. Default behavior is ``walk``. This holds for
+  ``rpmautospec calculate-release`` and ``calculate_release_number()`` as well:
+  a spec file with such options also needs ``--git-tag-namespace`` or
+  ``git_tag_namespace=`` as the number would otherwise come from the commit
+  history and differ from the one the build gets from the tags.
+
+* ``--changelog-mode walk`` / ``-m walk`` follows the commit history even
+  when a namespace is given.
+
+* The line is read the way rpm reads the options of the macro: options may come
+  in any order, a word that is not an option (such as a ``# note``) is ignored,
+  ``--`` ends the options, and the value of an option is the rest of its word or
+  else the next word. Unknown options, missing values and unknown values are
+  errors. Macros in values are not expanded, i.e., ``-m %{mode}`` is an error.
+
+* The options are read from the spec file in the working tree, not from the
+  commit that is built, and from the first ``%autochangelog`` line only. Later
+  lines are not looked at, and conditionals such as ``%if`` are not evaluated,
+  so a line inside ``%if 0`` still counts if it comes first.
+
+* The options go on the ``%autochangelog`` line, bare or in braces like
+  ``%{autochangelog -m tagged-only}``. The ``%{?autochangelog}`` form takes none,
+  rpm drops arguments there so giving it any is an error.
+
+* ``%autorelease`` is not affected by ``tagged-only``, ``accumulated`` and
+  ``-d``, see :ref:`using-autorelease`. Mix modes do change the autorelease
+  number since they count commits after the last tag.
+
+
+* Mixed modes are provided to support iterative development work where tag
+  creation may not be desired. For instance, a feature branch may have 4
+  iterative test builds 4-7 while mainline is still only on release 3.
+  This capability is provided to support these and similar developer actions,
+  Rpmautospec makes no assumptions nor enforces any practices around content
+  releases and/or tag creation.
+
 Skipping changelog entries
 --------------------------
 

@@ -238,16 +238,16 @@ wheels = [
 
 [[package]]
 name = "click"
-version = "8.5.0"
+version = "8.5.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
     "python_full_version == '3.10.*'",
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c7/0e/7fa0ef50764b67090eca4114772a2abf8b6148198475e54c660b97caeee6/click-8.5.0.tar.gz", hash = "sha256:ba0d2089de75ea0310e2dde03160e6ca10009947fb95a182f9b54021bb272e34", size = 382235, upload-time = "2026-08-26T13:33:14.56Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/45/37/edbf1b0707709013c0cf2e8317e03d97ed29bf4cac709fe328904ae92a38/click-8.5.1.tar.gz", hash = "sha256:9bbfada76703fd1d784b83eea012e3e8c6a001a876543ef104fa56aaaeb072b4", size = 399151, upload-time = "2026-11-06T17:37:01.021Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/58/50/6c0d534c5f134586a8e1ba4e330569e32f057e33372ae556463212fb4cd3/click-8.5.0-py3-none-any.whl", hash = "sha256:255bc9599cf7748b4b1a446ccc735421bd08a2ae529a8b88597d3de5664ee360", size = 125251, upload-time = "2026-08-26T13:33:12.928Z" },
+    { url = "https://files.pythonhosted.org/packages/31/7d/164b7ffc8624fe9efb4221bf9af485d5c1e41b9ae118045d2b6dc5457d8b/click-8.5.1-py3-none-any.whl", hash = "sha256:8bb5376d2006950386f8c6427613334a2acadc5f559cb80e638d00b4df957e37", size = 126163, upload-time = "2026-11-06T17:36:59.287Z" },
 ]
 
 [[package]]
@@ -1188,7 +1188,7 @@ dependencies = [
 [package.optional-dependencies]
 all = [
     { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "click", version = "8.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "click", version = "8.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "norpm" },
     { name = "pygit2", version = "1.15.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pygit2", version = "1.18.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
@@ -1197,7 +1197,7 @@ all = [
 ]
 click = [
     { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "click", version = "8.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "click", version = "8.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 norpm = [
     { name = "norpm" },
@@ -1214,7 +1214,7 @@ rpm = [
 [package.dev-dependencies]
 dev = [
     { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "click", version = "8.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "click", version = "8.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "coverage", version = "7.10.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "coverage", version = "7.16.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
     { name = "coverage", version = "7.17.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -1289,11 +1289,11 @@ test = [
 
 [[package]]
 name = "rpmautospec-core"
-version = "0.2.0"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/db/29/5f8c98ce001fe7f09808059f55a2c534e9bd9d97599aaebd168d3b11fea7/rpmautospec_core-0.2.0.tar.gz", hash = "sha256:bb2f0e8c2cc9b9f8129399fca81abe361423111913b114b366286711a4787597", size = 9181, upload-time = "2026-07-28T11:43:41.848Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/41/5f/9d02069851f9fadeff6a1658ecf80b878c238544a15aabea71c911f9d4b6/rpmautospec_core-0.3.0.tar.gz", hash = "sha256:e0cb919a523d0edabd445553f6fdbeb6f474eae099ae0e36298decf36905a893", size = 9134, upload-time = "2026-10-30T11:46:12.493Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e8/30/8e71f9176cc025b7baf3798c14cb5b0d73f9cbed023e17ce8d8c71227ab0/rpmautospec_core-0.2.0-py3-none-any.whl", hash = "sha256:20168fbb019bf22cfcf35fa11b43345663c82e2d6452eea337e7ecb14c79b085", size = 5144, upload-time = "2026-07-28T11:43:42.665Z" },
+    { url = "https://files.pythonhosted.org/packages/55/1e/0b1eeb506546106f1e98e8ffdbf69d7e8c8243b0b6bb5aa4ddb2cd68f220/rpmautospec_core-0.3.0-py3-none-any.whl", hash = "sha256:372f975b7bbfd277d155f70081cabf29ad501cce092404d0201e5f15f24fc927", size = 5124, upload-time = "2026-10-30T11:46:09.97Z" },
 ]
 
 [[package]]

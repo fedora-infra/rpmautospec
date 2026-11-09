@@ -40,3 +40,8 @@ class FileStatus(IntFlag):
 
 class RepositoryOpenFlag(IntFlag):
     NO_SEARCH = native_adaptation.git_repository_open_flag_t.NO_SEARCH
+
+
+class SortMode(IntFlag):
+    TOPOLOGICAL = native_adaptation.git_sort_t.TOPOLOGICAL
+    TIME = native_adaptation.git_sort_t.TIME

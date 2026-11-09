@@ -5,6 +5,7 @@ from typing import Any, Optional
 import click
 
 from ..exc import SpecParseFailure
+from ..pkg_history import CHANGELOG_MODES, TAG_CHANGELOG_MODES
 from ..subcommands.changelog import do_generate_changelog
 from ..subcommands.convert import (
     FileModifiedError,
@@ -42,16 +43,62 @@ log = logging.getLogger(__name__)
     help="Throw an error if the current version of the spec file can’t be parsed",
     show_default=True,
 )
+@click.option(
+    "--git-tag-namespace",
+    default=None,
+    help="Namespace for git tagged N-V-Rs to use for release number and changelog generation"
+    + " (e.g. 'fedora/f44')",
+)
+@click.option(
+    "--changelog-mode",
+    type=click.Choice(
+        CHANGELOG_MODES,
+        case_sensitive=False,
+    ),
+    default=None,
+    help="How to generate the changelog: 'walk' follows the commit history, 'accumulated' groups"
+    + " commits between git tags, 'tagged-only' includes only tagged commits, the 'mixed-' modes"
+    + " walk the commits above the first tagged one and continue as the mode without prefix."
+    + " Default: walk, or accumulated with --git-tag-namespace. Every mode but 'walk' needs"
+    + " --git-tag-namespace. '%autochangelog -m' in the spec file overrides this.",
+)
+@click.option(
+    "--changelog-duplicate-tag",
+    type=click.Choice(["lowest", "highest"], case_sensitive=False),
+    default=None,
+    help="Which release tag to show for a commit that has several (with --git-tag-namespace)."
+    + " Default: lowest; 'highest' needs --git-tag-namespace. '%autochangelog -d' in the spec file"
+    + " overrides this.",
+)
 @click.pass_context
-def cli(ctx: click.Context, pager: bool, log_level: Optional[int], error_on_unparseable_spec: bool):
+def cli(
+    ctx: click.Context,
+    pager: bool,
+    log_level: Optional[int],
+    error_on_unparseable_spec: bool,
+    git_tag_namespace: Optional[str],
+    changelog_mode: Optional[str],
+    changelog_duplicate_tag: Optional[str],
+):
     locale.setlocale(locale.LC_ALL, "")
 
     ctx.ensure_object(dict)
     ctx.obj["pager"] = pager
     ctx.obj["log_level"] = log_level
     ctx.obj["error_on_unparseable_spec"] = error_on_unparseable_spec
+    ctx.obj["git_tag_namespace"] = git_tag_namespace
+    ctx.obj["changelog_mode"] = changelog_mode
+    ctx.obj["changelog_use_highest_release_tag"] = (
+        None if changelog_duplicate_tag is None else changelog_duplicate_tag == "highest"
+    )
 
     setup_logging(log_level=log_level or logging.INFO)
+
+    if not git_tag_namespace:
+        if changelog_mode in TAG_CHANGELOG_MODES:
+            raise click.UsageError(f"--changelog-mode {changelog_mode} needs --git-tag-namespace")
+        if changelog_duplicate_tag == "highest":
+            raise click.UsageError("--changelog-duplicate-tag highest needs --git-tag-namespace")
 
 
 # Subcommands
@@ -65,7 +112,11 @@ def generate_changelog(obj: dict[str, Any], spec_or_path: str) -> None:
     """Generate changelog entries from git commit logs"""
     try:
         changelog = do_generate_changelog(
-            spec_or_path, error_on_unparseable_spec=obj["error_on_unparseable_spec"]
+            spec_or_path,
+            error_on_unparseable_spec=obj["error_on_unparseable_spec"],
+            git_tag_namespace=obj["git_tag_namespace"],
+            changelog_mode=obj["changelog_mode"],
+            changelog_use_highest_release_tag=obj["changelog_use_highest_release_tag"],
         )
     except SpecParseFailure as exc:
         raise click.ClickException(exc.args[0]) from exc
@@ -148,7 +199,12 @@ def process_distgit(obj: dict[str, Any], spec_or_path: str, target: str) -> None
     """Work repository history and commit logs into a spec file"""
     try:
         do_process_distgit(
-            spec_or_path, target, error_on_unparseable_spec=obj["error_on_unparseable_spec"]
+            spec_or_path,
+            target,
+            error_on_unparseable_spec=obj["error_on_unparseable_spec"],
+            git_tag_namespace=obj["git_tag_namespace"],
+            changelog_mode=obj["changelog_mode"],
+            changelog_use_highest_release_tag=obj["changelog_use_highest_release_tag"],
         )
     except SpecParseFailure as exc:
         raise click.ClickException(exc.args[0]) from exc
@@ -173,6 +229,7 @@ def calculate_release(obj: dict[str, Any], complete_release: bool, spec_or_path:
             spec_or_path,
             complete_release=complete_release,
             error_on_unparseable_spec=obj["error_on_unparseable_spec"],
+            git_tag_namespace=obj["git_tag_namespace"],
         )
     except SpecParseFailure as exc:
         raise click.ClickException(exc.args[0]) from exc

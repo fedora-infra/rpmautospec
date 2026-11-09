@@ -24,11 +24,22 @@ the different portions of the release field:
   For instance, this can be used to keep release numbers on older Fedora releases way lower than on
   newer ones for the same package version.
 
+  In git-tag mode, ``-b`` acts as a floor: the computed release is the greater of the next tag-based
+  release and the base value. This ensures that leapfrogging semantics are preserved even when tags
+  exist.
+
 * ``-n``: Don’t render the dist tag, e.g. for use in macros, if the dist tag is added later.
 
 .. important::
     To date, the ``%autorelease`` parameters are ignored in the headers of automatically generated
     changelog entries.
+
+.. note::
+    How the changelog is generated from git tags (``-m`` and ``-d``) is set on the
+    ``%autochangelog`` macro, see :ref:`autochangelog-options`. ``%autorelease`` is not affected by
+    those options, the release is either counted from the commit history or the highest tagged
+    release plus one. The exception are the "mixed" modes which count the commits above the newest
+    tag.
 
 .. note::
     In the prototype version the macro was named ``%autorel``. To make its purpose more obvious, it is

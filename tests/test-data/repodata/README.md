@@ -2,6 +2,11 @@ The `dummy-test-package-gloster-git.tar.gz` tarball contains a dist-git reposito
 package complete with history. It allows testing code which generates release and changelog fields
 automatically.
 
+**Note:** This fixture pre-dates the newer git tag operation mode and uses a different
+flatter namespace format (e.g., `build/dummy-test-package-gloster-0-0-5.fc32`).
+The newer namespaced tag mode uses `create_tagged_repo` in `tests/common.py` instead.
+This fixture has been left unmodified as it existed before the newer git tags feature.
+
 The condensed history of the package is as follows (from earliest to latest commit):
 
     6675323 Added the README

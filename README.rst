@@ -13,7 +13,7 @@ repository.
 Dependencies:
 
 * Python >= 3.9
-* rpmautospec-core >= 0.1.4
+* rpmautospec-core >= 0.2.0
 
 Installation dependencies:
 
@@ -66,6 +66,57 @@ This will generate the numerical value for the release field from the number of 
 ``Version`` field was last updated::
 
   rpmautospec calculate-release
+
+
+Working from Git Tags
+^^^^^^^^^^^^^^^^^^^^^^
+
+By default, release numbers and changelog entries are derived from raw commit history. As an
+alternative, ``rpmautospec`` can use namespaced git tags that mark previously built releases by
+specifying ``--git-tag-namespace``::
+
+  rpmautospec calculate-release --git-tag-namespace fedora/f44
+  rpmautospec generate-changelog --git-tag-namespace fedora/f44
+
+The release number of the next build is then one greater than the highest tagged release (or the
+base release set with ``%autorelease -b``). The options below only change how the changelog is
+generated, except for ``walk`` and the ``mixed-`` modes, which also change the release number.
+
+Choosing the changelog mode
+"""""""""""""""""""""""""""
+
+``--changelog-mode`` chooses how the changelog is generated. Every mode but ``walk`` needs
+``--git-tag-namespace``:
+
+* ``walk`` (default) exactly follows commit history without considering tags. Each commit generates a changelog entry and Release number on each is the positional commit number (+ base) of the appropriate Epoch-Version.
+* ``accumulated`` (default if ``--git-tag-namespace`` is set) groups in-between commits into the
+  next release entry.
+* ``tagged-only`` only generates entries from explicitly-tagged release commits.
+  ``--git-tag-namespace``, so the release number is counted from the commits as well.
+* ``mixed-accumulated`` and ``mixed-tagged-only`` are for builds from a branch that the release
+  tags were not made on such as a dev or feature branch. They behave like ``walk`` mode past the
+  last matching git tag (using said tag as a base Release number), creating one changelog entry
+  per commit. For anything prior to and including the last matching release tag, ``accumulated``
+  or ``tagged-only`` mode are used.
+
+Commits with several release tags
+"""""""""""""""""""""""""""""""""
+
+A commit can carry more than one release tag, for example after a rebuild without source changes
+or a rollback rebuild on an older commit. ``--changelog-duplicate-tag`` picks the ``lowest``
+(default) or the ``highest`` release for changelog use.  ``highest`` requires
+``--git-tag-namespace``. This functions identically for all changelog modes that use tags.
+
+Setting the options in the spec file
+""""""""""""""""""""""""""""""""""""
+
+Packagers can set both options per package on the ``%autochangelog`` line of the spec file::
+
+  %autochangelog -m tagged-only -d highest
+
+``-m`` takes the modes above, ``-d`` takes ``lowest`` or ``highest``. They override command
+command line options (see the documentation of ``%autochangelog``) so that build systems may
+configure a default that can be modified per-package.
 
 
 The ``rpmautospec`` Python module is not thread/multiprocess-safe

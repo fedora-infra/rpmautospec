@@ -85,3 +85,20 @@ class TestRelease:
             do_calculate_release.assert_called_once_with(
                 "some.spec", complete_release=False, error_on_unparseable_spec=True
             )
+
+    @pytest.mark.parametrize("z_base", (None, 0, 3), ids=("none", "zero", "nonzero"))
+    def test_do_calculate_release_number_and_z_base(self, z_base):
+        with mock.patch.object(
+            release, "_run_release_number_visitor_full"
+        ) as _run_release_number_visitor_full:
+            _run_release_number_visitor_full.return_value = {
+                "release-number": 11,
+                "z-base": z_base,
+            }
+
+            result = release.do_calculate_release_number_and_z_base("some.spec")
+
+            assert result == (11, z_base or 0)
+            _run_release_number_visitor_full.assert_called_once_with(
+                "some.spec", error_on_unparseable_spec=True
+            )

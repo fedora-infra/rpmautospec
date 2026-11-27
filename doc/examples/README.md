@@ -10,6 +10,9 @@ portions of the release field, as described in the [Versioning
 Guidelines](https://docs.fedoraproject.org/en-US/packaging-guidelines/Versioning/#_simple_versioning):
 
 * `-b <baserelease>`: Allows specifying a custom base release number (i.e. other than 1).
+* `-z`: Freezes the release number achieved so far and starts counting a second, separate number
+  from the commit where `-z` is first used onward, with the dist tag placed in between, e.g.
+  `3%{?dist}.1`, `3%{?dist}.2`, …
 
 For compatiblity with "traditional versioning", `%autorelease` accepts `-p`, `-e <extraver>` and  `-s <snapinfo>`.
 See [Traditional Versioning](https://fedora-infra.github.io/rpmautospec-docs/autorelease.html#traditional-versioning-with-part-of-the-upstream-version-information-in-the-release-field)

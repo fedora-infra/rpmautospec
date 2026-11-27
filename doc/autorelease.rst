@@ -26,6 +26,20 @@ the different portions of the release field:
 
 * ``-n``: Don’t render the dist tag, e.g. for use in macros, if the dist tag is added later.
 
+* ``-z``: Freeze the release number achieved so far into ``<pkgrel>`` and append a second,
+  separate number that counts up from 1 from the commit where ``-z`` is first used onward as the
+  ``<minorbump>`` of the release field format shown above. Everything else keeps its usual place:
+  ``-b``/``-p``/``-e``/``-s`` (see above and below) still apply to the frozen ``<pkgrel>``, never
+  to the ``<minorbump>`` counter, and the dist tag (unless ``-n`` is also given) still directly
+  follows ``<pkgrel>``, same as without ``-z``. For example, instead of a plain progression of
+  ``3%{?dist}``, ``4%{?dist}``, ``5%{?dist}``, …, using ``-z`` from the fourth commit onward
+  produces ``3%{?dist}.1``, ``3%{?dist}.2``, ….
+  This is intended for cases that need "microbumps"
+  without bumping the overall release number each time, such as RHEL Z-stream.
+  Dropping ``-z`` again does not resume counting where the frozen number left off;
+  the plain release number simply continues increasing with every commit
+  (``6%{?dist}`` in the example above), as if ``-z`` had never been used.
+
 .. important::
     To date, the ``%autorelease`` parameters are ignored in the headers of automatically generated
     changelog entries.
@@ -54,6 +68,12 @@ seamlessly.
 You don’t have to undo this later, when the version changes, the release will be reset to 1 (or the
 value specified by ``%autorelease -b …``).
 
+While ``-z`` (see above) is in use, ``[bump release: <number>]`` applies to the frozen ``<pkgrel>``
+part instead, the same "before-the-dist" portion ``-b`` applies to, and never to the ``<minorbump>``
+counter after it. It persists for the rest of that ``-z`` run the same way it would for the plain
+release number, but has no effect on the plain release number itself: once ``-z`` is dropped again,
+the release number simply continues from where it would have been without the bump.
+
 Examples
 ========
 
@@ -81,6 +101,36 @@ Example: The Custom Base Release Case
 Will generate the following NEVR::
 
     test-autorelease-baserelease-1.0-100.fc34.x86_64
+
+
+.. _freeze example:
+
+Example: The Freeze (``-z``) Case
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. literalinclude:: examples/test-autorelease-z.spec
+   :language: spec
+
+Will generate the following NEVR::
+
+    test-autorelease-z-1.0-0.fc34.1.x86_64
+
+The ``0`` right after ``1.0-`` is the frozen release number, filling the ``<pkgrel>`` slot
+(there was nothing to freeze yet, since there were no commits before adding ``-z``, hence ``0``),
+the dist tag ``fc34`` follows it directly, same as without ``-z``,
+and the ``1`` after that is the ``<minorbump>``, the separate, second number ``-z`` starts counting
+from 1. A later rebuild would produce ``...-0.fc34.2...``, and so on, until ``-z`` is dropped again.
+
+Combined with ``-b``/``-p``/``-e``/``-s`` (see above and below), those still apply to the frozen
+``<pkgrel>``, never to the ``<minorbump>`` counter, e.g. ``%autorelease -z -p`` would produce
+``0.0.fc34.1`` (the extra ``0.`` prefix marking a pre-release of ``0``), and ``%autorelease -z -b
+100`` would produce ``99.fc34.1`` (the base shifts ``<pkgrel>`` from ``0`` to ``99``, the
+``<minorbump>`` count of ``1`` is unaffected).
+
+``-e``/``-s`` are inserted right after ``<pkgrel>``, before the dist tag, same as without ``-z``,
+with ``<minorbump>`` still tacked on at the very end. For example, ``%autorelease -z -e rc1`` would
+produce ``0.rc1.fc34.1``: ``0`` is the frozen ``<pkgrel>``, ``rc1`` the extraver right after it,
+``fc34`` the dist tag, and the final ``1`` the ``<minorbump>`` count.
 
 
 .. _traditional_versioning:
